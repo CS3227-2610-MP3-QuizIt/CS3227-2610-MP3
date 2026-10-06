@@ -2,7 +2,7 @@
 
 This specification defines a class quiz app for students, teachers, and administrators. Teachers turn DOCX notes into an AI generated quiz, review and reprompt the draft, and publish it. Students answer the published quiz and can request hints. Administrators manage accounts and classes and request an AI summary after every assigned student submits.
 
-The frontend uses TypeScript, React 19, Tailwind CSS, and Vite. The backend uses Python, FastAPI, and SQLite. **Every AI request must go through SoCLaaS.** This is an implementation specification; no app has been built by these documents.
+The frontend uses TypeScript, React 19, Tailwind CSS, and Vite. The backend uses Python 3.14, FastAPI, and SQLite. **Every AI request must go through SoCLaaS.** This is an implementation specification; no app has been built by these documents.
 
 The supplied [SoCLaaS reference](../backend/soclaas-docs.md) is the authority for the gateway contract. The [assignment brief](../assignment-brief.md) supplies the requirements for AI security, separate development and production environments, and a spec driven development process. Product behavior and numeric limits below are proposed application defaults, not claims about the gateway's configured quotas.
 
