@@ -24,13 +24,13 @@ The assignment requires a custom spec-driven process and basic multi-agent softw
 
 Use the assignment's `src/` convention for application source when scaffolding:
 
-- `src/frontend/`: TypeScript, React 19, Tailwind CSS, and Vite. Keep role screens separate; share typed API access, authentication, and UI components.
-- `src/backend/`: Python, FastAPI, and SQLite. Separate routes and schemas from domain services, AI integration, task management, and persistence.
+- `frontend/`: TypeScript, React 19, Tailwind CSS, and Vite. Keep role screens separate; share typed API access, authentication, and UI components.
+- `backend/`: Python, FastAPI, and SQLite. Separate routes and schemas from domain services, AI integration, task management, and persistence.
 - `workflow/`: development workflow instructions, scripts, and evidence.
 - `docs/UserGuide.md`, `docs/DeveloperGuide.md`, `docs/Reflections.md`: required documentation matching the delivered product.
 - `logs/`: verified development interaction summaries.
 
-Existing top-level `backend/` and `frontend/` are preliminary folders, not an established application layout. Document actual dependency installation, development, build, and test commands once scaffolding exists; do not claim nonexistent commands or checks work.
+Treat `backend/` and `frontend/` as standalone folders. Instructions to install and run the backend are to be executed when in `backend/`.
 
 ## Product invariants
 
