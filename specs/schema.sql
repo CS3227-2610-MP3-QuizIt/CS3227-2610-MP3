@@ -123,19 +123,51 @@ CREATE TABLE attempt_answers (
     FOREIGN KEY (question_id, quiz_id) REFERENCES quiz_questions(id, quiz_id)
 );
 
--- Only admitted AI operations get an idempotency record. Result JSON contains
--- the role-specific success response or normalized error, never provider secrets.
-CREATE TABLE ai_requests (
-    id TEXT NOT NULL PRIMARY KEY,
-    actor_id INTEGER NOT NULL REFERENCES users(id),
+-- Durable targets provide latest-task identity and per-target ordering.
+-- The circular latest-task reference is populated only after inserting its task
+-- in the same admission transaction. A null latest pointer has version zero.
+CREATE TABLE ai_targets (
+    id INTEGER PRIMARY KEY,
     feature TEXT NOT NULL CHECK (feature IN ('quiz_generation', 'hint', 'summary')),
     quiz_id INTEGER NOT NULL REFERENCES quizzes(id),
     attempt_id INTEGER,
     question_id INTEGER,
+    version INTEGER NOT NULL DEFAULT 0 CHECK (version >= 0),
+    latest_request_id TEXT,
+    FOREIGN KEY (attempt_id, quiz_id) REFERENCES quiz_attempts(id, quiz_id),
+    FOREIGN KEY (question_id, quiz_id) REFERENCES quiz_questions(id, quiz_id),
+    FOREIGN KEY (latest_request_id, id) REFERENCES ai_requests(id, target_id),
+    CHECK (
+        (feature IN ('quiz_generation', 'summary')
+            AND attempt_id IS NULL AND question_id IS NULL) OR
+        (feature = 'hint' AND attempt_id IS NOT NULL AND question_id IS NOT NULL)
+    ),
+    CHECK (
+        (version = 0 AND latest_request_id IS NULL) OR
+        (version > 0 AND latest_request_id IS NOT NULL)
+    )
+);
+CREATE UNIQUE INDEX uq_generation_target ON ai_targets(quiz_id)
+    WHERE feature = 'quiz_generation';
+CREATE UNIQUE INDEX uq_summary_target ON ai_targets(quiz_id)
+    WHERE feature = 'summary';
+CREATE UNIQUE INDEX uq_hint_target ON ai_targets(attempt_id, question_id)
+    WHERE feature = 'hint';
+
+-- Database rows are the durable queue. Immutable input supports restart dispatch;
+-- bounded private provider output supports completion without a second AI call.
+-- State/result/version changes and latest pointers must commit atomically.
+CREATE TABLE ai_requests (
+    id TEXT NOT NULL PRIMARY KEY,
+    target_id INTEGER NOT NULL REFERENCES ai_targets(id),
+    actor_id INTEGER NOT NULL REFERENCES users(id),
     expected_revision INTEGER CHECK (expected_revision >= 0),
-    idempotency_key TEXT NOT NULL,
-    request_hash TEXT NOT NULL,
-    status TEXT NOT NULL CHECK (status IN ('running', 'succeeded', 'failed')),
+    status TEXT NOT NULL CHECK (
+        status IN ('queued', 'running', 'output_ready', 'succeeded', 'failed')
+    ),
+    state_version INTEGER NOT NULL CHECK (state_version > 0),
+    input_json TEXT NOT NULL,
+    provider_output_json TEXT,
     model_id TEXT NOT NULL,
     input_tokens INTEGER CHECK (input_tokens >= 0),
     output_tokens INTEGER CHECK (output_tokens >= 0),
@@ -145,36 +177,50 @@ CREATE TABLE ai_requests (
     http_status INTEGER,
     response_json TEXT,
     created_at TEXT NOT NULL,
+    deadline_at TEXT NOT NULL,
+    started_at TEXT,
+    output_ready_at TEXT,
     finished_at TEXT,
-    UNIQUE (actor_id, idempotency_key),
-    FOREIGN KEY (attempt_id, quiz_id) REFERENCES quiz_attempts(id, quiz_id),
-    FOREIGN KEY (question_id, quiz_id) REFERENCES quiz_questions(id, quiz_id),
+    UNIQUE (id, target_id),
     CHECK (
-        (feature = 'quiz_generation' AND expected_revision IS NOT NULL
-            AND attempt_id IS NULL AND question_id IS NULL) OR
-        (feature = 'hint' AND expected_revision IS NULL
-            AND attempt_id IS NOT NULL AND question_id IS NOT NULL) OR
-        (feature = 'summary' AND expected_revision IS NULL
-            AND attempt_id IS NULL AND question_id IS NULL)
-    ),
-    CHECK (
-        (status = 'running' AND finished_at IS NULL AND error_code IS NULL
+        (status IN ('queued', 'running', 'output_ready')
+            AND finished_at IS NULL AND error_code IS NULL
             AND http_status IS NULL AND response_json IS NULL) OR
         (status = 'succeeded' AND finished_at IS NOT NULL AND error_code IS NULL
-            AND http_status IS NOT NULL AND http_status = 200
+            AND http_status = 200 AND http_status IS NOT NULL
             AND response_json IS NOT NULL) OR
         (status = 'failed' AND finished_at IS NOT NULL AND error_code IS NOT NULL
             AND http_status IS NOT NULL AND http_status BETWEEN 400 AND 599
             AND response_json IS NOT NULL)
+    ),
+    CHECK (
+        (status = 'queued' AND started_at IS NULL
+            AND provider_output_json IS NULL AND output_ready_at IS NULL) OR
+        (status = 'running' AND started_at IS NOT NULL
+            AND provider_output_json IS NULL AND output_ready_at IS NULL) OR
+        (status IN ('output_ready', 'succeeded') AND started_at IS NOT NULL
+            AND provider_output_json IS NOT NULL AND output_ready_at IS NOT NULL) OR
+        status = 'failed'
     )
 );
 CREATE INDEX idx_ai_requests_actor_time ON ai_requests(actor_id, created_at);
-CREATE UNIQUE INDEX uq_running_generation ON ai_requests(quiz_id)
-    WHERE feature = 'quiz_generation' AND status = 'running';
-CREATE UNIQUE INDEX uq_running_summary ON ai_requests(quiz_id)
-    WHERE feature = 'summary' AND status = 'running';
-CREATE UNIQUE INDEX uq_running_hint ON ai_requests(attempt_id, question_id)
-    WHERE feature = 'hint' AND status = 'running';
+CREATE INDEX idx_ai_requests_dispatch ON ai_requests(status, created_at, id);
+CREATE INDEX idx_ai_requests_deadline ON ai_requests(status, deadline_at);
+CREATE UNIQUE INDEX uq_unfinished_target ON ai_requests(target_id)
+    WHERE status IN ('queued', 'running', 'output_ready');
+
+-- Accepted calls that reuse work still bind their key to that existing task.
+-- Multiple users/keys may refer to one shared summary task. Admission rejections
+-- create no binding. Method, route, and canonical body/action are in request_hash.
+CREATE TABLE ai_operation_keys (
+    actor_id INTEGER NOT NULL REFERENCES users(id),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    ai_request_id TEXT NOT NULL REFERENCES ai_requests(id),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (actor_id, idempotency_key)
+);
+CREATE INDEX idx_ai_operation_keys_task ON ai_operation_keys(ai_request_id);
 
 CREATE TABLE hints (
     id INTEGER PRIMARY KEY,
@@ -187,10 +233,13 @@ CREATE TABLE hints (
     ai_request_id TEXT NOT NULL UNIQUE REFERENCES ai_requests(id),
     created_at TEXT NOT NULL,
     FOREIGN KEY (attempt_id, quiz_id) REFERENCES quiz_attempts(id, quiz_id),
-    FOREIGN KEY (question_id, quiz_id) REFERENCES quiz_questions(id, quiz_id),
-    UNIQUE (attempt_id, question_id, prompt_hash)
+    FOREIGN KEY (question_id, quiz_id) REFERENCES quiz_questions(id, quiz_id)
 );
+CREATE INDEX idx_hints_allowance ON hints(attempt_id, question_id);
 
+-- One currently applied successful summary; explicit regeneration replaces it.
+-- Older normalized results remain in ai_requests.response_json. Latest target
+-- state determines UI success/failure even if this row holds an older success.
 CREATE TABLE quiz_summaries (
     quiz_id INTEGER PRIMARY KEY REFERENCES quizzes(id),
     requested_by INTEGER NOT NULL REFERENCES users(id),
@@ -200,6 +249,10 @@ CREATE TABLE quiz_summaries (
     created_at TEXT NOT NULL
 );
 
--- Backend transactions enforce the remaining business rules listed in
--- Specification.md: roles, permissions, published content immutability,
--- exact question count, allowed state transitions and summary eligibility.
+-- Backend BEGIN IMMEDIATE transactions enforce the remaining specification:
+-- roles, immutable snapshots, matching feature/target/result references,
+-- expected_revision present only for generation, at most 10 unfinished tasks,
+-- monotonic versions, valid state transitions and deadline handling, atomic
+-- result/terminal-state application, hint allowance, and summary eligibility.
+-- Conditional claims/completions must check affected rows; provider I/O must
+-- never occur inside these transactions. This schema is not a migration runner.

@@ -83,11 +83,15 @@ Example response:
       "owned_by": "soclaas",
       "context_length": 65536,
       "context_window": 65536,
-      "max_context_tokens": 65536,
+      "max_context_length": 65536,
       "max_model_len": 65536,
       "soclaas": {
         "display_name": "Llama 3.1 8B",
-        "description": "General-purpose internal chat model."
+        "description": "Capable small-model experimentation",
+        "capabilities": ["chat"],
+        "input_microdollars_per_million_tokens": 74250,
+        "output_microdollars_per_million_tokens": 86750,
+        "audio_microdollars_per_minute": 0
       }
     }
   ]
@@ -99,6 +103,31 @@ Notes:
 - Standard OpenAI-style model fields are preserved.
 - SoCLaaS-specific catalog metadata is namespaced under `soclaas`.
 - `soclaas.display_name` and `soclaas.description` may be blank if operators have not set them.
+
+#### Verified model catalog
+
+On 2026-10-06, an authenticated `curl` request to `https://soclaas-api.comp.nus.edu.sg/v1/models` returned `HTTP 200` with 16 model entries. This snapshot reflects the models visible to the provided API key; availability and metadata may change. Refresh it with `GET /v1/models` when needed.
+
+| Model ID | Display name | Capability | Context tokens | Alias of |
+| --- | --- | --- | ---: | --- |
+| `bge-m3` | bge-m3 | `embeddings` | 131,072 | — |
+| `gemma4:26b` | Gemma 4 26B | `chat` | 131,072 | — |
+| `llama3.1:8b` | Llama 3.1 8B | `chat` | 65,536 | — |
+| `ornith1.5:35b` | Ornith 1.5 35B A3B | `chat` | 262,144 | — |
+| `qwen3.5:9b` | Qwen 3.5 9B | `chat` | 65,536 | — |
+| `qwen3.6:35b` | Qwen 3.6 35B A3B | `chat` | 262,144 | — |
+| `qwen3.8:27b` | Qwen 3.8 27B | `chat` | 262,144 | — |
+| `qwen3-coder-next` | Qwen 3 Coder Next 80B A3B | `chat` | 262,144 | — |
+| `qwen3-vl:32b` | Qwen 3 VL 32B | `chat` | 80,000 | — |
+| `whisper-large-v3` | Whisper Large v3 | `audio-transcription` | 131,072 | — |
+| `x-test-1` | Testing GLM 5.3 Flash | `chat` | 1,048,576 | — |
+| `coder` | Qwen 3.8 27B | `chat` | 262,144 | `qwen3.8:27b` |
+| `coding` | Qwen 3.8 27B | `chat` | 262,144 | `qwen3.8:27b` |
+| `default` | Qwen 3.6 35B A3B | `chat` | 262,144 | `qwen3.6:35b` |
+| `ornith1.0:35b` | Ornith 1.5 35B A3B | `chat` | 262,144 | `ornith1.5:35b` |
+| `qwen3.6:27b` | Qwen 3.8 27B | `chat` | 262,144 | `qwen3.8:27b` |
+
+For every returned entry, `context_length`, `context_window`, `max_context_length`, and `max_model_len` have the same value shown above. Alias targets come from `soclaas.alias_of`. The catalog reports only `chat` for the chat models, including models whose descriptions mention vision or multimodal tasks.
 
 ### `POST /v1/chat/completions`
 
