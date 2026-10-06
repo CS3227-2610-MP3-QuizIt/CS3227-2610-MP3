@@ -154,8 +154,8 @@ CREATE UNIQUE INDEX uq_summary_target ON ai_targets(quiz_id)
 CREATE UNIQUE INDEX uq_hint_target ON ai_targets(attempt_id, question_id)
     WHERE feature = 'hint';
 
--- Database rows are the durable queue. Immutable input supports restart dispatch;
--- bounded private provider output supports completion without a second AI call.
+-- Database rows persist operation history and rolling admission timestamps;
+-- they do not schedule or resume work. Restart fails leftover running tasks.
 -- State/result/version changes and latest pointers must commit atomically.
 CREATE TABLE ai_requests (
     id TEXT NOT NULL PRIMARY KEY,
@@ -163,11 +163,10 @@ CREATE TABLE ai_requests (
     actor_id INTEGER NOT NULL REFERENCES users(id),
     expected_revision INTEGER CHECK (expected_revision >= 0),
     status TEXT NOT NULL CHECK (
-        status IN ('queued', 'running', 'output_ready', 'succeeded', 'failed')
+        status IN ('running', 'succeeded', 'failed')
     ),
     state_version INTEGER NOT NULL CHECK (state_version > 0),
     input_json TEXT NOT NULL,
-    provider_output_json TEXT,
     model_id TEXT NOT NULL,
     input_tokens INTEGER CHECK (input_tokens >= 0),
     output_tokens INTEGER CHECK (output_tokens >= 0),
@@ -178,12 +177,11 @@ CREATE TABLE ai_requests (
     response_json TEXT,
     created_at TEXT NOT NULL,
     deadline_at TEXT NOT NULL,
-    started_at TEXT,
-    output_ready_at TEXT,
+    started_at TEXT NOT NULL,
     finished_at TEXT,
     UNIQUE (id, target_id),
     CHECK (
-        (status IN ('queued', 'running', 'output_ready')
+        (status = 'running'
             AND finished_at IS NULL AND error_code IS NULL
             AND http_status IS NULL AND response_json IS NULL) OR
         (status = 'succeeded' AND finished_at IS NOT NULL AND error_code IS NULL
@@ -192,22 +190,13 @@ CREATE TABLE ai_requests (
         (status = 'failed' AND finished_at IS NOT NULL AND error_code IS NOT NULL
             AND http_status IS NOT NULL AND http_status BETWEEN 400 AND 599
             AND response_json IS NOT NULL)
-    ),
-    CHECK (
-        (status = 'queued' AND started_at IS NULL
-            AND provider_output_json IS NULL AND output_ready_at IS NULL) OR
-        (status = 'running' AND started_at IS NOT NULL
-            AND provider_output_json IS NULL AND output_ready_at IS NULL) OR
-        (status IN ('output_ready', 'succeeded') AND started_at IS NOT NULL
-            AND provider_output_json IS NOT NULL AND output_ready_at IS NOT NULL) OR
-        status = 'failed'
     )
 );
 CREATE INDEX idx_ai_requests_actor_time ON ai_requests(actor_id, created_at);
-CREATE INDEX idx_ai_requests_dispatch ON ai_requests(status, created_at, id);
+CREATE INDEX idx_ai_requests_admission_time ON ai_requests(created_at);
 CREATE INDEX idx_ai_requests_deadline ON ai_requests(status, deadline_at);
 CREATE UNIQUE INDEX uq_unfinished_target ON ai_requests(target_id)
-    WHERE status IN ('queued', 'running', 'output_ready');
+    WHERE status = 'running';
 
 -- Accepted calls that reuse work still bind their key to that existing task.
 -- Multiple users/keys may refer to one shared summary task. Admission rejections
@@ -251,8 +240,8 @@ CREATE TABLE quiz_summaries (
 
 -- Backend BEGIN IMMEDIATE transactions enforce the remaining specification:
 -- roles, immutable snapshots, matching feature/target/result references,
--- expected_revision present only for generation, at most 10 unfinished tasks,
+-- expected_revision present only for generation, shared rolling rate admission,
 -- monotonic versions, valid state transitions and deadline handling, atomic
 -- result/terminal-state application, hint allowance, and summary eligibility.
--- Conditional claims/completions must check affected rows; provider I/O must
+-- Conditional state updates/completions must check affected rows; provider I/O must
 -- never occur inside these transactions. This schema is not a migration runner.

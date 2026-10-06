@@ -100,7 +100,7 @@ src/
 
 ## Database schema
 
-The reference DDL is [schema.sql](schema.sql). Its AI request definitions still describe the earlier durable queue and must be aligned with this specification before implementation: use only `running`, `succeeded`, and `failed`, update the state checks and per-target unfinished index, remove queue-specific dispatch indexes and output staging requirements, and index `created_at` for the global rolling admission query. Retain the per-target uniqueness constraint; there is no global unfinished-row count limit. IDs are SQLite integer primary keys except AI request IDs, which are UUID strings. All timestamps are backend generated UTC ISO 8601 strings. JSON columns contain serialized values validated by backend response models. No endpoint accepts client supplied ownership fields.
+The reference DDL is [schema.sql](schema.sql). IDs are SQLite integer primary keys except AI request IDs, which are UUID strings. All timestamps are backend generated UTC ISO 8601 strings. JSON columns contain serialized values validated by backend response models. No endpoint accepts client supplied ownership fields.
 
 | Table | Important columns and constraints | Purpose |
 | --- | --- | --- |
