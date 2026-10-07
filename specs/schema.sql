@@ -24,6 +24,15 @@ CREATE TABLE sessions (
 CREATE INDEX idx_sessions_user ON sessions(user_id);
 CREATE INDEX idx_sessions_expiry ON sessions(expires_at);
 
+-- Persist failed-login protection across application restarts.
+CREATE TABLE login_failures (
+    username TEXT NOT NULL,
+    source_ip TEXT NOT NULL,
+    failed_at TEXT NOT NULL
+);
+CREATE INDEX idx_login_failures_scope_time
+    ON login_failures(username, source_ip, failed_at);
+
 CREATE TABLE classes (
     id INTEGER PRIMARY KEY,
     name TEXT NOT NULL CHECK (length(trim(name)) > 0),

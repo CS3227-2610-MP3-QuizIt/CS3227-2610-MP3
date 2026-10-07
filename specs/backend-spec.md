@@ -2,7 +2,7 @@
 
 This specification defines a class quiz app for students, teachers, and administrators. Teachers turn DOCX notes into an AI generated quiz, review and reprompt the draft, and publish it. Students answer the published quiz and can request hints. Administrators manage accounts and classes and request an AI summary after every assigned student submits.
 
-The frontend uses TypeScript, React 19, Tailwind CSS, and Vite. The backend uses Python 3.14, FastAPI, and SQLite. **Every AI request must go through SoCLaaS.** This is an implementation specification; no app has been built by these documents.
+The frontend uses TypeScript, React 19, Tailwind CSS, and Vite. The backend uses Python 3.14, FastAPI, and SQLite. **Every AI request must go through SoCLaaS.** The backend implementation is under `backend/src/quiz_backend`, with backend-local uv dependencies and a versioned initial migration. Frontend implementation and deployment remain separate work.
 
 The supplied [SoCLaaS reference](../backend/soclaas-docs.md) is the authority for the gateway contract. The [assignment brief](../assignment-brief.md) supplies the requirements for AI security, separate development and production environments, and a spec driven development process. Product behavior and numeric limits below are proposed application defaults, not claims about the gateway's configured quotas.
 
@@ -84,6 +84,7 @@ The reference DDL is [schema.sql](schema.sql). IDs are SQLite integer primary ke
 | --- | --- | --- |
 | `users` | `id`, unique case insensitive `username`, `display_name`, `password_hash`, `role`, `created_at` | Accounts with a single checked role. |
 | `sessions` | `user_id`, unique `token_hash`, `created_at`, `expires_at` | Revocable login sessions; store only a hash of the opaque cookie token. |
+| `login_failures` | Normalized username, source IP, backend failure time; scope/time index | Persist failed-login protection across restarts. |
 | `classes` | `id`, `name`, `created_by`, `created_at` | Classes created by admins. |
 | `class_memberships` | Composite primary key `(class_id, user_id)`, `assigned_at` | Student and teacher assignments. The user role supplies the membership type. |
 | `notes` | `class_id`, `uploaded_by`, private `storage_key`, original filename, size, SHA256, `extracted_text` | Uploaded source material. A composite foreign key from quizzes ensures their teacher and class match the note. |
@@ -236,6 +237,8 @@ AI POSTs return a task envelope after short admission work and never wait for ge
 | `POST /quizzes/{quiz_id}/publish` | Owning assigned teacher | `{expected_revision}` | Published metadata including `published_at`, `revision`, and `assigned_student_count`. Repetition for the same published revision returns that publication. |
 
 `title` is 1 to 150 characters and `prompt` is at most 1,000 characters. Notes must belong to the teacher and class in the creation request. Publication requires the currently reviewed revision, a complete valid draft, a nonempty roster, and no unfinished generation task. Student list entries include the class name, quiz title, question count, attempt state, and own score only if already submitted.
+
+Class names are trimmed nonempty strings of at most 150 characters. Original upload filenames are bounded to 255 characters and are metadata only; private storage always uses an opaque backend-generated key.
 
 ### Student attempt endpoints
 

@@ -7,7 +7,8 @@ This is CS3227 MP3: a secured class quiz application with student, teacher, and 
 Read these sources before changing the relevant behavior:
 
 - `assignment-brief.md`: assignment restrictions, engineering process, deployment, and submission deliverables.
-- `specs/specification.md`: product behavior, API contracts, architecture, security, and acceptance criteria.
+- `specs/backend-spec.md`: specifications for the backend server.
+- `specs/frontend-spec.md:` specifications for the frontend.
 - `specs/schema.sql`: reference SQLite DDL. It is not a migration runner and contains known stale AI queue definitions.
 - `backend/soclaas-docs.md`: supplied gateway API contract. Its model catalog is a dated snapshot, not a guarantee of current availability.
 - `backend/.env.example`: example backend configuration; never print or copy secrets from `.env`.
