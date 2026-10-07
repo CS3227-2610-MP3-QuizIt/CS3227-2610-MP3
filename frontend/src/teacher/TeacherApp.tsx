@@ -133,10 +133,6 @@ export function TeacherApp() {
             <span className="breadcrumb-divider">/</span>
             <strong>{label ?? "Page not found"}</strong>
           </div>
-          <span className="workspace-pill">
-            <span className="dot dot-green" />
-            Teacher
-          </span>
         </header>
         <main id="main-content" tabIndex={-1} className="main-content">
           {logoutError ? <Notice>{logoutError}</Notice> : null}

@@ -126,10 +126,6 @@ export function AdminApp() {
             <span className="breadcrumb-divider">/</span>
             <strong>{page?.label ?? "Page not found"}</strong>
           </div>
-          <span className="workspace-pill">
-            <span className="dot dot-green" />
-            Administrator
-          </span>
         </header>
         <main id="main-content" tabIndex={-1} className="main-content">
           {logoutError ? <Notice>{logoutError}</Notice> : null}

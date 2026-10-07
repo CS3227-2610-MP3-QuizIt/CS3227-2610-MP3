@@ -86,9 +86,9 @@ export function CreateQuizPage({
   return (
     <>
       <PageHeading
-        eyebrow="A NEW START"
+        eyebrow=""
         title="Create a quiz"
-        description="Start with your class notes. You’ll generate and review the questions next."
+        description=""
       />
       {!classes.length ? (
         <section className="panel">
@@ -210,7 +210,7 @@ export function CreateQuizPage({
                   >
                     {Array.from({ length: 10 }, (_, index) => (
                       <option key={index + 1} value={index + 1}>
-                        {index + 1} {index === 0 ? "question" : "questions"}
+                        {index + 1}
                       </option>
                     ))}
                   </select>
