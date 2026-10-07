@@ -1,10 +1,20 @@
 # Class quiz backend user guide
 
-This delivery supplies the backend API. There is no browser frontend or public deployed
-application yet. Use an API client with cookies and an Origin allowed by the configured policy, or a
-future frontend implementing `specs/frontend-spec.md`. Ask the operator to start the
-backend as described in the developer guide. A fresh deployment automatically creates
+This delivery supplies the backend API and browser login and admin screens. From
+`frontend/`, run `npm ci` and `npm run dev`, then open http://localhost:5173.
+Start the backend separately as described in the developer guide. There is no public
+deployed application yet. A fresh deployment automatically creates
 the demo accounts listed in [the backend README](../backend/README.md).
+
+Administrators can use Accounts to create and filter student and teacher accounts;
+Classes to create a class and assign or unassign members; and Quiz performance to
+view frozen-roster completion and generate, retry, or regenerate an AI summary once
+everyone submits. Summaries show exact backend metrics alongside labeled AI observations.
+Latest running or failed work replaces older successful content in the display; rate
+rejection retains the prior state. Refresh workspace reloads accounts, classes, and
+quizzes, and each selected class or quiz has a refresh control. Sign out revokes the
+session. Students and teachers currently see a signed-in placeholder; their workflows
+below remain available through the backend API.
 
 All paths below start with `/api/v1`. Local development listens on port 7000. The example configuration allows any browser Origin. With an explicit origin list,
 your frontend must use one of the listed origins; the code default is `http://localhost:5173`. Login with `POST /auth/login` and

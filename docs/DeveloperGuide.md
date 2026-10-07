@@ -1,5 +1,34 @@
 # Backend developer guide
 
+The standalone frontend now implements login/logout and the admin UI. From `frontend/`,
+run `npm ci` and `npm run dev`. Vite serves http://localhost:5173 and proxies `/api`
+to `BACKEND_SERVER_URL` from `frontend/.env`, using the backend Host while preserving
+the browser Origin and verifying HTTPS certificates. Copy `.env.example`
+to `.env` only on a fresh checkout and set the backend origin. `npm run build`
+produces `frontend/dist`. Production must serve this build and API on one HTTPS origin.
+See [frontend README](../frontend/README.md) for scope and commands.
+
+The proxy's `changeOrigin: true` allows HTTPS virtual hosts such as Render to receive
+their own hostname instead of `localhost:5173`; it does not rewrite the browser Origin.
+The [Node CA documentation](https://nodejs.org/api/cli.html#--use-system-ca) informed
+the README's optional system/custom CA troubleshooting instructions.
+
+Frontend source separates typed API access, authentication, admin screens, and shared
+components. Sessions remain in backend HttpOnly cookies. Summary state is scoped to
+the authenticated admin and quiz; applied/notified versions, coalesced reads, admission
+barriers, five-second running-task polling, and read-error backoff prevent stale results.
+Generation is explicit, with UUID operation keys retained for uncertain request repeats.
+Logout/unmount closes SSE and disposes reconciliation. Student/teacher UI is future work.
+Implementation evidence and interaction summaries are in
+`workflow/frontend-implementation.md` and `logs/frontend-implementation.md`.
+
+Frontend acknowledgements: the existing React/Vite build setup was reused. Repository
+specifications define behavior. The React performance skill and official
+[Tailwind Vite guide](https://tailwindcss.com/docs/installation/using-vite),
+[Vitest guide](https://vitest.dev/guide/), and
+[MDN EventSource documentation](https://developer.mozilla.org/en-US/docs/Web/API/EventSource)
+informed integration. Icons/illustrations are original local SVG/CSS; no MP2 code was reused.
+
 The backend is a standalone Python 3.14 uv project in `backend/`; the frontend has no
 shared dependencies. Run installation, server, packaging, and test commands from
 `backend/`. `backend/src/quiz_backend` contains all application source. `uv.lock` locks
@@ -112,7 +141,7 @@ content but latest-state reads expose only the latest success/failure. SSE is pu
 after commit and buffers at most 64 metadata events per subscriber; dropped notifications
 are repaired by authoritative reads. Streams recheck session/access before delivery and
 session validity during idle periods. Frontend version guards and five-second unfinished
-reconciliation remain frontend implementation work.
+reconciliation are implemented for admin summaries.
 
 Run local checks from `backend/`:
 
@@ -136,7 +165,7 @@ The team's future deployment must serve frontend and `/api/v1` on one HTTPS orig
 persistent backend disk, one instance, and one worker. Configure trusted reverse proxy
 handling deliberately so source-IP login protection uses the intended client address;
 do not trust arbitrary forwarded headers. Back up database and private notes consistently.
-Multi-instance storage and shared limits require redesign. Browser UI, GitHub Pages
+Multi-instance storage and shared limits require redesign. Student/teacher browser UI, GitHub Pages
 product website, production infrastructure, live deployment/model verification, and
 public submission repository/master-branch maintenance remain outside this backend work.
 
