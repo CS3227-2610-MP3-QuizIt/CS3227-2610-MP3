@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { api, errorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
 import {
@@ -11,6 +11,7 @@ import {
 } from "../shared/ui";
 import type { IconName } from "../shared/ui";
 import { useResource } from "../shared/useResource";
+import { useAIEvents } from "../shared/useAIEvents";
 import { AccountsPage } from "./AccountsPage";
 import { ClassesPage } from "./ClassesPage";
 import { PerformancePage } from "./PerformancePage";
@@ -27,6 +28,7 @@ const subscribeRoute = (listener: () => void) => {
   return () => window.removeEventListener("hashchange", listener);
 };
 const routeSnapshot = () => window.location.hash;
+const createStore = () => new SummaryStore();
 const loadAdmin = async () => {
   const [users, classes, quizzes] = await Promise.all([
     api.users(),
@@ -39,7 +41,7 @@ const loadAdmin = async () => {
 export function AdminApp() {
   const { user, signOut } = useAuth();
   const resource = useResource(loadAdmin);
-  const [store, setStore] = useState<SummaryStore | null>(null);
+  const store = useAIEvents(createStore);
   const [logoutError, setLogoutError] = useState("");
   const [loggingOut, setLoggingOut] = useState(false);
   const hash = useSyncExternalStore(subscribeRoute, routeSnapshot);
@@ -47,34 +49,6 @@ export function AdminApp() {
   const slug = path?.split("/")[2] || "overview";
   const page = links.find((link) => link.slug === slug);
   const id = Number(new URLSearchParams(query).get("id")) || null;
-  useEffect(() => {
-    const current = new SummaryStore();
-    const source = new EventSource("/api/v1/ai/events", {
-      withCredentials: true,
-    });
-    source.addEventListener("ai_state_changed", (event) => {
-      try {
-        current.notify(JSON.parse((event as MessageEvent).data));
-      } catch {
-        /* Invalid metadata cannot update state. */
-      }
-    });
-    const recover = () => current.refreshAll();
-    source.onopen = recover;
-    source.onerror = () => {
-      current.refreshAll();
-      void api.me().catch(() => undefined);
-    };
-    window.addEventListener("focus", recover);
-    window.addEventListener("online", recover);
-    setStore(current);
-    return () => {
-      source.close();
-      current.dispose();
-      window.removeEventListener("focus", recover);
-      window.removeEventListener("online", recover);
-    };
-  }, []);
   const logout = useCallback(async () => {
     if (loggingOut) return;
     setLoggingOut(true);

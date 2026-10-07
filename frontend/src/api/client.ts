@@ -7,6 +7,13 @@ import type {
   SafeError,
   SummaryState,
   User,
+  DraftInput,
+  GenerationInput,
+  GenerationState,
+  NoteUpload,
+  Publication,
+  TeacherQuiz,
+  TeacherQuizItem,
 } from "./types";
 
 export const SESSION_LOST = "classroom:session-lost";
@@ -37,7 +44,9 @@ async function request<T>(
         ? AbortSignal.any([options.signal, AbortSignal.timeout(15_000)])
         : AbortSignal.timeout(15_000),
       headers: {
-        ...(options.body ? { "Content-Type": "application/json" } : {}),
+        ...(options.body && !(options.body instanceof FormData)
+          ? { "Content-Type": "application/json" }
+          : {}),
         ...options.headers,
       },
     });
@@ -83,7 +92,8 @@ export const api = {
   users: () => request<{ items: User[] }>("/users"),
   createUser: (input: AccountInput) =>
     request<User>("/users", json("POST", input)),
-  classes: () => request<{ items: ClassRoom[] }>("/classes"),
+  classes: (signal?: AbortSignal) =>
+    request<{ items: ClassRoom[] }>("/classes", { signal }),
   createClass: (name: string) =>
     request<ClassRoom>("/classes", json("POST", { name })),
   members: (id: number, signal?: AbortSignal) =>
@@ -95,6 +105,39 @@ export const api = {
       method: "DELETE",
     }),
   quizzes: () => request<{ items: Quiz[] }>("/quizzes"),
+  teacherQuizzes: (signal?: AbortSignal) =>
+    request<{ items: TeacherQuizItem[] }>("/quizzes", { signal }),
+  teacherQuiz: (id: number, signal?: AbortSignal) =>
+    request<TeacherQuiz>(`/quizzes/${id}`, { signal }),
+  uploadNote: (classId: number, file: File, signal?: AbortSignal) => {
+    const body = new FormData();
+    body.append("file", file);
+    return request<NoteUpload>(`/classes/${classId}/notes`, {
+      method: "POST",
+      body,
+      signal,
+    });
+  },
+  createDraft: (input: DraftInput, signal?: AbortSignal) =>
+    request<TeacherQuiz>("/quizzes", { ...json("POST", input), signal }),
+  generation: (id: number, signal?: AbortSignal) =>
+    request<GenerationState>(`/quizzes/${id}/generation`, { signal }),
+  generateQuiz: (
+    id: number,
+    input: GenerationInput,
+    key: string,
+    signal?: AbortSignal,
+  ) =>
+    request<GenerationState>(`/quizzes/${id}/generate`, {
+      ...json("POST", input),
+      headers: { "Idempotency-Key": key },
+      signal,
+    }),
+  publishQuiz: (id: number, expected_revision: number, signal?: AbortSignal) =>
+    request<Publication>(`/quizzes/${id}/publish`, {
+      ...json("POST", { expected_revision }),
+      signal,
+    }),
   completion: (id: number, signal?: AbortSignal) =>
     request<Completion>(`/quizzes/${id}/completion`, { signal }),
   summary: (id: number, signal?: AbortSignal) =>
@@ -117,6 +160,8 @@ export function errorMessage(error: unknown): string {
       ? `AI request limit reached. Please try again in ${error.retryAfter} seconds.`
       : "AI request limit reached. Please try again shortly.";
   }
+  if (error instanceof ApiError && error.retryAfter != null)
+    return `${error.message} Try again in ${error.retryAfter} seconds.`;
   return error instanceof Error
     ? error.message
     : "Something went wrong. Please try again.";

@@ -89,3 +89,54 @@ export interface AIChange {
   quiz_id: number;
   version: number;
 }
+
+export type Option = "A" | "B" | "C" | "D";
+export interface TeacherQuizItem extends Omit<Quiz, "status"> {
+  status: "draft" | "published";
+}
+export interface TeacherQuestion {
+  id: number;
+  position: number;
+  question: string;
+  options: Record<Option, string>;
+  correct_option: Option;
+  explanation: string;
+}
+export interface TeacherQuiz extends Omit<TeacherQuizItem, "class_name"> {
+  teacher_id: number;
+  note_id: number;
+  questions: TeacherQuestion[];
+}
+export interface NoteUpload {
+  id: number;
+  class_id: number;
+  original_filename: string;
+  extracted_characters: number;
+  created_at: string;
+}
+export interface DraftInput {
+  class_id: number;
+  note_id: number;
+  title: string;
+  question_count: number;
+}
+export interface GenerationInput {
+  expected_revision: number;
+  prompt: string;
+  action: "ensure" | "new";
+}
+export interface GenerationState extends Omit<
+  SummaryState,
+  "feature" | "result"
+> {
+  feature: "quiz_generation";
+  result: Omit<TeacherQuiz, "teacher_id" | "note_id"> | null;
+  // Content always comes from GET /quizzes/:id, never a historical task result.
+  quiz?: TeacherQuiz;
+}
+export interface Publication extends Omit<
+  TeacherQuiz,
+  "teacher_id" | "note_id" | "questions"
+> {
+  assigned_student_count: number;
+}

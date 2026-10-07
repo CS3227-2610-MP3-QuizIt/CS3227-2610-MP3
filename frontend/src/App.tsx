@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AuthProvider, useAuth } from "./auth/AuthProvider";
 import { LoginPage } from "./auth/LoginPage";
 import { AdminApp } from "./admin/AdminApp";
+import { TeacherApp } from "./teacher/TeacherApp";
 import { Brand, Loading, Notice } from "./shared/ui";
 import { errorMessage } from "./api/client";
 
@@ -18,6 +19,7 @@ function Screens() {
     );
   if (!auth.user) return <LoginPage />;
   if (auth.user.role === "admin") return <AdminApp key={auth.user.id} />;
+  if (auth.user.role === "teacher") return <TeacherApp key={auth.user.id} />;
   return (
     <main className="role-placeholder">
       <Brand />
