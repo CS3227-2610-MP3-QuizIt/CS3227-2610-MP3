@@ -100,8 +100,9 @@ replace the draft. An explicit new generation is required to retry.
 `GET /ai/events` sends change notifications containing IDs and versions only. Read the
 relevant state endpoint afterward. A client should reconcile unfinished work every five
 seconds, back off failed reads, and ignore responses older than its applied target
-version. A browser disconnect does not cancel accepted work. Restarted running tasks
-become interrupted failures; retry explicitly when eligible.
+version. AI generation has a 300-second execution deadline. A browser disconnect does
+not cancel accepted work. Restarted running tasks become interrupted failures; retry
+explicitly when eligible.
 
 The application allows 30 fresh AI requests across all users and features in a rolling
 60-second window. An excess request returns 429 `AI_APP_RATE_LIMIT` immediately with

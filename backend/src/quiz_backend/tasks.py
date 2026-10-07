@@ -16,7 +16,7 @@ from .errors import AppError, missing
 from .events import EventHub
 from .time import stamp, utc_now
 
-EXECUTION_SECONDS = 60
+EXECUTION_SECONDS = 300
 ADMISSION_LIMIT = 30
 WINDOW_SECONDS = 60
 

@@ -50,7 +50,7 @@ Treat `backend/` and `frontend/` as standalone folders. Instructions to install 
 - Run one FastAPI process with one Uvicorn worker. Use a shared async HTTP client and lifespan-managed async tasks with strong references. Move blocking file parsing outside the event loop.
 - Atomically admit at most 30 fresh AI requests in a rolling 60-second window across all users/features using SQLite timestamps. Reject excess immediately with `429 AI_APP_RATE_LIMIT` and retry timing. Replays, reads, and reused work consume no new allowance.
 - Do not introduce an application task queue, dispatcher, completion worker, concurrency semaphore/cap, per-user AI rate gate, or global unfinished-task cap.
-- Enforce a 60-second overall execution timeout. On restart, fail leftover running tasks without resuming or replaying them. Browser disconnects do not cancel accepted work.
+- Enforce a 300-second overall execution timeout. On restart, fail leftover running tasks without resuming or replaying them. Browser disconnects do not cancel accepted work.
 - Recheck permissions, workflow state, deadline, revision, and latest target before committing. Apply validated results, terminal task state, and versions atomically; never hold a database transaction during gateway I/O.
 - Preserve idempotency-key bindings and latest-target semantics. A latest failure must not display an older successful result as current.
 - SSE announces committed target/task/version changes only, with no status, result, or error content. Fetch authoritative state afterward and reconcile unfinished tasks every five seconds with backoff and version guards.

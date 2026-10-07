@@ -18,6 +18,9 @@ three distinct permitted text models and their verified context limits for AI fe
 Missing AI configuration returns a safe error for fresh AI requests; other workflows
 remain available. Do not overwrite an existing `.env`.
 
+Application AI tasks have a 300-second overall deadline from admission. The shared
+HTTP client read timeout is 300 seconds, with connect/write/pool timeouts of 5/10/5 seconds.
+
 ## Docker
 
 Build and run from this folder, using your configured `.env`:

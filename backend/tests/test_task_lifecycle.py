@@ -278,7 +278,7 @@ async def test_deadline_expiring_during_apply_rolls_back_result_and_retains_usag
 
     async def expire_during_apply(*args: Any, **kwargs: Any) -> dict[str, Any]:
         result = await original_apply(*args, **kwargs)
-        harness.clock.advance(61)
+        harness.clock.advance(task_module.EXECUTION_SECONDS + 1)
         return result
 
     harness.gateway.output(quiz_output())

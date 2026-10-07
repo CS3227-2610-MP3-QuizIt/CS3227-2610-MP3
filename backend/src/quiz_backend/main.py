@@ -91,7 +91,7 @@ def create_app(
         config.storage_path.mkdir(parents=True, exist_ok=True, mode=0o700)
         async with httpx.AsyncClient(
             transport=transport,
-            timeout=httpx.Timeout(45, connect=5, write=10, pool=5),
+            timeout=httpx.Timeout(300, connect=5, write=10, pool=5),
             follow_redirects=False,
             trust_env=False,
             limits=httpx.Limits(max_connections=None, max_keepalive_connections=30),
