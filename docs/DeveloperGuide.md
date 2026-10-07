@@ -127,6 +127,15 @@ options/questions, and incomplete output. Only a single surrounding Markdown fen
 be removed. Output cannot perform application actions or publish quizzes. Semantic
 correctness, hint subtlety, and interpretive accuracy still need human judgment.
 
+`AI_INVALID_OUTPUT` includes fixed `details.stage` and `details.reason` categories
+that persist with the terminal error in `ai_requests.response_json`. They distinguish
+response/envelope problems, missing text, malformed generated JSON, and schema failures
+such as wrong counts or duplicate options. No raw response, rejected field names,
+exception messages, notes, or credentials enter diagnostics. Investigate the authorized
+generation-state read and persisted provider status/usage before explicitly retrying;
+older failures without these categories cannot identify the exact rejection rule.
+Quiz instructions include a placeholder JSON example; validation remains strict.
+
 Admission resolves authorized key replays and target reuse before fresh eligibility,
 context, and rate checks. Every accepted reuse binds its key. Fresh admission count and
 task/latest-version/key writes commit together. Accepted coroutines are registered

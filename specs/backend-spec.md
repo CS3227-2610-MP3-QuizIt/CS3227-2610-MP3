@@ -386,6 +386,8 @@ Use **nonstreaming, stateless `POST /v1/responses`** for all three AI features. 
 
 Extract `output_text`, or concatenate text items from the response `output` if needed, and validate it against the feature schema. Do not require JSON mode or structured output capabilities that are not established in the supplied reference. Parse strict JSON, allowing only removal of a single surrounding Markdown code fence. Do not silently repair invalid content or make another provider call. The teacher may explicitly reprompt after a validation error.
 
+Quiz instructions include a concrete example of the required JSON shape, explicitly identifying it as placeholders rather than source content. Require the requested count and exactly the allowed fields and option labels; do not accept alternative shapes to accommodate a model response.
+
 ### Proposed application defaults
 
 | Setting | Initial value | Behavior |
@@ -418,6 +420,8 @@ After admission, gateway failures are committed task failures and returned insid
 The frontend offers an explicit retry when eligible and sends `action: "new"` with a new key for a failed admitted task. It automatically retries state reads with backoff, but never automatically retries provider calls. Students can still save and submit answers while AI is unavailable; teachers can still publish an already valid reviewed draft; admins can still see completion counts.
 
 Record each admitted task's actor, feature/target, state versions, immutable input, timestamps/deadline, fixed feature model ID, outcome, provider status, and reported token usage. Record provider metadata/usage when available even if content validation fails. Treat persisted input and raw provider content as private backend data; never expose them through state reads or SSE. There is no durable raw-output staging requirement. Missing usage stays null; never assume it is zero. The reference says daily and monthly gateway spend windows reset on UTC boundaries, but `429` alone does not identify the exhausted window. No billing portal integration or budget dashboard is required.
+
+For `AI_INVALID_OUTPUT`, persist safe `error.details.stage` and `error.details.reason` in the existing terminal error envelope (`ai_requests.response_json`). Stages distinguish response size/completion, response JSON, missing output text, generated JSON, and feature-schema validation. Reasons are fixed backend categories such as `invalid_json_syntax`, `unexpected_fields`, `wrong_question_count`, or `duplicate_option`. Never include rejected text, unexpected field names/values, or exception messages. Authorized task reads return these categories; SSE remains IDs and versions only. No database migration or raw-output retention is required.
 
 ## AI security and content validation
 

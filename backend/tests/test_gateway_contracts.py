@@ -6,7 +6,7 @@ from typing import Any
 import httpx
 import pytest
 
-from quiz_backend.ai import AIError, SoCLaaS
+from quiz_backend.ai import AIError, SoCLaaS, _validation_reason
 from quiz_backend.config import Settings
 from quiz_backend.errors import AppError
 
@@ -381,3 +381,56 @@ async def test_conceptual_hint_does_not_confuse_indefinite_article_with_option_a
     ) as client:
         result = await invoke(SoCLaaS(settings(), client), "hint")
     assert result.result == {"hint": hint}
+
+
+@pytest.mark.parametrize(
+    "response,details",
+    [
+        (
+            httpx.Response(200, content=b"private malformed provider body"),
+            {"stage": "response_json", "reason": "invalid_json_syntax"},
+        ),
+        (
+            httpx.Response(
+                200, json={"status": "incomplete", "output_text": "private partial text"}
+            ),
+            {"stage": "response", "reason": "response_not_completed"},
+        ),
+        (
+            httpx.Response(200, json={"output": []}),
+            {"stage": "output", "reason": "missing_output_text"},
+        ),
+        (
+            httpx.Response(
+                200, json={"output_text": '<think>private reasoning</think>{"hint":"clue"}'}
+            ),
+            {"stage": "output_json", "reason": "invalid_json_syntax"},
+        ),
+        (
+            httpx.Response(200, json={"output_text": '{"hint":"clue","private-secret":"value"}'}),
+            {"stage": "feature_schema", "reason": "unexpected_fields"},
+        ),
+    ],
+)
+async def test_validation_diagnostics_expose_only_fixed_categories(
+    response: httpx.Response, details: dict[str, str]
+) -> None:
+    calls = 0
+
+    def provider(_: httpx.Request) -> httpx.Response:
+        nonlocal calls
+        calls += 1
+        return response
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(provider)) as client:
+        with pytest.raises(AIError) as caught:
+            await invoke(SoCLaaS(settings(), client), "hint")
+    assert caught.value.details == details
+    assert "private" not in json.dumps(caught.value.envelope())
+    assert calls == 1
+
+
+def test_unknown_validation_exception_cannot_expose_private_message() -> None:
+    assert (
+        _validation_reason(ValueError("private source text and credential")) == "invalid_structure"
+    )

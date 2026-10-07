@@ -63,3 +63,52 @@ GitHub Actions remote run, website, or deployment was tested. CI is provided but
 run on GitHub during this task. Semantic hint leakage, generated quiz factual correctness,
 and summary interpretation cannot be proven by strict format checks; human review remains
 necessary. The optional live-check command exists but was not invoked.
+
+## DOCX generation diagnostics follow-up — 2026-10-07
+
+This follow-up supersedes the earlier no-live-check evidence only for the local DOCX
+quiz-generation checks described here; it does not validate production deployment,
+student hints, class summaries, or teacher browser screens.
+
+Requirement: generate quiz questions from the supplied DOCX, investigate the reported
+content rejection, and preserve strict validation, atomic completion, and private data.
+Updated `specs/backend-spec.md` defines fixed validation stage/reason codes persisted
+inside the existing terminal error envelope. No schema migration is needed. Quiz
+instructions now include a concrete placeholder JSON example. No model changes,
+automatic provider retries, response repair, or raw-output logging were introduced.
+
+Checks executed from `backend/`:
+
+| Check | Verified result |
+| --- | --- |
+| `.venv/bin/python -m pytest -q tests/test_gateway_contracts.py tests/test_ai.py` | 81 passed in 14.08 seconds |
+| `.venv/bin/python -m pytest -q` | 133 passed in 34.23 seconds; all automated gateway calls mocked |
+| `.venv/bin/python -m ruff check .` | Passed |
+| `.venv/bin/python -m ruff format --check .` | 27 files formatted |
+| `.venv/bin/python -m mypy src/quiz_backend` | Passed, 17 source files |
+| `docker build -t quiz-backend:docx-diagnostics .` | Passed |
+| `git diff --check` | Passed |
+| Running app: authenticated fresh generation of draft 1 from note 1 | HTTP 202 admission; terminal success; five saved questions, revision 1 |
+| Persistence verification | Task succeeded, no error, provider HTTP 200; five question rows; source file checksum matches supplied DOCX |
+
+New regression coverage identifies envelope/JSON/schema errors using fixed codes,
+checks rejection of reasoning outside JSON, and proves diagnostics expose no provider
+text or arbitrary exception messages. Existing eight invalid-quiz cases now verify
+that safe diagnostics survive persistence and state reads while the previous draft
+remains unchanged, no failed result becomes current, and provider usage is preserved.
+
+The running local container was replaced with the rebuilt image, preserving all of
+its original environment settings and the `quiz-backend-data` volume. The old image's
+container remains stopped as `quiz-backend-before-docx-diagnostics` for rollback.
+No production deployment or configuration change was made. The generated quiz remains
+an unpublished draft; teacher review is still required.
+
+Investigation limit: the original task recorded HTTP 200 and valid token usage but
+discarded the rejection reason and raw response; the old container logs also contain
+no validation diagnostic. The earlier diagnostic call and two additional comparison
+calls using the original instructions/input all returned five valid questions. These
+comparisons are operator service checks, not application tasks, and do not update the
+draft. The original failure therefore remains unreproduced; a precise explanation of
+that specific response requires upstream evidence that is not present in this checkout
+or either container. Prompt strengthening is a robustness improvement, not proof of
+the original cause or a guarantee that every future model response will be valid.

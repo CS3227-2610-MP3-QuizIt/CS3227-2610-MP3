@@ -70,6 +70,9 @@ key. An active task is reused even if a later request proposes another prompt.
 AI POSTs return immediately with 202 for active work or 200 for a reused terminal task.
 Fetch generation, hint, summary, or historical task state to see the outcome. A failed
 task is returned with HTTP 200 and a nested error containing its original failure status.
+For invalid AI output, the error details also identify the validation stage and a safe
+reason, such as malformed JSON or an incorrect question count. No partial questions
+replace the draft. An explicit new generation is required to retry.
 
 `GET /ai/events` sends change notifications containing IDs and versions only. Read the
 relevant state endpoint afterward. A client should reconcile unfinished work every five

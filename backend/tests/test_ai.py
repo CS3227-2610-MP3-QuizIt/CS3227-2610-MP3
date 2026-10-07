@@ -83,6 +83,18 @@ async def test_invalid_generation_preserves_previous_draft(course: Course, kind:
     state = (await course.teacher.get(f"{API}/quizzes/{quiz['id']}/generation")).json()
     assert state["status"] == "failed"
     assert state["error"]["code"] == "AI_INVALID_OUTPUT"
+    reasons = {
+        "malformed": ("output_json", "invalid_json_syntax"),
+        "duplicate_key": ("output_json", "duplicate_json_field"),
+        "extra_field": ("feature_schema", "unexpected_fields"),
+        "count": ("feature_schema", "wrong_question_count"),
+        "duplicate_options": ("feature_schema", "duplicate_option"),
+        "missing_explanation": ("feature_schema", "unexpected_fields"),
+        "invalid_label": ("feature_schema", "invalid_correct_option"),
+        "nonfinite": ("output_json", "nonfinite_json_number"),
+    }
+    stage, reason = reasons[kind]
+    assert state["error"]["details"] == {"stage": stage, "reason": reason}
     assert state["result"] is None
     current = (await course.teacher.get(f"{API}/quizzes/{quiz['id']}")).json()
     assert current["revision"] == 1
@@ -90,9 +102,12 @@ async def test_invalid_generation_preserves_previous_draft(course: Course, kind:
     async with harness.app.state.db.read() as conn:
         request = await one(
             conn,
-            "SELECT input_tokens, output_tokens, total_tokens FROM ai_requests WHERE id=?",
+            "SELECT input_tokens, output_tokens, total_tokens, response_json FROM ai_requests WHERE id=?",
             (state["task_id"],),
         )
+    assert request is not None
+    saved_error = json.loads(request.pop("response_json"))["error"]
+    assert saved_error["details"] == state["error"]["details"]
     assert request == {"input_tokens": 20, "output_tokens": 30, "total_tokens": 50}
 
 

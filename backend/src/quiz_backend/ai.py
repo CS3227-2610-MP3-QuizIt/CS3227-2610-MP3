@@ -49,7 +49,14 @@ _INSTRUCTIONS = {
         "(exactly A, B, C, D, distinct nonempty strings, at most 300 characters each), "
         "correct_option (A, B, C, or D), and explanation (nonempty, at most 1500 "
         "characters). A current draft and teacher request may guide revision, but the "
-        "result remains an unpublished draft requiring human review. No Markdown."
+        "result remains an unpublished draft requiring human review. No Markdown. "
+        "Use this JSON shape, replacing the placeholder values with content from the "
+        "notes and repeating the question object exactly question_count times: "
+        '{"questions":[{"question":"Question stem","options":{"A":"First option",'
+        '"B":"Second option","C":"Third option","D":"Fourth option"},'
+        '"correct_option":"A","explanation":"Why the correct option is correct"}]}. '
+        "Do not include a title, question number, answer text field, commentary, or "
+        "reasoning outside the JSON. Check the count and distinct options before returning."
     ),
     "hint": (
         "Provide one conceptual clue using the question stem and source notes. Input "
@@ -88,19 +95,53 @@ class AIError(AppError):
         usage: Usage | None = None,
         provider_status: int | None = None,
         retry_after: int | None = None,
+        details: dict[str, Any] | None = None,
     ) -> None:
-        super().__init__(status, code, message, retry_after=retry_after)
+        super().__init__(status, code, message, details=details, retry_after=retry_after)
         self.usage = usage or dict.fromkeys(_USAGE_FIELDS)
         self.provider_status = provider_status
 
 
-def _invalid(usage: Usage | None = None, provider_status: int | None = None) -> AIError:
+def _validation_reason(error: Exception) -> str:
+    """Return only fixed diagnostics; never serialize provider text or exception messages."""
+    if isinstance(error, json.JSONDecodeError):
+        return "invalid_json_syntax"
+    if isinstance(error, UnicodeError):
+        return "invalid_utf8"
+    if isinstance(error, RecursionError):
+        return "excessive_nesting"
+    return {
+        "Duplicate JSON field": "duplicate_json_field",
+        "Nonfinite JSON number": "nonfinite_json_number",
+        "Unexpected JSON fields": "unexpected_fields",
+        "Expected text": "expected_text",
+        "Invalid text length": "invalid_text_length",
+        "Invalid requested question count": "invalid_requested_count",
+        "Unexpected question count": "wrong_question_count",
+        "Duplicate question": "duplicate_question",
+        "Duplicate option": "duplicate_option",
+        "Invalid correct option": "invalid_correct_option",
+        "Answer selection in hint": "hint_selects_answer",
+        "Invalid option validator data": "invalid_hint_context",
+        "Literal answer option in hint": "hint_contains_option",
+        "Invalid summary array": "invalid_summary_array",
+    }.get(str(error), "invalid_structure")
+
+
+def _invalid(
+    usage: Usage | None = None,
+    provider_status: int | None = None,
+    *,
+    stage: str,
+    reason: str,
+) -> AIError:
     return AIError(
         502,
         "AI_INVALID_OUTPUT",
         "The AI service returned invalid content. Request a new generation to retry.",
         usage=usage,
         provider_status=provider_status,
+        details={"stage": stage, "reason": reason},
     )
 
 
@@ -372,16 +413,24 @@ class SoCLaaS:
                 async for chunk in response.aiter_bytes():
                     if len(body) + len(chunk) > self.settings.ai_response_max_bytes:
                         if response.is_success:
-                            raise _invalid(provider_status=status)
+                            raise _invalid(
+                                provider_status=status,
+                                stage="response",
+                                reason="response_too_large",
+                            )
                         raise self._provider_error(
                             status, response.headers.get("retry-after"), usage
                         )
                     body.extend(chunk)
                 try:
                     data = _load_json(body.decode("utf-8"))
-                except ValueError, UnicodeDecodeError, RecursionError:
+                except (ValueError, UnicodeDecodeError, RecursionError) as error:
                     if response.is_success:
-                        raise _invalid(provider_status=status) from None
+                        raise _invalid(
+                            provider_status=status,
+                            stage="response_json",
+                            reason=_validation_reason(error),
+                        ) from None
                     raise self._provider_error(
                         status, response.headers.get("retry-after"), usage
                     ) from None
@@ -393,24 +442,33 @@ class SoCLaaS:
                     or data.get("status", "completed") != "completed"
                     or data.get("error")
                 ):
-                    raise _invalid(usage, status)
+                    raise _invalid(usage, status, stage="response", reason="response_not_completed")
                 text = data.get("output_text")
                 if not isinstance(text, str) or not text.strip():
                     text = self._output_text(data)
                 text = text.strip()
+                if not text:
+                    raise _invalid(usage, status, stage="output", reason="missing_output_text")
                 fence = _FENCE.fullmatch(text)
                 if fence:
                     text = fence.group(1).strip()
                 try:
                     value = _load_json(text)
+                except (ValueError, TypeError, RecursionError) as error:
+                    raise _invalid(
+                        usage, status, stage="output_json", reason=_validation_reason(error)
+                    ) from None
+                try:
                     if feature == "quiz_generation":
                         result = validate_quiz(value, snapshot["question_count"])
                     elif feature == "hint":
                         result = _validate_hint(value, snapshot)
                     else:
                         result = _validate_summary(value)
-                except ValueError, TypeError, RecursionError:
-                    raise _invalid(usage, status) from None
+                except (ValueError, TypeError, RecursionError) as error:
+                    raise _invalid(
+                        usage, status, stage="feature_schema", reason=_validation_reason(error)
+                    ) from None
                 return AIResult(result=result, usage=usage, provider_status=status)
         except httpx.TimeoutException:
             raise AIError(
