@@ -1,6 +1,6 @@
-# Class quiz backend user guide
+# Classroom user guide
 
-This delivery supplies the backend API and browser login and admin screens. From
+This delivery supplies the backend API and browser login, admin, and teacher screens. From
 `frontend/`, run `npm ci` and `npm run dev`, then open http://localhost:5173.
 Start the backend separately as described in the developer guide. There is no public
 deployed application yet. A fresh deployment automatically creates
@@ -13,8 +13,31 @@ everyone submits. Summaries show exact backend metrics alongside labeled AI obse
 Latest running or failed work replaces older successful content in the display; rate
 rejection retains the prior state. Refresh workspace reloads accounts, classes, and
 quizzes, and each selected class or quiz has a refresh control. Sign out revokes the
-session. Students and teachers currently see a signed-in placeholder; their workflows
-below remain available through the backend API.
+session. Students currently see a signed-in placeholder; their workflow below remains
+available through the backend API.
+
+Teachers open **My classes** to see assigned classes and **My quizzes** to search or
+filter their own drafts and published quizzes. Select **Create quiz**, choose a class,
+select a DOCX no larger than 5 MiB, and select **Upload notes**. After extraction succeeds,
+enter a title (at most 150 characters), select 1–10 questions (default 5), and select
+**Create draft**. This creates a private draft without calling AI.
+
+In the draft, enter optional generation instructions (at most 1,000 characters) and
+select **Generate questions**. Review every question, all four options, the marked
+correct answer, and the explanation. To refine them, enter new instructions and select
+**Regenerate questions**. The question count stays fixed. Your last valid questions
+remain visible during generation and after a failure; generation and publication are
+disabled while work is running. **Retry generation** explicitly retries failed work.
+An uncertain network request offers **Repeat previous request**, which preserves the
+original instructions and operation key. No generation is automatically retried.
+
+Check the confirmation that you reviewed the displayed revision, then select
+**Publish quiz**. A new revision or generation request clears that confirmation.
+Publication requires at least one currently assigned student and freezes both the
+questions and roster. Published quizzes are available for reading only. **Refresh quiz**,
+page entry, window focus, and network recovery restore backend state. Running generation
+is checked every five seconds, so you can leave and reopen the draft. Your administrator
+must keep you assigned to the class for quiz access.
 
 All paths below start with `/api/v1`. Local development listens on port 7000. The example configuration allows any browser Origin. With an explicit origin list,
 your frontend must use one of the listed origins; the code default is `http://localhost:5173`. Login with `POST /auth/login` and

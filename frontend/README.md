@@ -2,8 +2,10 @@
 
 React 19, TypeScript, Tailwind CSS, and Vite. This delivery includes login/logout,
 admin overview, student/teacher account creation, class creation and membership
-management, and published quiz completion and AI summaries. Student and teacher
-screens currently show a signed-in placeholder.
+management, published quiz completion and AI summaries, and the teacher workspace.
+Teachers can browse assigned classes and own quizzes, upload DOCX notes, create drafts,
+generate or reprompt questions, review answer keys and explanations, and publish the
+reviewed revision. The student workspace currently shows a signed-in placeholder.
 
 Run commands from `frontend/`:
 
@@ -48,10 +50,14 @@ not proxy API requests. Production must serve this build and `/api/v1` under one
 HTTPS origin. Deployment remains the team's responsibility.
 
 `src/api` contains typed, cookie-authenticated API access. `src/auth` manages the
-backend identity and login. `src/admin` contains the role screens and per-quiz
-summary reconciliation. `src/shared` contains UI components and guarded resource
-reads. AI results always come from backend state reads; SSE only invalidates state.
+backend identity and login. `src/admin` and `src/teacher` contain their respective
+role screens. `src/shared` contains UI components, guarded resource reads, the
+session-owned SSE subscription, and the shared per-target AI reconciliation store.
+AI results always come from backend state reads; SSE only invalidates state.
+Teacher content is read separately from the current quiz endpoint; historical task
+snapshots never become the reviewed draft.
 
-Existing summary logic tests can be run with `npm test`. Playwright and browser
-end-to-end tests were removed at the user's request. No live AI requests are made
+Run `npm test` for mocked API, component, session, and AI reconciliation tests,
+`npm run lint` for static analysis, and `npm run format:check` for formatting.
+No Playwright or browser end-to-end tests are used. No live AI requests are made
 by build or local checks.
