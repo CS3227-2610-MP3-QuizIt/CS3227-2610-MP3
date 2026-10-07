@@ -1,0 +1,1 @@
+"""Secured quiz backend."""
