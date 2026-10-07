@@ -30,7 +30,7 @@ Use the assignment's `src/` convention for application source when scaffolding:
 - `docs/UserGuide.md`, `docs/DeveloperGuide.md`, `docs/Reflections.md`: required documentation matching the delivered product.
 - `logs/`: verified development interaction summaries.
 
-Treat `backend/` and `frontend/` as standalone folders. Instructions to install and run the backend are to be executed when in `backend/`, likewise for `frontend/`. Do not introduce any shared dependency between `backend/` and `frontend/`.
+Treat `backend/` and `frontend/` as standalone folders. Instructions to install and run the backend are to be executed when in `backend/`, likewise for `frontend/`. Anyone installation needed for `backend/` should be placed inside `backend/`, likewise for `frontend/`. Do not introduce any shared dependency between `backend/` and `frontend/`.
 
 
 ## Product invariants
