@@ -37,9 +37,6 @@ export function LoginPage() {
       <section className="login-story">
         <Brand light />
         <div className="login-story-body">
-          <span className="story-label">
-            A little clarity. A lot of possibility.
-          </span>
           <h1>
             Good learning
             <br />
@@ -64,23 +61,14 @@ export function LoginPage() {
                 <span>03</span> Discover what comes next <Icon name="spark" />
               </div>
             </div>
-            <span className="illustration-note">
-              <Icon name="check" /> Every question is a step forward.
-            </span>
           </div>
         </div>
-        <p className="login-footer">
-          Built for the classroom. Designed for learning.
-        </p>
       </section>
       <section className="login-form-section">
         <div className="login-mobile-brand">
           <Brand />
         </div>
         <div className="login-form-wrap">
-          <span className="section-tag">
-            <Icon name="lock" /> YOUR CLASSROOM, CONNECTED
-          </span>
           <h2>Welcome back.</h2>
           <p className="muted">Sign in to pick up where you left off.</p>
           {connectionError ? (
@@ -145,14 +133,7 @@ export function LoginPage() {
             <br />
             Need access? Contact your class administrator.
           </p>
-          <div className="secure-note">
-            <Icon name="lock" /> A secure space for students, teachers, and
-            admins.
-          </div>
         </div>
-        <p className="login-copyright">
-          CLASSROOM &nbsp; / &nbsp; LEARN SOMETHING NEW
-        </p>
       </section>
     </main>
   );
