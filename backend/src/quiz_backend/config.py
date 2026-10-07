@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     def origins(cls, values: list[str]) -> list[str]:
         if not values:
             raise ValueError("At least one exact origin is required")
+        if values == ["*"]:
+            return values
         for value in values:
             parts = urlsplit(value)
             if (
@@ -47,6 +49,7 @@ class Settings(BaseSettings):
                 or parts.query
                 or parts.fragment
                 or parts.username
+                or "*" in value
             ):
                 raise ValueError("Origins must be exact HTTP(S) origins without paths")
         return values
@@ -54,7 +57,7 @@ class Settings(BaseSettings):
     @model_validator(mode="after")
     def production_origins(self) -> Settings:
         if self.environment == "production" and any(
-            not value.startswith("https://") for value in self.allowed_origins
+            value != "*" and not value.startswith("https://") for value in self.allowed_origins
         ):
             raise ValueError("Production requires HTTPS origins")
         for field in (

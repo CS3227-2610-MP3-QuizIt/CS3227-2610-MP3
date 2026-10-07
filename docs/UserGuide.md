@@ -1,12 +1,12 @@
 # Class quiz backend user guide
 
 This delivery supplies the backend API. There is no browser frontend or public deployed
-application yet. Use an API client with cookies and the exact approved Origin, or a
+application yet. Use an API client with cookies and an Origin allowed by the configured policy, or a
 future frontend implementing `specs/frontend-spec.md`. Ask the operator to start the
 backend and bootstrap the first administrator as described in the developer guide.
 
-All paths below start with `/api/v1`. Local development listens on port 7000. The default
-approved browser Origin is `http://localhost:5173`. Login with `POST /auth/login` and
+All paths below start with `/api/v1`. Local development listens on port 7000. The example configuration allows any browser Origin. With an explicit origin list,
+your frontend must use one of the listed origins; the code default is `http://localhost:5173`. Login with `POST /auth/login` and
 `{"username":"...","password":"..."}`. Retain the returned cookie; `GET /auth/me`
 shows your identity and `POST /auth/logout` revokes the session. Sessions expire after
 eight hours. All errors have an `error` object with a code, safe message, details, and

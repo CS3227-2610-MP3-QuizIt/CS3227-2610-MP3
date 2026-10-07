@@ -22,7 +22,7 @@ from .time import utc_now
 
 
 class BrowserSecurity:
-    """Check exact origins and bound bodies before multipart/JSON parsing."""
+    """Apply the configured origin policy and bound request bodies."""
 
     def __init__(self, app: ASGIApp, origins: list[str]) -> None:
         self.app, self.origins = app, origins
@@ -34,7 +34,9 @@ class BrowserSecurity:
         headers = scope.get("headers", [])
         if scope["method"] in {"POST", "PUT", "PATCH", "DELETE"}:
             origins = [value.decode("latin1") for key, value in headers if key == b"origin"]
-            if len(origins) != 1 or origins[0] not in self.origins:
+            if len(origins) > 1 or (
+                "*" not in self.origins and (not origins or origins[0] not in self.origins)
+            ):
                 response = JSONResponse(
                     AppError(403, "INVALID_ORIGIN", "An approved Origin is required.").envelope(),
                     status_code=403,
@@ -114,9 +116,12 @@ def create_app(
         redoc_url=None,
     )
     app.add_middleware(BrowserSecurity, origins=config.allowed_origins)
+    unrestricted_origins = config.allowed_origins == ["*"]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=config.allowed_origins,
+        # Echo origins even on cookie-free login responses when credentials are enabled.
+        allow_origins=[] if unrestricted_origins else config.allowed_origins,
+        allow_origin_regex=".*" if unrestricted_origins else None,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "DELETE"],
         allow_headers=["Content-Type", "Idempotency-Key"],

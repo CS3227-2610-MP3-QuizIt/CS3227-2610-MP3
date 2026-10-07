@@ -11,8 +11,10 @@ uv run --locked quiz-backend serve
 
 Bootstrap prompts for the password twice without echoing it. It refuses to create a
 second administrator. The server uses one worker on `127.0.0.1:7000`. Interactive API
-documentation is at `/api/v1/docs`. Mutating API calls require an exact approved
-`Origin`, including calls made with curl or the API documentation page.
+documentation is at `/api/v1/docs`. Set `ALLOWED_ORIGINS=["*"]` to allow any origin
+(the example configuration uses this mode). CORS echoes the origin to support cookies.
+This disables Origin-based CSRF protection. An explicit origin list instead requires
+an approved `Origin` on every mutation, including curl and the API documentation page.
 
 Create `.env` from `.env.example` only if no private configuration exists. Configure
 three distinct permitted text models and their verified context limits for AI features.

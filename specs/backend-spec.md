@@ -52,7 +52,7 @@ Use a shared async HTTP client with connection pooling for nonblocking HTTPS cal
 
 The SoCLaaS abstraction supplies exactly three feature operations: `generate_hint(input)`, `generate_quiz(input)`, and `generate_quiz_result_summary(input)`. Each operation uses its own fixed backend-configured model. Feature input and output contracts stay separate; rate admission, idempotency, task lifecycle, and notification delivery are shared. Background execution belongs to this application; it does not require gateway background mode.
 
-Serve the production frontend and `/api/v1` under one HTTPS origin. In development, Vite may run separately with its exact origin allowed by the backend and credentials enabled. Development and production use separate SQLite files, storage directories, and credentials. Production requires persistent local disk for the database and notes. This design targets one deployed backend instance; running multiple instances requires revisiting both SQLite storage and shared AI limits.
+Serve the production frontend and `/api/v1` under one HTTPS origin. In development, Vite may run separately with credentials enabled. `ALLOWED_ORIGINS` supports either exact origins or `["*"]` to allow any origin. Development and production use separate SQLite files, storage directories, and credentials. Production requires persistent local disk for the database and notes. This design targets one deployed backend instance; running multiple instances requires revisiting both SQLite storage and shared AI limits.
 
 Suggested source boundaries follow the assignment's `src` convention:
 
@@ -186,7 +186,7 @@ Admins create students and teachers with a username, display name, and initial p
 
 Login issues a cryptographically random opaque session token with at least 256 bits of randomness. Store its SHA256 hash and an 8 hour expiry. Send the token as an `HttpOnly`, `Secure` production cookie with `SameSite=Lax` and `Path=/api/v1`; logout deletes the session and clears the cookie. Login responses use a generic invalid credentials message. Apply a configurable login limit, initially 5 failed attempts per username and source IP within 5 minutes.
 
-For browser requests, verify the exact configured `Origin` on every state changing method, including login, and reject missing or unapproved origins. Together with the session cookie settings, this supplies CSRF protection. In development, allow only the configured Vite origin and do not use wildcard credentialed CORS. Frontend route guards help navigation; backend checks supply authorization.
+With an explicit `ALLOWED_ORIGINS` list, verify the exact configured `Origin` on every state-changing method, including login, and reject missing or unapproved origins. Together with the session cookie settings, this supplies CSRF protection. Per the operator requirement, `["*"]` allows any origin, including opaque `null` origins, and accepts requests without an Origin header; duplicate Origin headers remain rejected. Wildcard mode disables Origin-based CSRF protection. Credentialed CORS reflects the request Origin and sets `Vary: Origin`, including on cookie-free login responses, rather than returning a literal wildcard. The example configuration selects wildcard mode; the code default remains the exact Vite origin. Production explicit lists require HTTPS origins; wildcard mode is also supported in production. Secure production cookies and `SameSite=Lax` remain enabled, so browser cookie restrictions still apply across sites. Frontend route guards help navigation; backend checks supply authorization.
 
 | Resource | Student | Teacher | Admin |
 | --- | --- | --- | --- |
@@ -209,9 +209,9 @@ AI POSTs return a task envelope after short admission work and never wait for ge
 
 | Method and path | Access | Request | Response |
 | --- | --- | --- | --- |
-| `POST /auth/login` | Public with approved Origin | `{username, password}` | `{user: {id, username, display_name, role}}` and session cookie. |
+| `POST /auth/login` | Public with configured Origin policy | `{username, password}` | `{user: {id, username, display_name, role}}` and session cookie. |
 | `GET /auth/me` | Logged in | None | The same public user fields. |
-| `POST /auth/logout` | Logged in with approved Origin | None | `204`, session revoked and cookie cleared. |
+| `POST /auth/logout` | Logged in with configured Origin policy | None | `204`, session revoked and cookie cleared. |
 
 ### Accounts and classes endpoints
 
@@ -461,7 +461,7 @@ These criteria define the behavior implementation tests should verify. Schema va
 | --- | --- |
 | Authentication | Valid login creates a revocable session; wrong passwords are rejected; logout and expiry prevent further access; password and token hashes never appear in responses. |
 | Authorization | Each role is blocked from the other roles' actions; teachers cannot use another teacher's notes or drafts; students cannot read another attempt; tampering with IDs or payload ownership grants no access. |
-| CSRF and browser output | Unapproved Origins fail on mutating endpoints; generated HTML is shown as text; student quiz and saved answer responses contain no correct option or explanation. |
+| Origin policy and browser output | Explicit origin lists reject missing/unapproved Origins on mutating endpoints. Wildcard mode permits arbitrary/absent Origins, reflects Origins for credentialed preflight and actual responses with Vary, and preserves authentication, role checks, and body limits. Generated HTML is shown as text; student quiz and saved answer responses contain no correct option or explanation. |
 | Admin management | Account usernames are unique irrespective of case; repeated assignment creates one membership; only admins can manage membership. |
 | DOCX | Valid paragraph and table text extracts; invalid ZIP, wrong format, archive expansion beyond the cap, excessive file size, and empty text are rejected; external content is not fetched. |
 | Generation | All AI feature traffic uses SoCLaaS; exact requested count and four distinct options are enforced; correct label and explanation are required; malformed or truncated output leaves the prior draft and revision unchanged. |

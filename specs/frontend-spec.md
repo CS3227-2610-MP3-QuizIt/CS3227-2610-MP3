@@ -46,7 +46,7 @@ A dropped terminal event must never leave the UI loading forever. A crash after 
 ### Login and logout
 
 1. A user enters the admin assigned username and password.
-2. The backend checks the approved Origin, login limit, and password hash and creates a session.
+2. The backend applies the configured Origin policy (an exact allowlist or unrestricted wildcard mode), checks the login limit and password hash, and creates a session.
 3. The frontend fetches the current identity and opens the student, teacher, or admin screens, establishes its scoped SSE connection, and reconciles visible task targets.
 4. Protected requests carry the session cookie and undergo backend role and resource checks.
 5. Logout revokes that session, clears the cookie, closes the SSE connection, and clears frontend task state. Expiry sends the user back to login; saved quiz answers and task history remain in SQLite. Session loss does not cancel accepted AI work; task completion still checks resource ownership and feature eligibility.

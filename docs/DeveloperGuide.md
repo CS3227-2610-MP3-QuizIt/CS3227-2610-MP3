@@ -17,16 +17,22 @@ uv run --locked quiz-backend serve --host 127.0.0.1 --port 7000
 or password. `serve` always uses one Uvicorn worker. Lifespan initializes the versioned
 schema and fails leftover running tasks before accepting requests. CLI initialization is
 idempotent. Use `uv run --locked quiz-backend --help` for commands. API/OpenAPI documents
-are available at `/api/v1/docs` and `/api/v1/openapi.json`. An API client must send a
-configured Origin on every mutation; the docs UI requires its own exact origin to be
-approved if used for mutating requests.
+are available at `/api/v1/docs` and `/api/v1/openapi.json`. With an explicit origin
+list, an API client must send a configured Origin on every mutation; the docs UI requires its own exact origin to be approved. Wildcard mode
+accepts arbitrary or absent Origins.
 
 Configure `.env` locally without overwriting existing private configuration. Settings
 also accept environment variables. `ENVIRONMENT` is `development` or `production`;
 `DATABASE_PATH` and `STORAGE_PATH` default to backend-local `private/` paths.
-`ALLOWED_ORIGINS` is a JSON array of exact origins, initially `["http://localhost:5173"]`.
-Production requires HTTPS origins and sends Secure cookies. Use a separate production
-database, private notes directory, environment file, and gateway credential. Private
+`ALLOWED_ORIGINS` is either a JSON array of exact origins or `["*"]` for unrestricted
+origins. The example uses `["*"]`; without configuration the code defaults to
+`["http://localhost:5173"]`. Wildcard mode disables Origin-based CSRF protection and
+reflects each request Origin for credentialed CORS, including the initial login, with
+`Vary: Origin`. Missing Origins are accepted in this mode; duplicate headers are rejected.
+Wildcard mode is available in development and production. Production explicit lists
+require HTTPS origins. Production sends Secure cookies; `SameSite=Lax` and browser
+third-party cookie restrictions still apply, so CORS alone cannot enable cross-site
+sessions. Use a separate production database, private notes directory, environment file, and gateway credential. Private
 configuration, virtual environments, caches, builds, SQLite files, and private storage
 are ignored. Custom private storage outside `backend/private` must also be excluded by
 the operator. Do not put private files in static directories or HTTP response logs.
@@ -71,9 +77,10 @@ and update the reference specification and acceptance tests together.
 Passwords are Argon2id hashes; opaque 256-bit session tokens are stored only as SHA256
 hashes and expire after eight hours. The login limit initially permits five failed
 attempts per normalized username/source-IP pair in five minutes. Exact Origin checks
-cover all state-changing HTTP methods, including login. Development CORS accepts only
-explicit origins with credentials. Role-specific response models and queries withhold
-student keys and explanations until submitted results. The backend enforces ownership
+cover all state-changing HTTP methods, including login, when an explicit origin list
+is configured. The operator-requested wildcard mode bypasses this
+CSRF protection and allows credentialed CORS from any origin. Role-specific response
+models and queries withhold student keys and explanations until submitted results. The backend enforces ownership
 and current teacher membership independently of any frontend controls.
 
 Publication validates the reviewed revision and freezes valid questions and nonempty
@@ -136,6 +143,8 @@ public submission repository/master-branch maintenance remain outside this backe
 
 Workflow files describe the custom process (`workflow/backend-implementation.md`),
 observed checks (`workflow/backend-validation.md`), and specialist review/handoffs.
+The unrestricted-origin requirement and verification are recorded in
+`workflow/origin-policy.md`, with its interaction summary in `logs/origin-policy.md`.
 The canonical completed specialist review is `reviews/backend-01.md`; both findings
 were fixed and verified, with no unresolved findings for the backend scope.
 `logs/backend-implementation.md` summarizes verified prompts/interactions; it contains
@@ -149,6 +158,8 @@ comes from `backend/soclaas-docs.md`. Implementation uses maintained FastAPI, Py
 aiosqlite, HTTPX, Argon2-cffi, defusedxml, multipart, and Uvicorn libraries rather than
 vendored code. Their official documentation informed usage, including
 [FastAPI lifespan](https://fastapi.tiangolo.com/advanced/events/),
+[FastAPI CORS](https://fastapi.tiangolo.com/tutorial/cors/) and the installed Starlette
+CORS middleware implementation for credentialed origin reflection,
 [HTTPX async clients](https://www.python-httpx.org/async/), and
 [Python asyncio task lifetime/cancellation](https://docs.python.org/3.14/library/asyncio-task.html).
 Codex specialist agents contributed implementation, acceptance tests, integration, and
