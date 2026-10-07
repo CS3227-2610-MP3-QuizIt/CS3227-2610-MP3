@@ -18,6 +18,31 @@ three distinct permitted text models and their verified context limits for AI fe
 Missing AI configuration returns a safe error for fresh AI requests; other workflows
 remain available. Do not overwrite an existing `.env`.
 
+## Docker
+
+Build and run from this folder, using your configured `.env`:
+
+```bash
+docker build -t quiz-backend .
+docker run --rm --name quiz-backend \
+  --env-file .env \
+  -p 127.0.0.1:7000:7000 \
+  --mount type=volume,source=quiz-backend-data,target=/app/private \
+  quiz-backend
+```
+
+API documentation is at `http://localhost:7000/api/v1/docs`. The image runs as a
+non-root user with one worker. Only locked runtime dependencies and the installed
+application are included; credentials, local databases, and uploads are excluded
+from the build context. The named volume preserves SQLite data and private notes
+when the container is replaced. Keep `DATABASE_PATH` and `STORAGE_PATH` under
+`/app/private` (relative `private/...` paths also work).
+
+For production, supply a separate environment file with `ENVIRONMENT=production`,
+`ALLOWED_ORIGINS=["https://your-app.example"]`, and production gateway configuration.
+Use a separate named volume and serve the frontend and API through the same HTTPS
+origin using a reverse proxy. Allow at least ten seconds for container shutdown.
+
 ## Demo accounts
 
 Startup automatically initializes and seeds a fresh database in both development

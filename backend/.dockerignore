@@ -1,0 +1,15 @@
+# Only application source and dependency manifests enter the build context.
+**
+!pyproject.toml
+!uv.lock
+!src/
+!src/**
+
+**/__pycache__/
+**/*.py[cod]
+**/.env
+**/.env.*
+**/*.sqlite3*
+**/*.db*
+**/*.pem
+**/*.key
