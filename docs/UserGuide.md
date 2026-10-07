@@ -3,7 +3,8 @@
 This delivery supplies the backend API. There is no browser frontend or public deployed
 application yet. Use an API client with cookies and an Origin allowed by the configured policy, or a
 future frontend implementing `specs/frontend-spec.md`. Ask the operator to start the
-backend and bootstrap the first administrator as described in the developer guide.
+backend as described in the developer guide. A fresh deployment automatically creates
+the demo accounts listed in [the backend README](../backend/README.md).
 
 All paths below start with `/api/v1`. Local development listens on port 7000. The example configuration allows any browser Origin. With an explicit origin list,
 your frontend must use one of the listed origins; the code default is `http://localhost:5173`. Login with `POST /auth/login` and

@@ -16,7 +16,10 @@ from fastapi import FastAPI
 from pydantic import SecretStr
 
 from quiz_backend.config import Settings
+from quiz_backend.core import Core
+from quiz_backend.db import Database
 from quiz_backend.main import create_app
+from quiz_backend.time import stamp
 
 PASSWORD = "correct-horse-battery-staple"
 API = "/api/v1"
@@ -194,11 +197,19 @@ async def harness(tmp_path: Any) -> AsyncIterator[Harness]:
         shutdown_grace_seconds=0.05,
     )
     clock = Clock()
+    db = Database(settings.database_path)
+    await db.initialize()
+    password_hash = await asyncio.to_thread(Core(db, settings).password_hasher.hash, PASSWORD)
+    async with db.write() as conn:
+        await conn.execute(
+            "INSERT INTO users(username, display_name, password_hash, role, created_at) "
+            "VALUES ('admin', 'Administrator', ?, 'admin', ?)",
+            (password_hash, stamp(clock())),
+        )
     gateway = Gateway()
     app = create_app(settings, transport=httpx.MockTransport(gateway.handle), clock=clock)
     value = Harness(app, settings, clock, gateway)
     async with app.router.lifespan_context(app):
-        await app.state.core.bootstrap("admin", "Administrator", PASSWORD)
         try:
             yield value
         finally:

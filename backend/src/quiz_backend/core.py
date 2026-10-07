@@ -18,7 +18,7 @@ from .auth import User, role
 from .config import Settings
 from .db import Database, all_rows, one
 from .errors import AppError, missing
-from .schemas import DisplayName, Password, TeacherQuestion, Username
+from .schemas import TeacherQuestion
 from .time import stamp, utc_now
 
 PUBLIC_USER_SQL = "id, username, display_name, role"
@@ -145,32 +145,6 @@ class Core:
                 "DELETE FROM sessions WHERE token_hash = ?",
                 (hashlib.sha256(token.encode()).hexdigest(),),
             )
-
-    async def bootstrap(self, username: str, display_name: str, password: str) -> User:
-        # The CLI validates through the same field constraints as API account creation.
-        from pydantic import TypeAdapter
-
-        username = TypeAdapter(Username).validate_python(username)
-        display_name = TypeAdapter(DisplayName).validate_python(display_name)
-        password = TypeAdapter(Password).validate_python(password)
-        password_hash = await asyncio.to_thread(self.password_hasher.hash, password)
-        async with self.db.write() as conn:
-            if await one(conn, "SELECT id FROM users WHERE role = 'admin' LIMIT 1"):
-                raise AppError(
-                    409, "ADMIN_EXISTS", "An administrator has already been bootstrapped."
-                )
-            try:
-                cursor = await conn.execute(
-                    "INSERT INTO users(username, display_name, password_hash, role, created_at) VALUES (?, ?, ?, 'admin', ?)",
-                    (username, display_name, password_hash, stamp(self.clock())),
-                )
-            except sqlite3.IntegrityError as exc:
-                raise AppError(409, "USERNAME_EXISTS", "That username is already in use.") from exc
-            row = await one(
-                conn, f"SELECT {PUBLIC_USER_SQL} FROM users WHERE id = ?", (cursor.lastrowid,)
-            )
-            assert row is not None
-            return row
 
     async def create_user(
         self, user: User, username: str, display_name: str, password: str, account_role: str

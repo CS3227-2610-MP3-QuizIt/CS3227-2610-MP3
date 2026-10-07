@@ -16,7 +16,7 @@ The supplied [SoCLaaS reference](../backend/soclaas-docs.md) is the authority fo
 
 The following decisions make the requested features precise:
 
-- An account has exactly one role. Administrators cannot create more admin accounts through the app; the first admin is created by an explicit deployment bootstrap command.
+- An account has exactly one role. Administrators cannot create more admin accounts through the app; demo accounts are seeded automatically on a fresh database at startup.
 - A class may have multiple students and teachers. Membership is managed only by admins.
 - A quiz belongs to one class, one teacher, and one uploaded DOCX. Only that teacher can manage the draft, and they must still be assigned to the class.
 - A quiz contains 1 to 10 questions, with 5 as the default. Every question has exactly four nonempty, distinct options labeled A, B, C, and D, exactly one correct option, and a nonempty explanation. The teacher chooses the title and count when creating the draft; reprompting changes question content while keeping that count.
@@ -53,7 +53,7 @@ A dropped terminal event must never leave the UI loading forever. A crash after 
 
 ### Create accounts and assign classes
 
-1. The bootstrap process supplies the first admin account; the admin logs in.
+1. Startup seeding supplies the demo admin account; the admin logs in.
 2. The admin creates student and teacher accounts with initial passwords.
 3. The admin creates a class.
 4. The admin assigns existing student and teacher accounts to that class. Repeated assignment does not duplicate membership.

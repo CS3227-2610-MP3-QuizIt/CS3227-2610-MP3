@@ -8,15 +8,14 @@ creates and manages the backend-local `.venv`.
 
 ```bash
 uv sync --locked
-uv run --locked quiz-backend init-db
-uv run --locked quiz-backend bootstrap-admin --username admin --display-name Administrator
 uv run --locked quiz-backend serve --host 127.0.0.1 --port 7000
 ```
 
-`bootstrap-admin` reads a hidden password and confirmation; there is no default account
-or password. `serve` always uses one Uvicorn worker. Lifespan initializes the versioned
-schema and fails leftover running tasks before accepting requests. CLI initialization is
-idempotent. Use `uv run --locked quiz-backend --help` for commands. API/OpenAPI documents
+`serve` always uses one Uvicorn worker. Lifespan initializes the versioned
+schema, seeds demo accounts and classes if the database has no users, and fails
+leftover running tasks before accepting requests. Demo login credentials are in
+[the backend README](../backend/README.md). Restarts preserve existing data.
+Use `uv run --locked quiz-backend --help` for commands. API/OpenAPI documents
 are available at `/api/v1/docs` and `/api/v1/openapi.json`. With an explicit origin
 list, an API client must send a configured Origin on every mutation; the docs UI requires its own exact origin to be approved. Wildcard mode
 accepts arbitrary or absent Origins.
@@ -59,7 +58,7 @@ Source responsibilities are deliberately separate:
 
 | Module | Responsibility |
 | --- | --- |
-| `main.py`, `config.py`, `cli.py` | Application lifespan, HTTP security/error handling, configuration, bootstrap and one-worker launch |
+| `main.py`, `config.py`, `cli.py` | Application lifespan, HTTP security/error handling, configuration, automatic demo seeding and one-worker launch |
 | `db.py`, `migrations/001_initial.sql` | Dedicated snapshot/transaction connections and versioned initial schema |
 | `auth.py`, `schemas.py`, `api.py` | Session/role dependencies, strict role-specific contracts, ordinary API routes |
 | `core.py` | Accounts, classes, ownership, publication, attempts, deterministic grades, anonymous aggregates |

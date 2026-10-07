@@ -16,6 +16,7 @@ from .config import Settings
 from .core import Core
 from .db import Database
 from .errors import AppError
+from .seed import seed_demo
 from .tasks import TaskManager
 from .tasks_api import router as task_router
 from .time import utc_now
@@ -86,7 +87,7 @@ def create_app(
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         db = Database(config.database_path)
-        await db.initialize()
+        await seed_demo(config)
         config.storage_path.mkdir(parents=True, exist_ok=True, mode=0o700)
         async with httpx.AsyncClient(
             transport=transport,

@@ -15,6 +15,7 @@ import httpx
 from quiz_backend.config import Settings
 from quiz_backend.db import one
 from quiz_backend.main import create_app
+from quiz_backend.seed import DEMO_PASSWORD
 
 
 async def stage(directory: Path, mode: str) -> None:
@@ -31,10 +32,6 @@ async def stage(directory: Path, mode: str) -> None:
     )
     app = create_app(settings)
     async with app.router.lifespan_context(app):
-        if mode == "seed":
-            await app.state.core.bootstrap(
-                "smoke-admin", "Smoke Administrator", "temporary-smoke-password"
-            )
         async with httpx.AsyncClient(
             transport=httpx.ASGITransport(app),
             base_url="http://smoke",
@@ -42,7 +39,7 @@ async def stage(directory: Path, mode: str) -> None:
         ) as client:
             response = await client.post(
                 "/api/v1/auth/login",
-                json={"username": "smoke-admin", "password": "temporary-smoke-password"},
+                json={"username": "admin", "password": DEMO_PASSWORD},
             )
             assert response.status_code == 200
             if mode == "seed":
@@ -53,8 +50,8 @@ async def stage(directory: Path, mode: str) -> None:
             else:
                 classes = await client.get("/api/v1/classes")
                 assert classes.status_code == 200
-                assert len(classes.json()["items"]) == 1
-                assert classes.json()["items"][0]["name"] == "Persistent smoke class"
+                assert len(classes.json()["items"]) == 3
+                assert classes.json()["items"][-1]["name"] == "Persistent smoke class"
                 async with app.state.db.read() as conn:
                     assert await one(conn, "PRAGMA integrity_check") == {"integrity_check": "ok"}
                     assert await one(conn, "SELECT count(*) AS n FROM schema_migrations") == {

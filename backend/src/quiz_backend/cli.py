@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import getpass
 
 import httpx
 import uvicorn
@@ -8,24 +7,14 @@ from pydantic import ValidationError
 
 from .ai import SoCLaaS
 from .config import Settings
-from .core import Core
 from .db import Database
 from .errors import AppError
 from .main import create_app
+from .seed import seed_demo
 
 
 async def initialize(settings: Settings) -> None:
     await Database(settings.database_path).initialize()
-
-
-async def bootstrap(settings: Settings, username: str, display_name: str) -> None:
-    password = getpass.getpass("Initial admin password: ")
-    confirmation = getpass.getpass("Confirm password: ")
-    if password != confirmation:
-        raise AppError(422, "VALIDATION_ERROR", "Passwords do not match.")
-    db = Database(settings.database_path)
-    await db.initialize()
-    await Core(db, settings).bootstrap(username, display_name, password)
 
 
 async def live_check(settings: Settings) -> None:
@@ -70,9 +59,9 @@ def main() -> None:
     )
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("init-db")
-    admin = commands.add_parser("bootstrap-admin")
-    admin.add_argument("--username", required=True)
-    admin.add_argument("--display-name", required=True)
+    commands.add_parser(
+        "seed-demo", help="Seed demo accounts and two classes on an empty database."
+    )
     serve = commands.add_parser("serve")
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=7000)
@@ -88,8 +77,8 @@ def main() -> None:
     try:
         if args.command == "init-db":
             asyncio.run(initialize(settings))
-        elif args.command == "bootstrap-admin":
-            asyncio.run(bootstrap(settings, args.username, args.display_name))
+        elif args.command == "seed-demo":
+            asyncio.run(seed_demo(settings))
         elif args.command == "live-check":
             asyncio.run(live_check(settings))
         else:

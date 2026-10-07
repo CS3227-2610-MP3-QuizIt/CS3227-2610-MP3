@@ -36,7 +36,7 @@ Treat `backend/` and `frontend/` as standalone folders. Instructions to install 
 
 ## Product invariants
 
-- Accounts have exactly one role. Admins create students and teachers; the first admin comes from an explicit deployment bootstrap command.
+- Accounts have exactly one role. Admins create students and teachers; demo accounts and classes are seeded automatically on a fresh database at startup.
 - Only an owning teacher who is still assigned to the class can manage or publish a draft. Publication requires explicit human review of the submitted revision.
 - Quizzes have 1–10 questions, each with exactly four distinct options, one correct option, and an explanation.
 - Publication atomically freezes quiz content and a nonempty student roster. Later membership changes do not change existing attempts or summary completion counts.

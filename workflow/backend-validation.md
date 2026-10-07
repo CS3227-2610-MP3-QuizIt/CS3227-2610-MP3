@@ -14,7 +14,7 @@ delivery artifact, and `uv lock --check` passed. No commit or live deployment wa
 | Full final suite including gateway contract additions | `.venv/bin/python -m pytest -q`: **127 passed in 33.05 seconds**, all provider traffic mocked |
 | Ruff source/tests formatting and lint | `ruff format --check .`: 26 files formatted; `ruff check .`: all checks passed; process smoke script also passed formatting/lint |
 | mypy application source and tests | `mypy src/quiz_backend tests`: no issues in 24 source/test files |
-| Backend CLI | `uv run --locked quiz-backend --help` passed and exposes init/bootstrap/serve/live-check |
+| Backend CLI | `uv run --locked quiz-backend --help` passed and exposes init-db/seed-demo/serve/live-check |
 | Build | `uv build --offline` produced wheel and source distribution successfully |
 | Distribution inspection | Migration is included; `.env`, private files, `.venv`, and `.uv-cache` are excluded |
 | Process restart/persistence smoke | `python ../workflow/backend_persistence_smoke.py` passed using two isolated subprocesses, API login/class reads, one migration version, and SQLite integrity check |
