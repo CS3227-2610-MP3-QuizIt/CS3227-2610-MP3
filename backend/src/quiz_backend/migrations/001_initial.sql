@@ -47,7 +47,7 @@ CREATE TABLE class_memberships (
 CREATE INDEX idx_memberships_user ON class_memberships(user_id, class_id);
 
 CREATE TABLE notes (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     class_id INTEGER NOT NULL REFERENCES classes(id),
     uploaded_by INTEGER NOT NULL REFERENCES users(id),
     original_filename TEXT NOT NULL,
@@ -60,7 +60,7 @@ CREATE TABLE notes (
 );
 
 CREATE TABLE quizzes (
-    id INTEGER PRIMARY KEY,
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
     class_id INTEGER NOT NULL REFERENCES classes(id),
     teacher_id INTEGER NOT NULL REFERENCES users(id),
     note_id INTEGER NOT NULL,
@@ -82,7 +82,7 @@ CREATE INDEX idx_quizzes_teacher ON quizzes(teacher_id, class_id);
 
 CREATE TABLE quiz_questions (
     id INTEGER PRIMARY KEY,
-    quiz_id INTEGER NOT NULL REFERENCES quizzes(id),
+    quiz_id INTEGER NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
     position INTEGER NOT NULL CHECK (position BETWEEN 1 AND 10),
     question_text TEXT NOT NULL CHECK (length(trim(question_text)) > 0),
     option_a TEXT NOT NULL CHECK (length(trim(option_a)) > 0),
@@ -136,11 +136,12 @@ CREATE TABLE attempt_answers (
 CREATE TABLE ai_targets (
     id INTEGER PRIMARY KEY,
     feature TEXT NOT NULL CHECK (feature IN ('quiz_generation', 'hint', 'summary')),
-    quiz_id INTEGER NOT NULL REFERENCES quizzes(id),
+    quiz_id INTEGER REFERENCES quizzes(id) ON DELETE SET NULL,
     attempt_id INTEGER,
     question_id INTEGER,
     version INTEGER NOT NULL DEFAULT 0 CHECK (version >= 0),
     latest_request_id TEXT,
+    CHECK (quiz_id IS NOT NULL OR feature = 'quiz_generation'),
     FOREIGN KEY (attempt_id, quiz_id) REFERENCES quiz_attempts(id, quiz_id),
     FOREIGN KEY (question_id, quiz_id) REFERENCES quiz_questions(id, quiz_id),
     FOREIGN KEY (latest_request_id, id) REFERENCES ai_requests(id, target_id),

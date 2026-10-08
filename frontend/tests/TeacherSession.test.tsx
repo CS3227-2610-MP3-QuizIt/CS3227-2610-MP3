@@ -1,4 +1,5 @@
 import { StrictMode } from "react";
+import userEvent from "@testing-library/user-event";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
@@ -130,5 +131,24 @@ describe("teacher workspace session and notifications", () => {
     expect(sources.at(-1)?.close).not.toHaveBeenCalled();
     unmount();
     expect(sources.at(-1)?.close).toHaveBeenCalledOnce();
+  });
+  it("returns to a refreshed quiz list after draft deletion", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "deleteQuiz").mockResolvedValue(undefined);
+    render(<App />);
+    await screen.findByText("Question in revision 1?");
+    const reads = vi.mocked(api.teacherQuizzes).mock.calls.length;
+    vi.mocked(api.teacherQuizzes).mockResolvedValue({ items: [] });
+    await user.click(screen.getByRole("button", { name: "Delete draft" }));
+    await user.click(screen.getByRole("button", { name: "Confirm deletion" }));
+    await waitFor(() =>
+      expect(api.teacherQuizzes).toHaveBeenCalledTimes(reads + 1),
+    );
+    expect(window.location.hash).toBe("#/teacher/quizzes");
+    await waitFor(() =>
+      expect(
+        screen.queryByText("Question in revision 1?"),
+      ).not.toBeInTheDocument(),
+    );
   });
 });

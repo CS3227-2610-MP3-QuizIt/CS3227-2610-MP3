@@ -73,6 +73,8 @@ A dropped terminal event must never leave the UI loading forever. A crash after 
 10. The backend revalidates the draft and class membership and confirms no generation is pending. In one transaction it freezes content, snapshots currently assigned students into attempt rows, and records publication.
 11. Students in that roster see the quiz. No further regeneration or editing is allowed for that published quiz.
 
+The draft review screen also offers Delete draft with explicit confirmation: deletion permanently removes the draft/questions and its uploaded notes only if no other quiz uses them. Hide this action for published quizzes; disable it during generation, publication, deletion, or unresolved state reads. On `204`, discard cached quiz/task state, ignore late responses/events, return to the quiz list, and refresh it. Show errors and reconcile after conflicts; the backend enforces eligibility atomically.
+
 ### Take a quiz and request hints
 
 1. A student opens their assigned published quiz. The response contains questions and options only.
@@ -104,7 +106,7 @@ A dropped terminal event must never leave the UI loading forever. A crash after 
 | Student attempt | Questions in order, four radio options, saved selection state, per question hint control, and Submit. |
 | Student results | Score and per question answer and explanation. |
 | Teacher classes and quizzes | Assigned classes, own drafts and published quizzes, and Create quiz. |
-| Teacher upload and draft | DOCX upload, title and count, generation prompt, all generated questions with keys and explanations, reprompt, and Publish. |
+| Teacher upload and draft | DOCX upload, title and count, generation prompt, all generated questions with keys and explanations, reprompt, Publish, and confirmed deletion of idle drafts. |
 | Admin accounts | Student and teacher list and account creation form. |
 | Admin classes | Class creation and member assignment or unassignment. |
 | Admin quiz performance | Completion counts, eligibility state, exact metrics, and Generate, View, Retry, or Regenerate summary with latest task state. |

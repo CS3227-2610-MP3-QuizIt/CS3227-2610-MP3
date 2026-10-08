@@ -15,11 +15,13 @@ export function DraftPage({
   classes,
   store,
   onPublished,
+  onDeleted,
 }: {
   id: number;
   classes: ClassRoom[];
   store: GenerationStore;
   onPublished: () => Promise<void>;
+  onDeleted: () => Promise<void>;
 }) {
   const subscribe = useCallback(
     (listener: () => void) => store.subscribe(id, listener),
@@ -32,6 +34,9 @@ export function DraftPage({
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
   const [publishedCount, setPublishedCount] = useState<number | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   const controller = useRef<AbortController | null>(null);
   useEffect(() => {
     void store.reconcile(id);
@@ -40,7 +45,7 @@ export function DraftPage({
   const state = task.state;
   const quiz = state?.quiz;
   const running = state?.status === "in_progress";
-  const busy = task.submitting || running || publishing;
+  const busy = task.submitting || running || publishing || deleting;
   const reviewToken = quiz ? `${quiz.revision}:${state?.version}` : "";
   const complete =
     !!quiz &&
@@ -53,6 +58,30 @@ export function DraftPage({
     !busy &&
     quiz?.status === "draft" &&
     reviewed === reviewToken;
+  const deletable =
+    fresh && !busy && quiz?.status === "draft" && publishedCount === null;
+  async function deleteDraft() {
+    if (!deletable || !confirmDelete) return;
+    const current = new AbortController();
+    controller.current = current;
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      await api.deleteQuiz(id, current.signal);
+    } catch (error) {
+      if (!current.signal.aborted) {
+        setDeleteError(errorMessage(error));
+        setDeleting(false);
+        await store.reconcile(id);
+      }
+      return;
+    }
+    if (!current.signal.aborted) {
+      store.retire(id);
+      window.location.hash = "/teacher/quizzes";
+      void onDeleted();
+    }
+  }
   async function publish() {
     if (!quiz || !publishable) return;
     const current = new AbortController();
@@ -109,7 +138,7 @@ export function DraftPage({
         action={
           <button
             className="button button-secondary"
-            disabled={task.reading || task.submitting || publishing}
+            disabled={task.reading || task.submitting || publishing || deleting}
             onClick={() => void store.reconcile(id)}
           >
             <Icon name="refresh" />
@@ -396,6 +425,51 @@ export function DraftPage({
                       <Icon name="check" />
                       {publishing ? "Publishing…" : "Publish quiz"}
                     </button>
+                  </section>
+                  <section
+                    className="panel teacher-control-panel"
+                    aria-label="Delete draft"
+                  >
+                    <h2>Delete draft</h2>
+                    <p className="teacher-action-help">
+                      Permanently delete this draft and its questions. Its
+                      uploaded notes are also deleted if no other quiz uses
+                      them.
+                    </p>
+                    {running ? (
+                      <p className="muted">
+                        Wait for quiz generation to finish before deleting.
+                      </p>
+                    ) : null}
+                    {deleteError ? <Notice>{deleteError}</Notice> : null}
+                    {confirmDelete ? (
+                      <>
+                        <p>Delete this draft permanently?</p>
+                        <button
+                          className="button button-secondary"
+                          disabled={!deletable}
+                          onClick={() => void deleteDraft()}
+                          style={{background: 'red', color: 'white'}}
+                        >
+                          {deleting ? "Deleting…" : "Confirm deletion"}
+                        </button>
+                        <button
+                          className="text-button"
+                          disabled={deleting}
+                          onClick={() => setConfirmDelete(false)}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        className="button button-secondary"
+                        disabled={!deletable}
+                        onClick={() => setConfirmDelete(true)}
+                      >
+                        Delete draft
+                      </button>
+                    )}
                   </section>
                 </>
               ) : (

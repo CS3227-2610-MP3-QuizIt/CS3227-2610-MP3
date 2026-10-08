@@ -18,10 +18,12 @@ import type { GenerationState } from "../src/api/types";
 describe("teacher draft review", () => {
   const read = vi.fn<GenerationTransport["read"]>();
   const generate = vi.fn<GenerationTransport["generate"]>();
+  const onDeleted = vi.fn().mockResolvedValue(undefined);
   let store: GenerationStore;
   beforeEach(() => {
     read.mockReset();
     generate.mockReset();
+    onDeleted.mockClear();
     read.mockResolvedValue(generation());
     store = new GenerationStore({ read, generate });
   });
@@ -33,6 +35,7 @@ describe("teacher draft review", () => {
         classes={classes}
         store={store}
         onPublished={vi.fn().mockResolvedValue(undefined)}
+        onDeleted={onDeleted}
       />,
     );
 
@@ -82,6 +85,97 @@ describe("teacher draft review", () => {
     expect(screen.getByRole("button", { name: "Publish quiz" })).toBeDisabled();
     expect(screen.getByRole("checkbox")).toBeDisabled();
     expect(screen.getByLabelText(/Generation instructions/)).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete draft" })).toBeDisabled();
+  });
+  it("requires confirmation, permits cancellation, and retires state after deletion", async () => {
+    const user = userEvent.setup();
+    const deletion = vi.spyOn(api, "deleteQuiz").mockResolvedValue(undefined);
+    open();
+    await screen.findByText("Question in revision 1?");
+    await user.click(screen.getByRole("button", { name: "Delete draft" }));
+    expect(deletion).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(
+      screen.queryByRole("button", { name: "Confirm deletion" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Delete draft" }));
+    await user.click(screen.getByRole("button", { name: "Confirm deletion" }));
+    expect(deletion).toHaveBeenCalledWith(1, expect.any(AbortSignal));
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledOnce());
+    expect(window.location.hash).toBe("#/teacher/quizzes");
+    expect(store.snapshot(1).state).toBeNull();
+  });
+  it("hides deletion for published quizzes", async () => {
+    read.mockResolvedValue(
+      generation(2, "success", { ...quiz(), status: "published" }),
+    );
+    open();
+    await screen.findByText("This quiz is published");
+    expect(
+      screen.queryByRole("button", { name: "Delete draft" }),
+    ).not.toBeInTheDocument();
+  });
+  it("disables deletion during a state refresh", async () => {
+    open();
+    await screen.findByText("Question in revision 1?");
+    const refresh = deferred<GenerationState>();
+    read.mockReturnValueOnce(refresh.promise);
+    let pending: Promise<void>;
+    act(() => {
+      pending = store.reconcile(1);
+    });
+    expect(screen.getByRole("button", { name: "Delete draft" })).toBeDisabled();
+    await act(async () => {
+      refresh.resolve(generation());
+      await pending;
+    });
+    expect(screen.getByRole("button", { name: "Delete draft" })).toBeEnabled();
+  });
+  it("disables generation and publication while deletion is pending", async () => {
+    const user = userEvent.setup();
+    const response = deferred<void>();
+    vi.spyOn(api, "deleteQuiz").mockReturnValue(response.promise);
+    open();
+    await screen.findByText("Question in revision 1?");
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(screen.getByRole("button", { name: "Delete draft" }));
+    await user.click(screen.getByRole("button", { name: "Confirm deletion" }));
+    expect(screen.getByRole("button", { name: "Deleting…" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Regenerate questions" }),
+    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Publish quiz" })).toBeDisabled();
+    await act(async () => {
+      response.resolve();
+    });
+    expect(onDeleted).toHaveBeenCalledOnce();
+  });
+  it("disables deletion when a state refresh fails", async () => {
+    open();
+    await screen.findByText("Question in revision 1?");
+    read.mockRejectedValue(new Error("Unable to refresh"));
+    await act(() => store.reconcile(1));
+    expect(screen.getByRole("button", { name: "Delete draft" })).toBeDisabled();
+  });
+  it("shows deletion conflicts and reconciles running generation", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "deleteQuiz").mockRejectedValue(
+      new ApiError(409, {
+        code: "AI_REQUEST_IN_PROGRESS",
+        message: "Wait for generation before deleting.",
+      }),
+    );
+    open();
+    await screen.findByText("Question in revision 1?");
+    await user.click(screen.getByRole("button", { name: "Delete draft" }));
+    read.mockResolvedValue(generation(3, "in_progress"));
+    await user.click(screen.getByRole("button", { name: "Confirm deletion" }));
+    await screen.findByText("Wait for generation before deleting.");
+    expect(
+      screen.getByRole("button", { name: "Confirm deletion" }),
+    ).toBeDisabled();
+    expect(onDeleted).not.toHaveBeenCalled();
+    expect(store.snapshot(1).state?.status).toBe("in_progress");
   });
   it("sends ensure on the initial generation and new plus the current revision on reprompt", async () => {
     const user = userEvent.setup();

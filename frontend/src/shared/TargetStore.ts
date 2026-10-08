@@ -23,6 +23,7 @@ interface Target<S extends TaskState, I> {
   fetching: boolean;
   dirty: boolean;
   failures: number;
+  retired: boolean;
   timer?: ReturnType<typeof setTimeout>;
   operation?: { input: I; key: string };
 }
@@ -67,6 +68,7 @@ export class TargetStore<S extends TaskState, I> {
         fetching: false,
         dirty: false,
         failures: 0,
+        retired: false,
       };
       this.targets.set(id, target);
     }
@@ -87,7 +89,7 @@ export class TargetStore<S extends TaskState, I> {
     target.listeners.forEach((listener) => listener());
   }
   private apply(target: Target<S, I>, state: S) {
-    if (state.version < target.applied) return;
+    if (target.retired || state.version < target.applied) return;
     target.applied = state.version;
     this.update(target, {
       state: this.transport.merge?.(target.snapshot.state, state) ?? state,
@@ -103,7 +105,7 @@ export class TargetStore<S extends TaskState, I> {
     )
       return;
     const target = this.targets.get(event.quiz_id);
-    if (!target || event.version <= target.applied) return;
+    if (!target || target.retired || event.version <= target.applied) return;
     target.notified = Math.max(target.notified, event.version);
     if (target.listeners.size) void this.reconcile(event.quiz_id);
   }
@@ -112,9 +114,30 @@ export class TargetStore<S extends TaskState, I> {
       if (target.listeners.size) void this.reconcile(id);
     });
   }
+  retire(id: number) {
+    const target = this.target(id);
+    target.retired = true;
+    target.epoch++;
+    target.dirty = false;
+    target.operation = undefined;
+    clearTimeout(target.timer);
+    this.update(target, {
+      state: null,
+      reading: false,
+      submitting: false,
+      readError: "",
+      actionError: "",
+      canRepeat: false,
+    });
+  }
   private schedule(id: number, target: Target<S, I>) {
     clearTimeout(target.timer);
-    if (this.stopped || !target.listeners.size || target.snapshot.submitting)
+    if (
+      this.stopped ||
+      target.retired ||
+      !target.listeners.size ||
+      target.snapshot.submitting
+    )
       return;
     const needsRead =
       target.snapshot.state?.status === "in_progress" ||
@@ -133,6 +156,7 @@ export class TargetStore<S extends TaskState, I> {
   async reconcile(id: number): Promise<void> {
     if (this.stopped) return;
     const target = this.target(id);
+    if (target.retired) return;
     if (target.snapshot.submitting) {
       target.dirty = true;
       return;
@@ -160,7 +184,7 @@ export class TargetStore<S extends TaskState, I> {
       this.update(target, { readError: errorMessage(error) });
     } finally {
       target.fetching = false;
-      if (!this.stopped) {
+      if (!this.stopped && !target.retired) {
         this.update(target, { reading: false });
         // A fetch requested while this one was in flight needs a fresh snapshot.
         const again = target.dirty && !target.snapshot.submitting;
@@ -176,6 +200,7 @@ export class TargetStore<S extends TaskState, I> {
     const target = this.target(id);
     if (
       target.snapshot.submitting ||
+      target.retired ||
       target.snapshot.state?.status === "in_progress"
     )
       return;
@@ -199,11 +224,11 @@ export class TargetStore<S extends TaskState, I> {
         operation.key,
         this.controller.signal,
       );
-      if (this.stopped) return;
+      if (this.stopped || target.retired) return;
       this.apply(target, state);
       target.operation = undefined;
     } catch (error) {
-      if (this.stopped) return;
+      if (this.stopped || target.retired) return;
       const uncertain =
         error instanceof ApiError &&
         (error.status === 0 || error.status >= 500);
@@ -213,7 +238,7 @@ export class TargetStore<S extends TaskState, I> {
         canRepeat: uncertain,
       });
     } finally {
-      if (!this.stopped) {
+      if (!this.stopped && !target.retired) {
         this.update(target, { submitting: false });
         // Also reconciles admission rejection and historical key replays.
         void this.reconcile(id);

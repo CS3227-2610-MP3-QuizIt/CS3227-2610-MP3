@@ -24,35 +24,6 @@ export function TeacherClasses({
           </a>
         }
       />
-      <section className="welcome-banner teacher-banner">
-        <div>
-          <span className="tiny-label">FROM NOTES TO NEW UNDERSTANDING</span>
-          <h2>
-            A question can open
-            <br />a world of learning.
-          </h2>
-          <p>
-            Start with your notes. Shape the questions. Share when you’re ready.
-          </p>
-          <a className="button button-light" href="#/teacher/quizzes">
-            Explore your quizzes
-            <Icon name="arrow" />
-          </a>
-        </div>
-        <div className="banner-art" aria-hidden="true">
-          <div className="art-orbit" />
-          <div className="art-book">
-            <Icon name="book" />
-          </div>
-          <div className="art-small art-small-one">
-            <Icon name="spark" />
-          </div>
-          <div className="art-small art-small-two">
-            <Icon name="check" />
-          </div>
-          <span>CREATE. REVIEW. SHARE.</span>
-        </div>
-      </section>
       <div className="teacher-section-heading">
         <h2>
           My classes <span className="badge">{classes.length}</span>

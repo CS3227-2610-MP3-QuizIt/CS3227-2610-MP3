@@ -2,6 +2,16 @@ import { afterEach, expect, it, vi } from "vitest";
 import { api, ApiError, errorMessage } from "../src/api/client";
 
 afterEach(() => vi.unstubAllGlobals());
+it("deletes a quiz with cookies and accepts an empty 204 response", async () => {
+  const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+  vi.stubGlobal("fetch", fetch);
+  await expect(api.deleteQuiz(3)).resolves.toBeUndefined();
+  const [path, request] = fetch.mock.calls[0];
+  expect(path).toBe("/api/v1/quizzes/3");
+  expect(request.method).toBe("DELETE");
+  expect(request.credentials).toBe("include");
+  expect(request.body).toBeUndefined();
+});
 it("shows provider retry timing as well as the required application rate-limit message", () => {
   expect(
     errorMessage(

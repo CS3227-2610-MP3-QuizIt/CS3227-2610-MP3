@@ -141,6 +141,13 @@ and current teacher membership independently of any frontend controls.
 Publication validates the reviewed revision and freezes valid questions and nonempty
 roster in one transaction. Publication, generation admission/completion, answer saving,
 and submission serialize state checks. Submitted attempts have no mutation path.
+Draft deletion uses the same write transaction discipline: it rejects published or
+running-generation quizzes, cascades questions, and removes the note record only
+after its last quiz reference disappears. Private files are removed after commit;
+startup retries orphan cleanup for backend-generated filenames. Terminal AI targets
+detach from deleted quizzes, preserving requests, operation keys, and rolling rate
+accounting while historical reads return 404. Quiz/note IDs are not reused. These
+schema changes require a fresh database; no upgrade migration is supplied.
 Anonymous summaries calculate all metrics in the backend and never send identities or
 individual answers to the model.
 

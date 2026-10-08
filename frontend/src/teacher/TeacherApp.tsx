@@ -174,6 +174,7 @@ export function TeacherApp() {
                   classes={resource.data.classes}
                   store={store}
                   onPublished={resource.refresh}
+                  onDeleted={resource.refresh}
                 />
               ) : (
                 <EmptyState title="Page not found">
@@ -184,20 +185,6 @@ export function TeacherApp() {
           ) : resource.loading ? (
             <Loading>Getting your workspace ready…</Loading>
           ) : null}
-          <footer className="workspace-footer">
-            <Brand />
-            <span>A little progress, every day.</span>
-            <button
-              className="text-button"
-              disabled={resource.loading}
-              onClick={() => {
-                void resource.refresh();
-                store?.refreshAll();
-              }}
-            >
-              {resource.loading ? "Refreshing…" : "Refresh workspace"}
-            </button>
-          </footer>
         </main>
       </div>
     </div>

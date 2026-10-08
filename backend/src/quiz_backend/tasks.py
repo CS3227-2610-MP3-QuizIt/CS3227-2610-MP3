@@ -140,6 +140,8 @@ class TaskManager:
                 raise missing()
             target = await one(conn, "SELECT * FROM ai_targets WHERE id=?", (task["target_id"],))
             assert target
+            if target["quiz_id"] is None:
+                raise missing()
             await self.access(
                 conn,
                 user,

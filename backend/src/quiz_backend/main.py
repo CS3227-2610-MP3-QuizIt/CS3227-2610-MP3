@@ -102,11 +102,13 @@ def create_app(
             app.state.settings, app.state.db, app.state.core = config, db, core
             app.state.ai, app.state.tasks = ai, tasks
             await tasks.interrupt_on_startup()
+            await core.clean_orphan_note_files()
             try:
                 yield
             finally:
                 await tasks.shutdown()
                 await core.drain_uploads()
+                await core.drain_deletions()
 
     app = FastAPI(
         title="Class Quiz Backend",

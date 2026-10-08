@@ -138,6 +138,8 @@ export const api = {
       ...json("POST", { expected_revision }),
       signal,
     }),
+  deleteQuiz: (id: number, signal?: AbortSignal) =>
+    request<void>(`/quizzes/${id}`, { method: "DELETE", signal }),
   completion: (id: number, signal?: AbortSignal) =>
     request<Completion>(`/quizzes/${id}/completion`, { signal }),
   summary: (id: number, signal?: AbortSignal) =>

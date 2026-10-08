@@ -68,6 +68,11 @@ Publishing requires valid questions, at least one assigned student, and no activ
 generation. Published content and its student roster are frozen. A teacher must remain
 assigned to manage or read their quizzes.
 
+On the draft review screen, select **Delete draft**, then **Confirm deletion**.
+Published quizzes and drafts with running generation cannot be deleted. Deletion
+removes the draft and its questions; uploaded notes are also removed when no other
+quiz uses them. After deletion, you return to your refreshed quiz list.
+
 Students list their assigned published quizzes through `GET /quizzes`. Start or resume
 with `POST /quizzes/{quiz_id}/attempt`. Read the quiz and attempt, and save selections
 using `PUT /attempts/{attempt_id}/answers/{question_id}` with `selected_option` A–D.

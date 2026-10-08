@@ -157,4 +157,24 @@ describe("teacher generation reconciliation", () => {
     await vi.advanceTimersByTimeAsync(10000);
     expect(read).toHaveBeenCalledTimes(1);
   });
+  it("discards late reads and notifications after a quiz is deleted", async () => {
+    const outstanding = deferred<GenerationState>();
+    read
+      .mockResolvedValueOnce(generation())
+      .mockReturnValueOnce(outstanding.promise);
+    await store.reconcile(1);
+    const request = store.reconcile(1);
+    store.retire(1);
+    outstanding.resolve(generation(9, "success", quiz(9)));
+    await request;
+    store.notify({ feature: "quiz_generation", quiz_id: 1, version: 10 });
+    store.refreshAll();
+    await store.reconcile(1);
+    await store.generate(1, { expected_revision: 0 });
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(store.snapshot(1).state).toBeNull();
+    expect(store.snapshot(1).reading).toBe(false);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(generate).not.toHaveBeenCalled();
+  });
 });

@@ -1,6 +1,8 @@
 import asyncio
 import hashlib
+import logging
 import math
+import re
 import secrets
 import sqlite3
 from collections.abc import Callable
@@ -22,6 +24,7 @@ from .schemas import TeacherQuestion
 from .time import stamp, utc_now
 
 PUBLIC_USER_SQL = "id, username, display_name, role"
+logger = logging.getLogger(__name__)
 QUIZ_FIELDS = (
     "id",
     "class_id",
@@ -52,6 +55,7 @@ class Core:
         self.password_hasher = PasswordHasher(type=Type.ID)
         self._dummy_hash: str | None = None
         self._upload_jobs: set[asyncio.Task[dict[str, Any]]] = set()
+        self._deletion_jobs: set[asyncio.Task[None]] = set()
 
     def _verify_password(self, password: str, password_hash: str | None) -> bool:
         if self._dummy_hash is None:
@@ -294,6 +298,72 @@ class Core:
     async def drain_uploads(self) -> None:
         if self._upload_jobs:
             await asyncio.gather(*tuple(self._upload_jobs), return_exceptions=True)
+
+    async def drain_deletions(self) -> None:
+        if self._deletion_jobs:
+            await asyncio.gather(*tuple(self._deletion_jobs), return_exceptions=True)
+
+    async def remove_note_file(self, storage_key: str) -> None:
+        try:
+            await asyncio.to_thread(
+                Path.unlink, self.settings.storage_path / storage_key, missing_ok=True
+            )
+        except OSError:
+            # Avoid paths, source text, and exception details in runtime logs.
+            logger.warning("Private note file cleanup failed; startup will retry.")
+
+    async def clean_orphan_note_files(self) -> None:
+        """Run before serving requests, when no upload can race the snapshot."""
+        async with self.db.read() as conn:
+            keys = {
+                row["storage_key"] for row in await all_rows(conn, "SELECT storage_key FROM notes")
+            }
+        paths = await asyncio.to_thread(lambda: list(self.settings.storage_path.iterdir()))
+        for path in paths:
+            if re.fullmatch(r"[0-9a-f]{32}\.docx", path.name) and path.name not in keys:
+                await self.remove_note_file(path.name)
+
+    async def delete_quiz(self, user: User, quiz_id: int) -> None:
+        role(user, "teacher")
+        # Keep the transaction and post-commit file cleanup alive on disconnect.
+        job = asyncio.create_task(self._delete_quiz(user, quiz_id))
+        self._deletion_jobs.add(job)
+        job.add_done_callback(self._deletion_finished)
+        await asyncio.shield(job)
+
+    def _deletion_finished(self, job: asyncio.Task[None]) -> None:
+        self._deletion_jobs.discard(job)
+        if not job.cancelled():
+            job.exception()
+
+    async def _delete_quiz(self, user: User, quiz_id: int) -> None:
+        storage_key = None
+        async with self.db.write() as conn:
+            quiz = await self.check_quiz(conn, user, quiz_id)
+            if quiz["status"] != "draft":
+                raise AppError(409, "QUIZ_PUBLISHED", "Published quizzes cannot be deleted.")
+            if await one(
+                conn,
+                "SELECT 1 FROM ai_requests r JOIN ai_targets t ON t.id=r.target_id "
+                "WHERE t.quiz_id=? AND t.feature='quiz_generation' AND r.status='running'",
+                (quiz_id,),
+            ):
+                raise AppError(
+                    409,
+                    "AI_REQUEST_IN_PROGRESS",
+                    "Wait for quiz generation to finish before deleting.",
+                )
+            # Foreign keys remove questions and detach, rather than erase, AI history.
+            await conn.execute("DELETE FROM quizzes WHERE id=?", (quiz_id,))
+            if not await one(conn, "SELECT 1 FROM quizzes WHERE note_id=?", (quiz["note_id"],)):
+                note = await one(
+                    conn, "SELECT storage_key FROM notes WHERE id=?", (quiz["note_id"],)
+                )
+                assert note is not None
+                storage_key = note["storage_key"]
+                await conn.execute("DELETE FROM notes WHERE id=?", (quiz["note_id"],))
+        if storage_key is not None:
+            await self.remove_note_file(storage_key)
 
     async def _persist_note(
         self, user: User, class_id: int, filename: str, data: bytes, text: str

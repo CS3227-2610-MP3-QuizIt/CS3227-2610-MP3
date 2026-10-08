@@ -213,6 +213,12 @@ async def quiz(request: Request, user: CurrentUser, quiz_id: int) -> dict[str, A
     return await request.app.state.core.get_quiz(user, quiz_id)
 
 
+@router.delete("/quizzes/{quiz_id}", status_code=204)
+async def delete_quiz(request: Request, user: CurrentUser, quiz_id: int) -> Response:
+    await request.app.state.core.delete_quiz(user, quiz_id)
+    return Response(status_code=204)
+
+
 @router.post("/quizzes/{quiz_id}/publish", response_model=Publication)
 async def publish(
     request: Request, user: CurrentUser, quiz_id: int, body: RevisionRequest
