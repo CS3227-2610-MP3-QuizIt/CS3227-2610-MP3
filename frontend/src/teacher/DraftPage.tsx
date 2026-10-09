@@ -449,7 +449,7 @@ export function DraftPage({
                           className="button button-secondary"
                           disabled={!deletable}
                           onClick={() => void deleteDraft()}
-                          style={{background: 'red', color: 'white'}}
+                          style={{ background: "red", color: "white" }}
                         >
                           {deleting ? "Deleting…" : "Confirm deletion"}
                         </button>

@@ -85,11 +85,7 @@ export function CreateQuizPage({
   }
   return (
     <>
-      <PageHeading
-        eyebrow=""
-        title="Create a quiz"
-        description=""
-      />
+      <PageHeading eyebrow="" title="Create a quiz" description="" />
       {!classes.length ? (
         <section className="panel">
           <EmptyState title="A class comes first">

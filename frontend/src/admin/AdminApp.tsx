@@ -209,34 +209,6 @@ function Overview({
         title={`Welcome, ${name.split(" ")[0]}.`}
         description="A good day to bring people and learning together."
       />
-      <section className="welcome-banner">
-        <div>
-          <span className="tiny-label">MAKE ROOM FOR LEARNING</span>
-          <h2>
-            Small questions.
-            <br />
-            Meaningful progress.
-          </h2>
-          <p>Your classes, your people, and the insights that connect them.</p>
-          <a className="button button-light" href="#/admin/classes">
-            Explore your classes
-            <Icon name="arrow" />
-          </a>
-        </div>
-        <div className="banner-art" aria-hidden="true">
-          <div className="art-orbit" />
-          <div className="art-book">
-            <Icon name="book" />
-          </div>
-          <div className="art-small art-small-one">
-            <Icon name="spark" />
-          </div>
-          <div className="art-small art-small-two">
-            <Icon name="check" />
-          </div>
-          <span>LEARN. REFLECT. GROW.</span>
-        </div>
-      </section>
       <section className="stat-grid" aria-label="Workspace totals">
         {[
           {
