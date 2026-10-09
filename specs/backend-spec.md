@@ -432,7 +432,7 @@ DOCX text, teacher reprompts, and student prompts are untrusted input. Delimit t
 | Feature | Data supplied to AI | Required guardrails |
 | --- | --- | --- |
 | Quiz generation | Requested count, extracted notes, optional current draft and teacher revision prompt. | Strict quiz JSON validation; no executable output; generated content enters the draft only; teacher reviews the exact revision before explicit publication. |
-| Student hint | Question stem, source notes within the context budget, and optional student prompt. | Do not supply option text, correct option, or explanation. Require `{ "hint": "..." }`, at most 600 characters, and a conceptual clue rather than an answer. Reject explicit answer selection patterns and literal full option text. |
+| Student hint | Question stem, source notes within the context budget, and optional student prompt. | Do not supply option text, correct option, or explanation. Require `{ "hint": "..." }`, at most 2048 characters, and a conceptual clue rather than an answer. Reject explicit answer selection patterns and literal full option text. |
 | Admin summary | Server computed anonymous aggregate metrics and question context. | No student identities or individual answer records. Require the summary schema below. Numeric metrics displayed in the UI come from the backend, never from generated prose. |
 
 Hint checks reduce direct answer leakage but cannot prove that a semantic clue never implies an answer. Generated quiz facts and summary interpretations also require human judgment. Teacher review is the correctness gate for questions; admin summaries must be labeled as AI generated and shown alongside their exact source metrics.
