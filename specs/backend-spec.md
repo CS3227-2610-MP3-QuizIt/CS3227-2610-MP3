@@ -398,8 +398,8 @@ Quiz instructions include a concrete example of the required JSON shape, explici
 | `AI_QUIZ_MAX_OUTPUT_TOKENS` | 32768 | Upper output bound for a complete quiz. |
 | `AI_HINT_MAX_OUTPUT_TOKENS` | 8192 | Upper output bound for one hint. |
 | `AI_SUMMARY_MAX_OUTPUT_TOKENS` | 8192 | Upper output bound for one class summary. |
-| `AI_MAX_NOTE_CHARACTERS` | 12000 | Text size limit; context checks can require less. |
-| `AI_MAX_HINTS_PER_QUESTION` | 2 | Successful hint generations per question per attempt, including explicit regeneration with the same prompt. |
+| `AI_MAX_NOTE_CHARACTERS` | 16000 | Text size limit; context checks can require less. |
+| `AI_MAX_HINTS_PER_QUESTION` | 1000 | Successful hint generations per question per attempt, including explicit regeneration with the same prompt. |
 | `AI_STATE_RECONCILE_INTERVAL_SECONDS` | 5 | Frontend recovery reads while an observed task is unfinished, independent of SSE health; failed reads back off. |
 
 The table settings are backend configuration and are not exposed as an admin settings feature. Set the global AI admission rate to 30 requests per rolling minute for this version; this is the application's policy, not a provider quota. The internal execution timeout remains 300 seconds. There are no concurrency semaphores, separate concurrent/unfinished-task limits, per-user AI rate gates, operation-deadline settings, shared provider cooldowns, or catalog-cache intervals. Input/output bounds, the successful-hint allowance, login protection, and finite execution/network timeouts remain in effect. The gateway still enforces its own rate, concurrency, and budget limits. The supplied reference gives no fixed requests per minute or remaining budget for this key, so the app must not present the application limit as the gateway's allowance.

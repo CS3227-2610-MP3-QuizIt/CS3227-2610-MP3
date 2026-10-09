@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     ai_quiz_max_output_tokens: int = 32768
     ai_hint_max_output_tokens: int = 8192
     ai_summary_max_output_tokens: int = 8192
-    ai_max_note_characters: int = 12000
-    ai_max_hints_per_question: int = 2
+    ai_max_note_characters: int = 16000
+    ai_max_hints_per_question: int = 1000
     ai_response_max_bytes: int = 256 * 1024
     shutdown_grace_seconds: float = 5.0
     sse_heartbeat_seconds: float = 5.0

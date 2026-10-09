@@ -1,0 +1,1 @@
+We suggest running the project locally as it is faster. We provide docker compose for this. Just place your soclaas key in backend/.env
