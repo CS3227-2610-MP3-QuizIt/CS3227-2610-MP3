@@ -1,5 +1,14 @@
 # Classroom developer guide
 
+The standalone QuizIt product website lives in `pages/` and uses dependency-free
+HTML, CSS, and JavaScript. Open `pages/index.html` for a local preview. Enable
+GitHub Actions as the repository's Pages source to deploy. `.github/workflows/pages.yml` publishes only
+that public directory from `master`; it does not publish backend storage or the application.
+Website acknowledgements: product descriptions reuse this repository's user guide and
+frontend specification. Styling, sample content, and favicon were created for this task.
+The deployment workflow follows the official
+[GitHub Pages custom workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
+
 The standalone frontend implements login/logout, the admin UI, the teacher UI, and the student UI. From `frontend/`,
 run `npm ci` and `npm run dev`. Vite serves http://localhost:5173 and proxies `/api`
 to `BACKEND_SERVER_URL` from `frontend/.env`, using the backend Host while preserving
