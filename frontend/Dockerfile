@@ -9,7 +9,10 @@ COPY public/ ./public/
 RUN npm run build
 
 FROM nginxinc/nginx-unprivileged:stable-alpine AS runtime
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV BACKEND_SERVER_URL=http://backend:7000 \
+    NGINX_ENVSUBST_FILTER=^BACKEND_SERVER_URL$
+# The image entrypoint renders this template each time the container starts.
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=builder /app/dist/ /usr/share/nginx/html/
 EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \

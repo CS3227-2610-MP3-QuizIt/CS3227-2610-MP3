@@ -112,3 +112,22 @@ The draft review screen also offers Delete draft with explicit confirmation: del
 | Admin quiz performance | Completion counts, eligibility state, exact metrics, and Generate, View, Retry, or Regenerate summary with latest task state. |
 
 Use shared not-requested, loading, success, and failure task states. Disable new-generation buttons while their target is unfinished; repeated HTTP requests are safe and return current state. Display admission and task failures near the relevant action with retry timing when known. On `429 AI_APP_RATE_LIMIT`, show "AI request limit reached. Please try again in N seconds." using `retry_after_seconds` and keep the prior target state and work visible; do not leave an unaccepted request loading or automatically resubmit it. Retry timing describes when allowance may next be available, not a reserved future admission. Restore latest state by reading the backend after refresh/reconnect. Apply the per-target version guard to every API response and SSE-triggered reconciliation; never render content or failure details from SSE. Successful AI calls must not be required to log in, read a quiz, save an answer, submit, or read existing results.
+
+
+## Docker backend URL configuration
+
+The compiled frontend uses same-origin `/api/v1` paths for both HTTP requests and
+SSE. The Docker Nginx proxy reads `BACKEND_SERVER_URL` from the container environment
+at startup, defaulting to `http://backend:7000`. Operators can supply the value with
+Docker `--env-file` or Compose `--env-file frontend/.env`. The value is a backend
+HTTP(S) origin reachable from the container, without trailing slash or API path.
+Changing it requires container recreation, with no frontend image rebuild.
+The proxy preserves API paths, browser Origin, and SSE behavior, and uses the
+upstream Host, HTTPS SNI, and certificate verification for hosted backends.
+
+Acceptance checks:
+
+- Without an override, the generated Nginx configuration targets `http://backend:7000`.
+- An environment-file override changes the proxy target in the same image after recreation.
+- Nginx variables remain intact during template substitution; `nginx -t` succeeds.
+- HTTPS proxy configuration enables SNI and verifies certificates using the CA bundle.

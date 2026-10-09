@@ -255,8 +255,16 @@ Ordinary workflows also start without that file; AI requires a configured key,
 models, and context limits. Preserve existing private configuration. Compose
 overrides database/storage paths to the volume, selects development cookie settings
 by default, and allows all browser origins with `["*"]`, regardless
-of those values in `backend/.env`. `frontend/.env` is not read. Do not publish
-resolved Compose configuration containing secrets.
+of those values in `backend/.env`. Frontend Nginx reads `BACKEND_SERVER_URL` at
+container startup, defaulting to `http://backend:7000`. To load it from
+`frontend/.env`, use `docker compose --env-file frontend/.env up --build -d --wait`.
+Use a backend origin reachable from Docker, with no trailing slash or API path.
+After changing the URL, run
+`docker compose --env-file frontend/.env up -d --no-deps --force-recreate frontend`;
+no rebuild is required. Plain `restart` does not reload environment values.
+Nginx preserves the browser Origin and sends the upstream Host with HTTPS SNI and
+certificate verification. The frontend keeps relative `/api/v1` URLs.
+Do not publish resolved Compose configuration containing secrets.
 
 Wildcard mode disables Origin-based CSRF protection. Authentication and resource
 authorization still apply. Set `APP_ALLOWED_ORIGINS` to an exact list to restore
@@ -284,6 +292,10 @@ interaction summary is in `logs/containerization.md`. Configuration references:
 [Compose startup ordering](https://docs.docker.com/compose/how-tos/startup-order/),
 [Nginx unprivileged image](https://github.com/nginx/docker-nginx-unprivileged), and
 [Nginx proxy directives](https://nginx.org/en/docs/http/ngx_http_proxy_module.html).
+
+Runtime configuration reuses the image's built-in
+[template entrypoint](https://github.com/nginx/docker-nginx/blob/master/entrypoint/20-envsubst-on-templates.sh).
+Its verification is recorded in `workflow/frontend-runtime-config.md`.
 
 The team's future deployment must serve frontend and `/api/v1` on one HTTPS origin with
 persistent backend disk, one instance, and one worker. Configure trusted reverse proxy

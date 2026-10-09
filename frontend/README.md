@@ -57,10 +57,39 @@ HTTPS origin. Deployment remains the team's responsibility.
 
 Build from this folder with `docker build -t quiz-frontend .`. The image builds
 with locked npm dependencies and serves `dist/` with non-root Nginx on port 8080.
-It proxies `/api/` to `backend:7000` on the Docker network, preserves the browser
-Origin, and disables buffering for SSE. Local `.env` files and gateway credentials
-are excluded from the build context. `BACKEND_SERVER_URL` is only used by Vite
-development, not this image.
+At container startup, the image entrypoint renders `nginx.conf` as an Nginx
+configuration template using `BACKEND_SERVER_URL` (default `http://backend:7000`).
+It proxies `/api/` without stripping the path, preserves the browser Origin, sends
+the upstream Host, enables HTTPS SNI and certificate verification, and disables
+buffering for SSE. Local `.env` files and gateway credentials are excluded from
+the build context. The same built image supports different backend origins.
+
+For a standalone container, set `frontend/.env` to a backend origin reachable from
+inside Docker (no trailing slash, path, query, or fragment), then run from `frontend/`:
+
+```bash
+docker run -d --name quiz-frontend --env-file .env -p 8080:8080 quiz-frontend
+```
+
+For Compose, set `frontend/.env` and run from the repository root:
+
+```bash
+docker compose --env-file frontend/.env up --build -d --wait
+```
+
+For the Compose backend, use `BACKEND_SERVER_URL=http://backend:7000`.
+For a hosted backend, use an origin such as `https://your-backend.example.com`.
+`localhost` inside the frontend container refers to that container, not your host
+or the backend container. Ensure the backend allows the frontend's browser origin.
+After editing `.env`, apply the new URL without rebuilding the image:
+
+```bash
+docker compose --env-file frontend/.env up -d --no-deps --force-recreate frontend
+```
+
+A plain `docker compose restart` does not reload the container environment. With
+standalone Docker, recreate the container with `--env-file .env`. Changes take effect
+at container creation/startup, not while Nginx is already running.
 
 Run both apps using the [Compose instructions](../docs/DeveloperGuide.md#docker-compose).
 
