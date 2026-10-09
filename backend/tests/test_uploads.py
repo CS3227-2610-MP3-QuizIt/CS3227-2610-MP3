@@ -40,7 +40,7 @@ async def test_docx_paragraphs_tables_and_private_storage(course: Course) -> Non
         ("notes.docx", b"not a zip archive", "INVALID_DOCX"),
         ("notes.txt", docx_bytes(), "INVALID_DOCX"),
         ("notes.docx", docx_bytes("   "), "EMPTY_NOTES"),
-        ("notes.docx", docx_bytes("a" * 12001), "NOTES_TOO_LONG"),
+        ("notes.docx", docx_bytes("a" * 16001), "NOTES_TOO_LONG"),
     ],
 )
 async def test_rejected_uploads_have_no_storage_or_database_effect(
