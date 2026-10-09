@@ -395,9 +395,9 @@ Quiz instructions include a concrete example of the required JSON shape, explici
 | Setting | Initial value | Behavior |
 | --- | --- | --- |
 | `AI_GLOBAL_REQUESTS_PER_MINUTE` | 30 | Global rolling admission limit across all AI features and users over the preceding 60 seconds. Reject excess fresh requests immediately with `429 AI_APP_RATE_LIMIT` and retry timing; existing reads/replays are exempt. |
-| `AI_QUIZ_MAX_OUTPUT_TOKENS` | 8192 | Upper output bound for a complete quiz. |
-| `AI_HINT_MAX_OUTPUT_TOKENS` | 256 | Upper output bound for one hint. |
-| `AI_SUMMARY_MAX_OUTPUT_TOKENS` | 1024 | Upper output bound for one class summary. |
+| `AI_QUIZ_MAX_OUTPUT_TOKENS` | 32768 | Upper output bound for a complete quiz. |
+| `AI_HINT_MAX_OUTPUT_TOKENS` | 8192 | Upper output bound for one hint. |
+| `AI_SUMMARY_MAX_OUTPUT_TOKENS` | 8192 | Upper output bound for one class summary. |
 | `AI_MAX_NOTE_CHARACTERS` | 12000 | Text size limit; context checks can require less. |
 | `AI_MAX_HINTS_PER_QUESTION` | 2 | Successful hint generations per question per attempt, including explicit regeneration with the same prompt. |
 | `AI_STATE_RECONCILE_INTERVAL_SECONDS` | 5 | Frontend recovery reads while an observed task is unfinished, independent of SSE health; failed reads back off. |

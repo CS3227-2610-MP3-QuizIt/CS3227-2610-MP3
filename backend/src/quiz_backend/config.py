@@ -24,9 +24,9 @@ class Settings(BaseSettings):
     soclaas_hint_context_tokens: int = 0
     soclaas_quiz_context_tokens: int = 0
     soclaas_summary_context_tokens: int = 0
-    ai_quiz_max_output_tokens: int = 8192
-    ai_hint_max_output_tokens: int = 256
-    ai_summary_max_output_tokens: int = 1024
+    ai_quiz_max_output_tokens: int = 32768
+    ai_hint_max_output_tokens: int = 8192
+    ai_summary_max_output_tokens: int = 8192
     ai_max_note_characters: int = 12000
     ai_max_hints_per_question: int = 2
     ai_response_max_bytes: int = 256 * 1024
