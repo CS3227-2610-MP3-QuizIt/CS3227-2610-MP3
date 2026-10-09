@@ -44,10 +44,23 @@ async def test_untrusted_usage_integer_overflow_cannot_strand_a_task(course: Cou
 
 async def test_concurrent_rolling_admission_limit_and_exact_boundary(course: Course) -> None:
     harness = course.harness
-    drafts = [await course.draft(title=f"Target {index}") for index in range(35)]
-    harness.gateway.blocked = True
+    drafts = [await course.draft(title=f"Target {index}") for index in range(1029)]
     keys = [str(uuid4()) for _ in drafts]
-    responses = await asyncio.gather(
+    # Fill most of the window before racing for the final 30 admission slots.
+    filled = 1024 - 30
+    responses = []
+    for draft, key in zip(drafts[:filled], keys[:filled], strict=True):
+        response = await harness.ai_post(
+            course.teacher,
+            f"/quizzes/{draft['id']}/generate",
+            {"expected_revision": 0},
+            key=key,
+        )
+        assert response.status_code == 202
+        responses.append(response)
+        await harness.drain()
+    harness.gateway.blocked = True
+    responses += await asyncio.gather(
         *[
             harness.ai_post(
                 course.teacher,
@@ -55,12 +68,12 @@ async def test_concurrent_rolling_admission_limit_and_exact_boundary(course: Cou
                 {"expected_revision": 0},
                 key=key,
             )
-            for draft, key in zip(drafts, keys, strict=True)
+            for draft, key in zip(drafts[filled:], keys[filled:], strict=True)
         ]
     )
     accepted = [response for response in responses if response.status_code == 202]
     rejected = [response for response in responses if response.status_code == 429]
-    assert len(accepted) == 30 and len(rejected) == 5
+    assert len(accepted) == 1024 and len(rejected) == 5
     assert len(harness.app.state.tasks.active) == 30
     for response in rejected:
         error = assert_error(response, 429, "AI_APP_RATE_LIMIT")
@@ -69,7 +82,7 @@ async def test_concurrent_rolling_admission_limit_and_exact_boundary(course: Cou
         requests = await all_rows(conn, "SELECT id FROM ai_requests")
         bindings = await all_rows(conn, "SELECT idempotency_key FROM ai_operation_keys")
         targets = await all_rows(conn, "SELECT id FROM ai_targets")
-    assert len(requests) == len(bindings) == len(targets) == 30
+    assert len(requests) == len(bindings) == len(targets) == 1024
     rejected_index = next(
         index for index, response in enumerate(responses) if response.status_code == 429
     )
@@ -78,7 +91,7 @@ async def test_concurrent_rolling_admission_limit_and_exact_boundary(course: Cou
     assert latest.json()["status"] == "not_requested" and latest.json()["version"] == 0
     harness.gateway.release.set()
     await harness.drain()
-    assert len(harness.gateway.calls) == 30
+    assert len(harness.gateway.calls) == 1024
     accepted_index = next(
         index for index, response in enumerate(responses) if response.status_code == 202
     )
@@ -95,7 +108,7 @@ async def test_concurrent_rolling_admission_limit_and_exact_boundary(course: Cou
         key=keys[accepted_index],
     )
     assert replay.json()["task_id"] == ensured.json()["task_id"]
-    assert len(harness.gateway.calls) == 30
+    assert len(harness.gateway.calls) == 1024
     harness.clock.advance(1)
     response = await harness.ai_post(
         course.teacher,
@@ -123,7 +136,7 @@ async def test_concurrent_rolling_admission_limit_and_exact_boundary(course: Cou
     )
     assert response.status_code == 202, response.text
     await harness.drain()
-    assert len(harness.gateway.calls) == 31
+    assert len(harness.gateway.calls) == 1025
 
 
 async def test_all_features_share_the_same_rolling_allowance(course: Course) -> None:
@@ -141,7 +154,7 @@ async def test_all_features_share_the_same_rolling_allowance(course: Course) -> 
     response = await harness.ai_post(course.admin, f"/quizzes/{quiz['id']}/summary")
     assert response.status_code == 202
     await harness.drain()
-    for index in range(27):
+    for index in range(1021):
         draft = await course.draft(title=f"Shared quota {index}")
         response = await harness.ai_post(
             course.teacher, f"/quizzes/{draft['id']}/generate", {"expected_revision": 0}
@@ -153,12 +166,12 @@ async def test_all_features_share_the_same_rolling_allowance(course: Course) -> 
         "hint-model",
         "summary-model",
     }
-    assert len(harness.gateway.calls) == 31
+    assert len(harness.gateway.calls) == 1025
     response = await harness.ai_post(
         course.admin, f"/quizzes/{quiz['id']}/summary", {"action": "new"}
     )
     assert_error(response, 429, "AI_APP_RATE_LIMIT")
-    assert len(harness.gateway.calls) == 31
+    assert len(harness.gateway.calls) == 1025
 
 
 async def test_pre_start_cancellation_is_persisted_and_counted(
@@ -340,9 +353,9 @@ async def test_restart_interrupts_running_records_without_replay_and_keeps_rate(
     harness = course.harness
     # Simulate a crash after committed admission but before coroutine creation.
     monkeypatch.setattr(harness.app.state.tasks, "register", lambda task_id, admission_time: None)
-    drafts = [await course.draft(title=f"Crash target {index}") for index in range(31)]
+    drafts = [await course.draft(title=f"Crash target {index}") for index in range(1025)]
     admitted = []
-    for draft in drafts[:30]:
+    for draft in drafts[:1024]:
         response = await harness.ai_post(
             course.teacher, f"/quizzes/{draft['id']}/generate", {"expected_revision": 0}
         )
@@ -364,7 +377,7 @@ async def test_restart_interrupts_running_records_without_replay_and_keeps_rate(
             assert state.json()["error"]["code"] == "AI_REQUEST_INTERRUPTED"
             assert state.json()["version"] == admitted[0]["version"] + 1
             rejected = await client.post(
-                f"{API}/quizzes/{drafts[30]['id']}/generate",
+                f"{API}/quizzes/{drafts[1024]['id']}/generate",
                 json={"expected_revision": 0},
                 headers={"Idempotency-Key": str(uuid4())},
             )
@@ -372,7 +385,7 @@ async def test_restart_interrupts_running_records_without_replay_and_keeps_rate(
             assert int(rejected.headers["retry-after"]) == 60
             async with app.state.db.read() as conn:
                 tasks = await all_rows(conn, "SELECT status FROM ai_requests")
-            assert len(tasks) == 30 and all(task["status"] == "failed" for task in tasks)
+            assert len(tasks) == 1024 and all(task["status"] == "failed" for task in tasks)
             assert not app.state.tasks.active and not harness.gateway.calls
 
 

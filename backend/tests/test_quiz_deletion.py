@@ -238,7 +238,7 @@ async def test_deleted_quiz_and_note_ids_are_not_reused(course: Course) -> None:
 
 async def test_deletion_does_not_refund_ai_admissions(course: Course) -> None:
     quizzes = []
-    for _ in range(30):
+    for _ in range(1024):
         quiz = await course.draft()
         quizzes.append(quiz)
         accepted = await course.harness.ai_post(
@@ -252,7 +252,7 @@ async def test_deletion_does_not_refund_ai_admissions(course: Course) -> None:
         course.teacher, f"/quizzes/{extra['id']}/generate", {"expected_revision": 0}
     )
     assert_error(response, 429, "AI_APP_RATE_LIMIT")
-    assert len(course.harness.gateway.calls) == 30
+    assert len(course.harness.gateway.calls) == 1024
 
 
 async def test_file_cleanup_failure_and_startup_recovery(

@@ -135,7 +135,7 @@ It is deliberately conservative. A deployment can inject a model-compatible call
 returning a nonnegative integer. Never silently truncate notes. Response bodies are
 bounded to 256 KiB. Overall execution and the shared HTTP client read timeout are fixed
 at 300 seconds; the rolling rate window is 60 seconds and the admission limit is fixed
-at 30. Settings allow input/output limits, successful hint allowance, login protection,
+at 1024. Settings allow input/output limits, successful hint allowance, login protection,
 and shutdown/heartbeat timing to be adjusted. They do not
 add task queues, concurrency caps, retry loops, or a frontend settings feature.
 

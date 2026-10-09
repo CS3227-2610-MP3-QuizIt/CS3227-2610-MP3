@@ -136,7 +136,7 @@ version. AI generation has a 300-second execution deadline. A browser disconnect
 not cancel accepted work. Restarted running tasks become interrupted failures; retry
 explicitly when eligible.
 
-The application allows 30 fresh AI requests across all users and features in a rolling
+The application allows 1024 fresh AI requests across all users and features in a rolling
 60-second window. An excess request returns 429 `AI_APP_RATE_LIMIT` immediately with
 matching `Retry-After` and `retry_after_seconds`. This timing reserves no slot. Gateway
 rate or budget failures have code `AI_PROVIDER_LIMIT`. No provider call is retried

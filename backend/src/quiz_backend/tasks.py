@@ -17,7 +17,7 @@ from .events import EventHub
 from .time import stamp, utc_now
 
 EXECUTION_SECONDS = 300
-ADMISSION_LIMIT = 30
+ADMISSION_LIMIT = 1024
 WINDOW_SECONDS = 60
 
 
