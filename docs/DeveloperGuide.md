@@ -1,6 +1,6 @@
 # Classroom developer guide
 
-The standalone frontend implements login/logout, the admin UI, and the teacher UI. From `frontend/`,
+The standalone frontend implements login/logout, the admin UI, the teacher UI, and the student UI. From `frontend/`,
 run `npm ci` and `npm run dev`. Vite serves http://localhost:5173 and proxies `/api`
 to `BACKEND_SERVER_URL` from `frontend/.env`, using the backend Host while preserving
 the browser Origin and verifying HTTPS certificates. Copy `.env.example`
@@ -13,12 +13,12 @@ their own hostname instead of `localhost:5173`; it does not rewrite the browser 
 The [Node CA documentation](https://nodejs.org/api/cli.html#--use-system-ca) informed
 the README's optional system/custom CA troubleshooting instructions.
 
-Frontend source separates typed API access, authentication, admin/teacher screens, and shared
+Frontend source separates typed API access, authentication, admin/teacher/student screens, and shared
 components. Sessions remain in backend HttpOnly cookies. Summary state is scoped to
 the authenticated admin and quiz; applied/notified versions, coalesced reads, admission
 barriers, five-second running-task polling, and read-error backoff prevent stale results.
 Generation is explicit, with UUID operation keys retained for uncertain request repeats.
-Logout/unmount closes SSE and disposes reconciliation. The student UI is future work.
+Logout/unmount closes SSE and disposes reconciliation. Student hints share this session lifecycle with composite attempt/question keys.
 Implementation evidence and interaction summaries are in
 `workflow/frontend-implementation.md` and `logs/frontend-implementation.md`.
 
@@ -29,7 +29,7 @@ bound file size/type/name; the backend remains authoritative for archive and tex
 validation, ownership, and membership. Source notes and prompts are never written to
 browser storage. Generated text is rendered as React text, with no raw HTML rendering.
 
-`shared/TargetStore.ts` generalizes the existing admin summary reconciliation for both
+`shared/TargetStore.ts` generalizes the existing admin summary reconciliation for all three
 features. `shared/useAIEvents.ts` opens SSE before target entry reads, recovers on
 reconnect/focus/online, and disposes session state. `teacher/GenerationStore.ts` reads
 the latest generation state and then current quiz content; historical success snapshots
@@ -47,6 +47,32 @@ Teacher acceptance mapping and check evidence are in `workflow/teacher-ui.md`;
 the verified interaction summary is `logs/teacher-ui.md`. The teacher UI reuses the
 repository's authentication, API client, component styles, and summary reconciliation;
 no external application code or new dependencies were introduced.
+
+Student screens live in `frontend/src/student`. Hash routes identify the quiz list,
+attempt, and results by quiz ID; typed student responses contain no answer key until the
+separate results read. Lists use frozen-roster API assignments directly without querying
+current membership. `QuizPage` starts/resumes through the existing endpoint and retains
+local choices through resource recovery. Per-question saves are serialized while different
+questions can save independently. Submission locks all controls, awaits pending saves,
+and stops on any save failure. Conflicts and uncertain responses require an authoritative
+attempt read before editing resumes; failed reconciliation retains the lock. Result
+reads only mount after confirmation of submission and show backend grades unchanged.
+
+`student/HintStore.ts` supplies composite `attempt:question` keys to the shared store;
+teacher/admin numeric quiz keys are preserved. Scoped SSE IDs select only the affected
+hint. Every GET/POST has version/admission guards; a read below a notified version leaves
+hint generation unresolved. Latest running/failed tasks hide earlier hint content.
+Rejected admission preserves prior state; uncertain repeats retain original input/key.
+Only explicit actions generate work. All generated text uses React escaping. No prompts,
+answers, or tasks go into browser persistence. Component-owned abort controllers and
+session-store disposal suppress late responses after navigation, logout, or expiry.
+
+Student acceptance mapping and verification are in `workflow/student-ui.md`; the factual
+interaction summary is `logs/student-ui.md`. Student tests use mocked APIs/EventSource,
+including save/submit races, hint outages, session cleanup and version reconciliation.
+No end-to-end tests or live AI requests were run; desktop/mobile visual appearance and
+real backend integration remain unverified. Existing authentication, API access, shared
+UI/styles, and AI reconciliation were reused. No dependencies or backend contracts changed.
 
 Frontend acknowledgements: the existing React/Vite build setup was reused. Repository
 specifications define behavior. The React performance skill and official
@@ -185,7 +211,7 @@ content but latest-state reads expose only the latest success/failure. SSE is pu
 after commit and buffers at most 64 metadata events per subscriber; dropped notifications
 are repaired by authoritative reads. Streams recheck session/access before delivery and
 session validity during idle periods. Frontend version guards and five-second unfinished
-reconciliation are implemented for admin summaries and teacher generation.
+reconciliation are implemented for admin summaries, teacher generation, and student hints.
 
 Run local checks from `backend/`:
 
@@ -209,7 +235,7 @@ The team's future deployment must serve frontend and `/api/v1` on one HTTPS orig
 persistent backend disk, one instance, and one worker. Configure trusted reverse proxy
 handling deliberately so source-IP login protection uses the intended client address;
 do not trust arbitrary forwarded headers. Back up database and private notes consistently.
-Multi-instance storage and shared limits require redesign. Student browser UI, GitHub Pages
+Multi-instance storage and shared limits require redesign. GitHub Pages
 product website, production infrastructure, live deployment/model verification, and
 public submission repository/master-branch maintenance remain outside this backend work.
 

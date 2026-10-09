@@ -1,4 +1,13 @@
 import type {
+  Attempt,
+  HintInput,
+  HintState,
+  Option,
+  SavedAnswer,
+  StudentQuiz,
+  StudentQuizItem,
+  StudentResults,
+  SubmissionScore,
   AccountInput,
   ClassRoom,
   Completion,
@@ -105,6 +114,47 @@ export const api = {
       method: "DELETE",
     }),
   quizzes: () => request<{ items: Quiz[] }>("/quizzes"),
+  studentQuizzes: (signal?: AbortSignal) =>
+    request<{ items: StudentQuizItem[] }>("/quizzes", { signal }),
+  studentQuiz: (id: number, signal?: AbortSignal) =>
+    request<StudentQuiz>(`/quizzes/${id}`, { signal }),
+  startAttempt: (id: number, signal?: AbortSignal) =>
+    request<Attempt>(`/quizzes/${id}/attempt`, { method: "POST", signal }),
+  attempt: (id: number, signal?: AbortSignal) =>
+    request<Attempt>(`/attempts/${id}`, { signal }),
+  saveAnswer: (
+    id: number,
+    questionId: number,
+    selected_option: Option,
+    signal?: AbortSignal,
+  ) =>
+    request<SavedAnswer>(`/attempts/${id}/answers/${questionId}`, {
+      ...json("PUT", { selected_option }),
+      signal,
+    }),
+  submitAttempt: (id: number, signal?: AbortSignal) =>
+    request<SubmissionScore>(`/attempts/${id}/submit`, {
+      method: "POST",
+      signal,
+    }),
+  results: (id: number, signal?: AbortSignal) =>
+    request<StudentResults>(`/attempts/${id}/results`, { signal }),
+  hint: (id: number, questionId: number, signal?: AbortSignal) =>
+    request<HintState>(`/attempts/${id}/questions/${questionId}/hints`, {
+      signal,
+    }),
+  generateHint: (
+    id: number,
+    questionId: number,
+    input: HintInput,
+    key: string,
+    signal?: AbortSignal,
+  ) =>
+    request<HintState>(`/attempts/${id}/questions/${questionId}/hints`, {
+      ...json("POST", input),
+      headers: { "Idempotency-Key": key },
+      signal,
+    }),
   teacherQuizzes: (signal?: AbortSignal) =>
     request<{ items: TeacherQuizItem[] }>("/quizzes", { signal }),
   teacherQuiz: (id: number, signal?: AbortSignal) =>

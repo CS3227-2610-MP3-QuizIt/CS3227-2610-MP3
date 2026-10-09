@@ -1,6 +1,6 @@
 # Classroom user guide
 
-This delivery supplies the backend API and browser login, admin, and teacher screens. From
+This delivery supplies the backend API and browser login, admin, teacher, and student screens. From
 `frontend/`, run `npm ci` and `npm run dev`, then open http://localhost:5173.
 Start the backend separately as described in the developer guide. There is no public
 deployed application yet. A fresh deployment automatically creates
@@ -13,8 +13,32 @@ everyone submits. Summaries show exact backend metrics alongside labeled AI obse
 Latest running or failed work replaces older successful content in the display; rate
 rejection retains the prior state. Refresh workspace reloads accounts, classes, and
 quizzes, and each selected class or quiz has a refresh control. Sign out revokes the
-session. Students currently see a signed-in placeholder; their workflow below remains
-available through the backend API.
+session.
+
+Students open **My quizzes** to see published quizzes from their frozen assignment roster,
+including quizzes from classes they have since left. Select **Start**, **Resume**, or
+**View results**. **Refresh quizzes** reloads the list. The attempt shows every question
+in order with four options and restores saved choices. Selecting an option saves it
+immediately; that question is disabled while saving. Wait for **Saved**. **Save failed**
+keeps your choice visible; select **Retry save** or change the choice explicitly.
+
+Each question offers an optional hint prompt of at most 500 characters. **Ask for a hint**
+restores existing latest work or requests a first conceptual hint. **Another hint** and
+**Retry hint** request fresh work. Generation is disabled while hint state is unresolved
+or running. A latest running or failed hint replaces an older hint in the display;
+rejected admission keeps the previous state. If a request is uncertain, **Repeat previous
+request** preserves its original prompt and key. Rate errors show retry timing when known;
+requests never repeat automatically. The backend enforces the successful-hint allowance;
+the UI shows allowance errors without estimating a remaining count. Hint problems do not
+prevent saving answers or submitting. Hint state recovers on focus, network recovery,
+SSE reconnect, and five-second polling while unfinished, with backoff on failed reads.
+
+Select **Submit quiz** after choosing every answer. Submission freezes editing and waits
+for pending saves; retry failed saves before submitting. An uncertain submission pauses
+editing until the backend confirms whether it committed. If that check fails, use
+**Check submission**. After submission, the results show your final score, percentage,
+selected and correct answers, correctness, and explanations. Submitted attempts cannot
+be edited. Signing out clears browser session state; saved answers remain on the server.
 
 Teachers open **My classes** to see assigned classes and **My quizzes** to search or
 filter their own drafts and published quizzes. Select **Create quiz**, choose a class,

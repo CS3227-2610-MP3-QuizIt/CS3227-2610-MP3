@@ -9,6 +9,7 @@ export interface TaskState {
 export interface TargetSnapshot<S extends TaskState> {
   state: S | null;
   reading: boolean;
+  unresolved: boolean;
   submitting: boolean;
   readError: string;
   actionError: string;
@@ -27,35 +28,46 @@ interface Target<S extends TaskState, I> {
   timer?: ReturnType<typeof setTimeout>;
   operation?: { input: I; key: string };
 }
-export interface TargetTransport<S extends TaskState, I> {
-  read: (id: number, signal: AbortSignal) => Promise<S>;
-  generate: (
-    id: number,
-    input: I,
-    key: string,
-    signal: AbortSignal,
-  ) => Promise<S>;
+export interface TargetTransport<
+  S extends TaskState,
+  I,
+  K extends string | number = number,
+> {
+  read: (id: K, signal: AbortSignal) => Promise<S>;
+  generate: (id: K, input: I, key: string, signal: AbortSignal) => Promise<S>;
   merge?: (previous: S | null, next: S) => S;
 }
 
-// A session-owned store per feature, scoped by quiz even before a target exists.
-export class TargetStore<S extends TaskState, I> {
-  private targets = new Map<number, Target<S, I>>();
+// A session-owned store per feature, keyed by resource scope before a target exists.
+export class TargetStore<
+  S extends TaskState,
+  I,
+  K extends string | number = number,
+> {
+  private targets = new Map<K, Target<S, I>>();
   private controller = new AbortController();
   private stopped = false;
-  private transport: TargetTransport<S, I>;
+  private transport: TargetTransport<S, I, K>;
   private feature: string;
-  constructor(feature: string, transport: TargetTransport<S, I>) {
+  private eventKey: (event: AIChange) => K | null;
+  constructor(
+    feature: string,
+    transport: TargetTransport<S, I, K>,
+    eventKey: (event: AIChange) => K | null = (event) =>
+      Number.isSafeInteger(event.quiz_id) ? (event.quiz_id as K) : null,
+  ) {
+    this.eventKey = eventKey;
     this.feature = feature;
     this.transport = transport;
   }
-  private target(id: number): Target<S, I> {
+  private target(id: K): Target<S, I> {
     let target = this.targets.get(id);
     if (!target) {
       target = {
         snapshot: {
           state: null,
           reading: true,
+          unresolved: true,
           submitting: false,
           readError: "",
           actionError: "",
@@ -74,8 +86,8 @@ export class TargetStore<S extends TaskState, I> {
     }
     return target;
   }
-  snapshot = (id: number) => this.target(id).snapshot;
-  subscribe = (id: number, listener: () => void) => {
+  snapshot = (id: K) => this.target(id).snapshot;
+  subscribe = (id: K, listener: () => void) => {
     const target = this.target(id);
     target.listeners.add(listener);
     return () => {
@@ -85,7 +97,14 @@ export class TargetStore<S extends TaskState, I> {
   };
   private update(target: Target<S, I>, patch: Partial<TargetSnapshot<S>>) {
     if (this.stopped) return;
-    target.snapshot = { ...target.snapshot, ...patch };
+    const next = { ...target.snapshot, ...patch };
+    next.unresolved =
+      !target.retired &&
+      (!next.state ||
+        next.reading ||
+        !!next.readError ||
+        target.notified > target.applied);
+    target.snapshot = next;
     target.listeners.forEach((listener) => listener());
   }
   private apply(target: Target<S, I>, state: S) {
@@ -99,22 +118,23 @@ export class TargetStore<S extends TaskState, I> {
   notify(event: AIChange) {
     if (
       event.feature !== this.feature ||
-      !Number.isSafeInteger(event.quiz_id) ||
       !Number.isSafeInteger(event.version) ||
       event.version < 0
     )
       return;
-    const target = this.targets.get(event.quiz_id);
+    const id = this.eventKey(event);
+    if (id === null) return;
+    const target = this.targets.get(id);
     if (!target || target.retired || event.version <= target.applied) return;
     target.notified = Math.max(target.notified, event.version);
-    if (target.listeners.size) void this.reconcile(event.quiz_id);
+    if (target.listeners.size) void this.reconcile(id);
   }
   refreshAll() {
     this.targets.forEach((target, id) => {
       if (target.listeners.size) void this.reconcile(id);
     });
   }
-  retire(id: number) {
+  retire(id: K) {
     const target = this.target(id);
     target.retired = true;
     target.epoch++;
@@ -130,7 +150,7 @@ export class TargetStore<S extends TaskState, I> {
       canRepeat: false,
     });
   }
-  private schedule(id: number, target: Target<S, I>) {
+  private schedule(id: K, target: Target<S, I>) {
     clearTimeout(target.timer);
     if (
       this.stopped ||
@@ -153,7 +173,7 @@ export class TargetStore<S extends TaskState, I> {
       }, delay);
     }
   }
-  async reconcile(id: number): Promise<void> {
+  async reconcile(id: K): Promise<void> {
     if (this.stopped) return;
     const target = this.target(id);
     if (target.retired) return;
@@ -195,7 +215,7 @@ export class TargetStore<S extends TaskState, I> {
       }
     }
   }
-  async generate(id: number, input: I, repeat = false) {
+  async generate(id: K, input: I, repeat = false) {
     if (this.stopped) return;
     const target = this.target(id);
     if (

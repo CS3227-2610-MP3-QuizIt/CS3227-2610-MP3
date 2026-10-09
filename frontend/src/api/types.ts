@@ -86,6 +86,10 @@ export interface SummaryState {
 }
 export interface AIChange {
   feature: string;
+  target_id?: number | null;
+  task_id?: string | null;
+  attempt_id?: number | null;
+  question_id?: number | null;
   quiz_id: number;
   version: number;
 }
@@ -139,4 +143,66 @@ export interface Publication extends Omit<
   "teacher_id" | "note_id" | "questions"
 > {
   assigned_student_count: number;
+}
+
+export type AttemptStatus = "not_started" | "in_progress" | "submitted";
+export interface StudentQuizItem extends Quiz {
+  attempt_id: number;
+  attempt_status: AttemptStatus;
+  score: number | null;
+}
+export interface StudentQuestion {
+  id: number;
+  position: number;
+  question: string;
+  options: Record<Option, string>;
+}
+export interface StudentQuiz extends Omit<StudentQuizItem, "class_name"> {
+  questions: StudentQuestion[];
+}
+export interface SavedAnswer {
+  question_id: number;
+  selected_option: Option;
+  updated_at: string;
+}
+export interface Attempt {
+  id: number;
+  quiz_id: number;
+  status: AttemptStatus;
+  started_at: string | null;
+  answers: SavedAnswer[];
+  hints: HintState[];
+}
+export interface SubmissionScore {
+  id: number;
+  quiz_id: number;
+  status: "submitted";
+  score: number;
+  total_questions: number;
+  score_percent: number;
+  submitted_at: string;
+}
+export interface StudentResults extends SubmissionScore {
+  questions: (TeacherQuestion & {
+    selected_option: Option;
+    is_correct: boolean;
+  })[];
+}
+export interface HintInput {
+  action: "ensure" | "new";
+  prompt: string;
+}
+export interface HintState extends Omit<
+  SummaryState,
+  "feature" | "attempt_id" | "question_id" | "result"
+> {
+  feature: "hint";
+  attempt_id: number;
+  question_id: number;
+  result: {
+    id: number;
+    question_id: number;
+    hint: string;
+    ai_request_id: string;
+  } | null;
 }

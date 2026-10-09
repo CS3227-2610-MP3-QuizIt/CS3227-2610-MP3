@@ -5,7 +5,11 @@ admin overview, student/teacher account creation, class creation and membership
 management, published quiz completion and AI summaries, and the teacher workspace.
 Teachers can browse assigned classes and own quizzes, upload DOCX notes, create drafts,
 generate or reprompt questions, review answer keys and explanations, and publish the
-reviewed revision. The student workspace currently shows a signed-in placeholder.
+reviewed revision. Students can browse their assigned published quizzes, start or
+resume an attempt, save choices immediately, request optional question hints, submit,
+and review scores, correct answers, and explanations. Each answer shows its save state
+and offers an explicit retry on failure. Submission waits for pending saves and stays
+locked while an uncertain response is reconciled.
 
 Run commands from `frontend/`:
 
@@ -50,12 +54,17 @@ not proxy API requests. Production must serve this build and `/api/v1` under one
 HTTPS origin. Deployment remains the team's responsibility.
 
 `src/api` contains typed, cookie-authenticated API access. `src/auth` manages the
-backend identity and login. `src/admin` and `src/teacher` contain their respective
+backend identity and login. `src/admin`, `src/teacher`, and `src/student` contain their respective
 role screens. `src/shared` contains UI components, guarded resource reads, the
 session-owned SSE subscription, and the shared per-target AI reconciliation store.
 AI results always come from backend state reads; SSE only invalidates state.
 Teacher content is read separately from the current quiz endpoint; historical task
-snapshots never become the reviewed draft.
+snapshots never become the reviewed draft. Student hints use composite attempt/question
+keys with the same version guards, five-second unfinished-task polling, and read-error
+backoff. Hints never gate answer saving or submission; only the latest successful hint
+is displayed. Prompts and selections are held in memory, with persistence in the backend.
+Student routes are `#/student/quizzes`, `#/student/attempt/:quizId`, and
+`#/student/results/:quizId`. Result reads require a confirmed submitted attempt.
 
 Run `npm test` for mocked API, component, session, and AI reconciliation tests,
 `npm run lint` for static analysis, and `npm run format:check` for formatting.
