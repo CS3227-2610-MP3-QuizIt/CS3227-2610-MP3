@@ -61,7 +61,7 @@ Treat `backend/` and `frontend/` as standalone folders. Instructions to install 
 - Enforce roles and resource ownership in the backend. Use Argon2id password hashes, hashed opaque session tokens, secure production cookies, exact Origin checks on mutating browser requests, and exact development CORS origins.
 - Treat DOCX text and user prompts as untrusted data. Bound and validate uploads, archive expansion, extracted text, prompt context, and generated output. Never fetch external DOCX content.
 - Keep model instructions separate from source text. Parse and validate strict feature JSON; render generated text safely. Invalid output must not partially replace application data.
-- Hint inputs omit options, answer keys, and explanations. Summary inputs contain anonymous aggregates, not student identities or individual answer records. Backend calculations remain authoritative.
+- Hint generation inputs omit options, answer keys, and explanations. A separate private SoCLaaS verification call receives the candidate and answer context; keep one task running until verification approves it. AI judges relevance and answer leakage; deterministic checks validate structure only. Summary inputs contain anonymous aggregates, not student identities or individual answer records. Backend calculations remain authoritative.
 - Enable SQLite foreign keys on every connection, WAL mode, a five-second busy timeout, and short write transactions.
 
 ## Validation and delivery

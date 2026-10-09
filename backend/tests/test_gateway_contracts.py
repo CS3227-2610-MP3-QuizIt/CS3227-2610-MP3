@@ -40,7 +40,9 @@ def snapshot(feature: str) -> dict[str, Any]:
             "question": "Which removal order preserves insertion order?",
             "notes": "Elements leave in their original order.",
             "prompt": "Help me reason about the order.",
-            "forbidden_options": ["FIFO", "LIFO", "Random", "Sorted"],
+            "options": {"A": "FIFO", "B": "LIFO", "C": "Random", "D": "Sorted"},
+            "correct_option": "A",
+            "explanation": "The earliest inserted item leaves first.",
         }
     return {
         "metrics": {
@@ -94,13 +96,18 @@ async def test_fixed_models_and_minimal_stateless_payload(feature: str) -> None:
         assert request.url == "https://gateway.example.com/v1/responses"
         payload = json.loads(request.content)
         calls.append(payload)
-        return httpx.Response(200, json={"output_text": json.dumps(output(feature))})
+        content = (
+            {"is_hint": True, "reveals_answer": False}
+            if "candidate_hint" in json.loads(payload["input"])
+            else output(feature)
+        )
+        return httpx.Response(200, json={"output_text": json.dumps(content)})
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(provider)) as client:
         result = await invoke(SoCLaaS(settings(), client), feature)
     assert result.result == output(feature)
     assert result.usage == {"input_tokens": None, "output_tokens": None, "total_tokens": None}
-    assert len(calls) == 1
+    assert len(calls) == (2 if feature == "hint" else 1)
     payload = calls[0]
     assert set(payload) == {"model", "instructions", "input", "stream", "max_output_tokens"}
     assert (
@@ -112,7 +119,7 @@ async def test_fixed_models_and_minimal_stateless_payload(feature: str) -> None:
     assert payload["stream"] is False
     assert (
         payload["max_output_tokens"]
-        == {"quiz_generation": 8192, "hint": 256, "summary": 1024}[feature]
+        == {"quiz_generation": 32768, "hint": 8192, "summary": 8192}[feature]
     )
 
 
@@ -131,7 +138,14 @@ async def test_output_list_fallback_and_single_surrounding_fence(fenced: bool) -
         ],
     }
     async with httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=response))
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={"output_text": json.dumps({"is_hint": True, "reveals_answer": False})}
+                if "candidate_hint" in json.loads(json.loads(request.content)["input"])
+                else response,
+            )
+        )
     ) as client:
         result = await invoke(SoCLaaS(settings(), client), "hint")
     assert result.result == output("hint")
@@ -239,7 +253,15 @@ async def test_feature_context_budget_counts_complete_utf8_input_and_reserved_ou
         ai = SoCLaaS(config, client)
         payload = ai.prepare(feature, source)
         complete = payload["instructions"] + "\n" + payload["input"]
-        limit = len(complete.encode("utf-8")) + payload["max_output_tokens"] + 512
+        if feature == "hint":
+            verifier = ai.prepare("hint_verification", {**source, "hint": ""})
+            complete = verifier["instructions"] + "\n" + verifier["input"]
+        limit = (
+            len(complete.encode("utf-8"))
+            + payload["max_output_tokens"]
+            + 512
+            + (6 * 720 if feature == "hint" else 0)
+        )
         setattr(config, f"soclaas_{short}_context_tokens", limit)
         assert ai.prepare(feature, source)["input"] == payload["input"]
         setattr(config, f"soclaas_{short}_context_tokens", limit - 1)
@@ -255,7 +277,7 @@ async def test_compatible_estimator_receives_fixed_model_and_full_context() -> N
         captured.append((model, text))
         return 37
 
-    config = settings(soclaas_quiz_context_tokens=37 + 8192 + 512)
+    config = settings(soclaas_quiz_context_tokens=37 + 32768 + 512)
     source = snapshot("quiz_generation")
     source["current_draft"] = output("quiz_generation")["questions"]
     async with httpx.AsyncClient(
@@ -335,48 +357,40 @@ async def test_summary_shape_cannot_replace_authoritative_numeric_metrics(
     assert caught.value.usage["total_tokens"] == 12
 
 
-@pytest.mark.parametrize(
-    "hint",
-    [
-        "B is correct",
-        "Correct answer: B",
-        "Choose (B)",
-        "Select b because it is correct.",
-        "Select a.",
-        "A)",
-        "B",
-        "Consider the FIFO approach.",
-    ],
-)
-async def test_hint_explicit_selection_and_literal_options_are_withheld(hint: str) -> None:
-    response = {"output_text": json.dumps({"hint": hint})}
-    async with httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=response))
-    ) as client:
+@pytest.mark.parametrize("hint", ["B is correct", "Choose (B)", "Consider the FIFO approach."])
+async def test_hint_answer_selection_is_withheld_by_verifier(hint: str) -> None:
+    calls: list[dict[str, Any]] = []
+
+    def provider(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content)
+        calls.append(payload)
+        value = (
+            {"is_hint": True, "reveals_answer": True}
+            if "candidate_hint" in json.loads(payload["input"])
+            else {"hint": hint}
+        )
+        return httpx.Response(200, json={"output_text": json.dumps(value)})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(provider)) as client:
         with pytest.raises(AIError) as caught:
             await invoke(SoCLaaS(settings(), client), "hint")
     assert caught.value.code == "AI_INVALID_OUTPUT"
-
-
-async def test_hint_full_option_match_normalizes_case_and_whitespace() -> None:
-    source = snapshot("hint")
-    source["forbidden_options"] = ["First in first out", "Last in first out", "Random", "Sorted"]
-    response = {
-        "output_text": json.dumps({"hint": "Use FIRST   IN first OUT to reason about removal."})
-    }
-    async with httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=response))
-    ) as client:
-        with pytest.raises(AIError) as caught:
-            await invoke(SoCLaaS(settings(), client), "hint", source)
-    assert caught.value.code == "AI_INVALID_OUTPUT"
+    assert caught.value.details == {"stage": "hint_verification", "reason": "hint_reveals_answer"}
+    assert len(calls) == 2
 
 
 async def test_conceptual_hint_does_not_confuse_indefinite_article_with_option_a() -> None:
     hint = "Choose a starting point and trace which element would leave first."
     response = {"output_text": json.dumps({"hint": hint})}
     async with httpx.AsyncClient(
-        transport=httpx.MockTransport(lambda _: httpx.Response(200, json=response))
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(
+                200,
+                json={"output_text": json.dumps({"is_hint": True, "reveals_answer": False})}
+                if "candidate_hint" in json.loads(json.loads(request.content)["input"])
+                else response,
+            )
+        )
     ) as client:
         result = await invoke(SoCLaaS(settings(), client), "hint")
     assert result.result == {"hint": hint}

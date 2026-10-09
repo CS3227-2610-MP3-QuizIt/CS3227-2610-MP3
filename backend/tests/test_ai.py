@@ -214,12 +214,13 @@ async def test_hint_input_omits_keys_options_and_success_allowance(course: Cours
     quiz = await course.published()
     attempt = await course.attempt(quiz)
     harness = course.harness
+    harness.settings.ai_max_hints_per_question = 2
     question_id = quiz["questions"][0]["id"]
     path = f"/attempts/{attempt['id']}/questions/{question_id}/hints"
     first = await harness.ai_post(course.students[0], path, {"prompt": "  Help   me understand  "})
     assert first.status_code == 202
     await harness.drain()
-    payload = harness.gateway.calls[-1]
+    payload = harness.gateway.calls[-2]
     assert payload["model"] == "hint-model"
     for option in OPTIONS.values():
         assert option not in payload["input"]
@@ -233,17 +234,19 @@ async def test_hint_input_omits_keys_options_and_success_allowance(course: Cours
     await harness.drain()
     exceeded = await harness.ai_post(course.students[0], path, {"action": "new"})
     assert_error(exceeded, 422, "HINT_LIMIT_REACHED")
-    assert len(harness.gateway.calls) == 3
+    assert len(harness.gateway.calls) == 5
     ensured = await harness.ai_post(course.students[0], path)
     assert ensured.status_code == 200 and ensured.json()["task_id"] == second.json()["task_id"]
 
 
-@pytest.mark.parametrize("hint", ["The answer is B.", "Select option B", OPTIONS["B"], "x" * 601])
+@pytest.mark.parametrize("hint", ["The answer is B.", "Select option B", OPTIONS["B"], "x" * 721])
 async def test_hint_answer_leak_output_is_withheld(course: Course, hint: str) -> None:
     quiz = await course.published()
     attempt = await course.attempt(quiz)
     path = f"/attempts/{attempt['id']}/questions/{quiz['questions'][0]['id']}/hints"
     course.harness.gateway.output({"hint": hint})
+    if len(hint) <= 720:
+        course.harness.gateway.output({"is_hint": False, "reveals_answer": True})
     response = await course.harness.ai_post(course.students[0], path)
     assert response.status_code == 202
     await course.harness.drain()

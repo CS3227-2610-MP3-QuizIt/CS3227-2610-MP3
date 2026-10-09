@@ -18,7 +18,7 @@ async def initialize(settings: Settings) -> None:
 
 
 async def live_check(settings: Settings) -> None:
-    """Explicit operator command: three small calls; never part of startup or tests."""
+    """Explicit operator command: four small calls; never part of startup or tests."""
     async with httpx.AsyncClient(timeout=httpx.Timeout(45, connect=5), trust_env=False) as client:
         ai = SoCLaaS(settings, client)
         await ai.generate_quiz(
@@ -34,7 +34,9 @@ async def live_check(settings: Settings) -> None:
                 "question": "What removal order does a queue use?",
                 "notes": "Queues preserve insertion order.",
                 "prompt": "Give a conceptual clue.",
-                "forbidden_options": ["FIFO", "LIFO", "Random", "Sorted"],
+                "options": {"A": "FIFO", "B": "LIFO", "C": "Random", "D": "Sorted"},
+                "correct_option": "A",
+                "explanation": "Queues remove the earliest inserted element first.",
             }
         )
         await ai.generate_quiz_result_summary(
@@ -70,7 +72,7 @@ def main() -> None:
         "--allow-live-requests",
         action="store_true",
         required=True,
-        help="Explicitly allow three metered SoCLaaS calls.",
+        help="Explicitly allow four metered SoCLaaS calls.",
     )
     args = parser.parse_args()
     settings = Settings()

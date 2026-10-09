@@ -126,7 +126,9 @@ No runtime catalog lookup occurs. Verify permitted text models independently dur
 deployment. The supplied catalog is a dated snapshot. Invalid AI configuration does not prevent login or ordinary
 quiz work; fresh AI requests return `AI_CONFIGURATION_ERROR` before consuming admission.
 
-Settings reserve 256 hint, 8192 quiz, and 1024 summary output tokens and 512 safety tokens.
+Settings default to 8192 hint, 32768 quiz, and 8192 summary output tokens and 512 safety
+tokens. Hint generation and verification each use the hint settings; preflight
+verification also reserves 6 × 2048 tokens for the maximum JSON-escaped candidate.
 The fallback estimator uses UTF-8 bytes for the complete instructions and JSON context.
 It is deliberately conservative. A deployment can inject a model-compatible callable
 `SoCLaaS(settings, client, token_estimator=...)`, taking `(model_id, complete_text)` and
@@ -181,9 +183,18 @@ individual answers to the model.
 DOCX handling validates ZIP structure, content types, document relationship, CRCs, archive
 expansion, safe XML, and extracted text. Parsing and storage run outside the event loop.
 External relationships are inert; content is never fetched. AI sees fixed instructions
-separately from untrusted JSON values. Hint requests omit options, keys, and explanations;
-private option strings are used only to reject answer-revealing output. Strict JSON rejects
-duplicate fields, nonfinite numbers, unexpected fields, invalid lengths, duplicate quiz
+separately from untrusted JSON values. Hint generation omits options, keys, and
+explanations. A second stateless call to the
+same hint model privately verifies the candidate with options, correct option, and
+explanation. The verdict must contain exactly boolean `is_hint` and `reveals_answer`;
+only true/false respectively allows the original candidate to be saved. AI judges
+relevance and semantic answer leakage, including paraphrases and decisive elimination.
+Literal option-term overlap alone is allowed; regex and literal-option content filters
+are removed. Fixed instructions treat all verifier inputs as untrusted data. Neither
+private answer context nor rejected candidates/verdicts appear in browser responses
+or logs. The private task input snapshot includes answer context; no schema migration
+is needed. Strict JSON rejects duplicate fields, nonfinite numbers, unexpected fields,
+invalid lengths, duplicate quiz
 options/questions, and incomplete output. Only a single surrounding Markdown fence can
 be removed. Output cannot perform application actions or publish quizzes. Semantic
 correctness, hint subtlety, and interpretive accuracy still need human judgment.
@@ -191,7 +202,9 @@ correctness, hint subtlety, and interpretive accuracy still need human judgment.
 `AI_INVALID_OUTPUT` includes fixed `details.stage` and `details.reason` categories
 that persist with the terminal error in `ai_requests.response_json`. They distinguish
 response/envelope problems, missing text, malformed generated JSON, and schema failures
-such as wrong counts or duplicate options. No raw response, rejected field names,
+such as wrong counts or duplicate options. Semantic hint rejection uses stage
+`hint_verification` and reason `hint_irrelevant` or `hint_reveals_answer`; malformed
+boolean verdicts use `invalid_verification_verdict`. No raw response, rejected field names,
 exception messages, notes, or credentials enter diagnostics. Investigate the authorized
 generation-state read and persisted provider status/usage before explicitly retrying;
 older failures without these categories cannot identify the exact rejection rule.
@@ -201,8 +214,13 @@ Admission resolves authorized key replays and target reuse before fresh eligibil
 context, and rate checks. Every accepted reuse binds its key. Fresh admission count and
 task/latest-version/key writes commit together. Accepted coroutines are registered
 immediately and do not depend on request or SSE connections. The HTTPX client is shared,
-has finite phase timeouts, and performs one nonstreaming `/v1/responses` call per fresh
-executed task. There are no tools, conversation memory, provider fallback, automatic
+has finite phase timeouts, and uses nonstreaming `/v1/responses`. Quiz and summary
+tasks make one call; hints make generation then verification calls inside one task,
+one admission allowance, and one 300-second deadline. API state stays `in_progress`
+through both calls. Verification failure requires explicit retry and consumes no
+successful-hint allowance. Sum valid usage fields across both calls, leaving unknown
+or overflowing totals null; interrupted verification retains known generation usage.
+There are no tools, conversation memory, provider fallback, automatic
 retries, application queues, dispatchers, semaphores, or unfinished-task caps.
 
 Completion rechecks access, state, deadline, revision, and latest pointer in the same write
@@ -228,8 +246,10 @@ uv run --locked python ../workflow/backend_persistence_smoke.py
 does not deploy. Actual check results and limitations are recorded in
 `workflow/backend-validation.md`. Tests use temporary databases, a controlled clock,
 and HTTPX mocked responses. They do not read `.env` secrets or call live SoCLaaS.
+The two-call hint implementation and final acceptance results are recorded in
+[`workflow/hint-verification.md`](../workflow/hint-verification.md).
 `uv run --locked quiz-backend live-check --allow-live-requests` is an optional operator
-command that makes three small metered calls. It was not run for this delivery.
+command that makes four small metered calls (quiz, hint generation, hint verification, summary). It was not run for this delivery.
 
 ## Docker Compose
 

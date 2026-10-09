@@ -83,6 +83,9 @@ class Gateway:
     calls: list[dict[str, Any]] = field(default_factory=list)
     responses: deque[httpx.Response] = field(default_factory=deque)
     blocked: bool = False
+    verification_blocked: bool = False
+    verification_entered: asyncio.Event = field(default_factory=asyncio.Event)
+    verification_release: asyncio.Event = field(default_factory=asyncio.Event)
     release: asyncio.Event = field(default_factory=asyncio.Event)
     entered: asyncio.Event = field(default_factory=asyncio.Event)
 
@@ -121,11 +124,18 @@ class Gateway:
         self.entered.set()
         if self.blocked:
             await self.release.wait()
+        verification = "candidate_hint" in json.loads(payload["input"])
+        if verification:
+            self.verification_entered.set()
+            if self.verification_blocked:
+                await self.verification_release.wait()
         if self.responses:
             return self.responses.popleft()
         model = payload["model"]
         if model == "quiz-model":
             content = quiz_output()
+        elif model == "hint-model" and verification:
+            content = {"is_hint": True, "reveals_answer": False}
         elif model == "hint-model":
             content = {"hint": "Think about how arrival order relates to removal order."}
         else:
@@ -214,6 +224,7 @@ async def harness(tmp_path: Any) -> AsyncIterator[Harness]:
             yield value
         finally:
             gateway.release.set()
+            gateway.verification_release.set()
             await value.drain()
             for client in value.clients:
                 await client.aclose()

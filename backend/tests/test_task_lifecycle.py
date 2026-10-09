@@ -153,12 +153,12 @@ async def test_all_features_share_the_same_rolling_allowance(course: Course) -> 
         "hint-model",
         "summary-model",
     }
-    assert len(harness.gateway.calls) == 30
+    assert len(harness.gateway.calls) == 31
     response = await harness.ai_post(
         course.admin, f"/quizzes/{quiz['id']}/summary", {"action": "new"}
     )
     assert_error(response, 429, "AI_APP_RATE_LIMIT")
-    assert len(harness.gateway.calls) == 30
+    assert len(harness.gateway.calls) == 31
 
 
 async def test_pre_start_cancellation_is_persisted_and_counted(

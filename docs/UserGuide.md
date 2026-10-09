@@ -25,7 +25,10 @@ keeps your choice visible; select **Retry save** or change the choice explicitly
 Each question offers an optional hint prompt of at most 500 characters. **Ask for a hint**
 restores existing latest work or requests a first conceptual hint. **Another hint** and
 **Retry hint** request fresh work. Generation is disabled while hint state is unresolved
-or running. A latest running or failed hint replaces an older hint in the display;
+or running. The backend generates and then checks each hint for relevance and answer
+leakage; the hint stays in progress until both steps finish. Rejected or unverifiable
+hints are withheld; use **Retry hint** to request another. AI checks can still misjudge
+a hint, so review its guidance critically. A latest running or failed hint replaces an older hint in the display;
 rejected admission keeps the previous state. If a request is uncertain, **Repeat previous
 request** preserves its original prompt and key. Rate errors show retry timing when known;
 requests never repeat automatically. The backend enforces the successful-hint allowance;
@@ -102,7 +105,7 @@ with `POST /quizzes/{quiz_id}/attempt`. Read the quiz and attempt, and save sele
 using `PUT /attempts/{attempt_id}/answers/{question_id}` with `selected_option` A–D.
 Selections survive refresh. Students can request a conceptual hint through
 `POST /attempts/{attempt_id}/questions/{question_id}/hints` with an optional prompt.
-Each question allows two successful hints; failed hints do not count. New hints require
+Each question allows the configured number of verified successful hints (default 1000); failed hints do not count. New hints require
 an in-progress attempt. Submit through `POST /attempts/{attempt_id}/submit` after saving
 every answer. Submission freezes the result and computes the score without AI.
 `GET /attempts/{attempt_id}/results` then reveals correct options and explanations.

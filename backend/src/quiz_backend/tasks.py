@@ -261,7 +261,9 @@ class TaskManager:
             "question": question["question_text"],
             "notes": quiz["extracted_text"],
             "prompt": body["prompt"],
-            "forbidden_options": [question[f"option_{label}"] for label in "abcd"],
+            "options": {label.upper(): question[f"option_{label}"] for label in "abcd"},
+            "correct_option": question["correct_option"],
+            "explanation": question["explanation"],
         }
 
     async def admit(
@@ -494,12 +496,19 @@ class TaskManager:
                     assert target and user
                     await self.validate_completion(conn, task, target, user)
                 snapshot = json.loads(task["input_json"])
-                operation = {
-                    "hint": self.ai.generate_hint,
-                    "quiz_generation": self.ai.generate_quiz,
-                    "summary": self.ai.generate_quiz_result_summary,
-                }[target["feature"]]
-                result = await operation(snapshot)
+
+                def remember_usage(progress: AIResult) -> None:
+                    nonlocal result
+                    result = progress
+
+                if target["feature"] == "hint":
+                    result = await self.ai.generate_hint(snapshot, on_progress=remember_usage)
+                else:
+                    operation = {
+                        "quiz_generation": self.ai.generate_quiz,
+                        "summary": self.ai.generate_quiz_result_summary,
+                    }[target["feature"]]
+                    result = await operation(snapshot)
                 await self.succeed(task_id, result, execution_deadline=deadline)
         except TimeoutError:
             await self.safe_fail(
@@ -718,12 +727,12 @@ class TaskManager:
                 return
             target = await one(conn, "SELECT * FROM ai_targets WHERE id=?", (task["target_id"],))
             assert target
-            usage = result.usage if result else error.usage if isinstance(error, AIError) else {}
+            usage = error.usage if isinstance(error, AIError) else result.usage if result else {}
             provider_status = (
-                result.provider_status
-                if result
-                else error.provider_status
+                error.provider_status
                 if isinstance(error, AIError)
+                else result.provider_status
+                if result
                 else None
             )
             await self.terminal(

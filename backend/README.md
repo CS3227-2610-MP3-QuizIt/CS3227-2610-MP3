@@ -19,7 +19,11 @@ three features may use the same model ID; configure each feature's context limit
 Missing AI configuration returns a safe error for fresh AI requests; other workflows
 remain available. Do not overwrite an existing `.env`.
 
-Application AI tasks have a 300-second overall deadline from admission. The shared
+Application AI tasks have a 300-second overall deadline from admission. Hints generate
+a candidate and verify its relevance and answer leakage in two stateless calls to the
+same hint model. They remain in progress until verification approves the candidate.
+One hint task consumes one application admission allowance, but two gateway calls;
+rejected hints require explicit retry and are never saved or displayed. The shared
 HTTP client read timeout is 300 seconds, with connect/write/pool timeouts of 5/10/5 seconds.
 
 ## Docker
@@ -76,7 +80,8 @@ uv build
 ```
 
 Tests use temporary storage and a mocked HTTPX gateway. They never call SoCLaaS.
-An operator can explicitly run three small metered integration calls:
+An operator can explicitly run four small metered integration calls (quiz, hint
+generation, hint verification, summary):
 
 ```bash
 uv run --locked quiz-backend live-check --allow-live-requests

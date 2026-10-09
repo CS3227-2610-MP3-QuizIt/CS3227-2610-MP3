@@ -12,10 +12,17 @@ transactions. Teacher review requires the exact generation revision before publi
 Mocked injection tests show the application boundary holds even when source text contains
 malicious instructions. They do not prove semantic correctness of real model output.
 
-Student hints create a special answer-leakage risk. Their outbound inputs omit options,
-keys, and explanations. Returned hints are bounded and checked for explicit letter
-selection and literal option strings. A conceptual clue can still imply the answer;
-this limitation is disclosed. Admin summaries receive only anonymous aggregate counts
+Student hints create a special answer-leakage risk. Generation inputs omit options,
+keys, and explanations. Manual feedback showed that matching literal option strings
+can reject useful conceptual clues. The revised process uses a separate stateless
+call to the same model, with private answer context, to judge relevance and leakage.
+An exact boolean verdict must approve the candidate before it is saved or displayed;
+structural validation still rejects malformed output. The candidate is another prompt
+injection surface, so it remains untrusted JSON data rather than verifier instructions.
+Both calls share a single task and deadline, and rejected hints need explicit retry.
+Mocked tests exercise orchestration, rejection, and verification races; they do not
+prove that the live model will judge every clue correctly. This limitation is disclosed.
+Admin summaries receive only anonymous aggregate counts
 and question context; backend metrics remain authoritative alongside AI observations.
 Safe XML, expansion limits, private opaque storage, strict duplicate-key JSON parsing,
 hashed sessions, Origin checks, and ownership checks address distinct non-model attacks.
