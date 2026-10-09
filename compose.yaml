@@ -1,0 +1,39 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    env_file:
+      - path: ${BACKEND_ENV_FILE:-./backend/.env}
+        required: false
+    environment:
+      ENVIRONMENT: ${APP_ENVIRONMENT:-development}
+      ALLOWED_ORIGINS: '${APP_ALLOWED_ORIGINS:-["*"]}'
+      DATABASE_PATH: /app/private/quiz.sqlite3
+      STORAGE_PATH: /app/private/notes
+    volumes:
+      - backend-data:/app/private
+    restart: unless-stopped
+    stop_grace_period: 15s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7000/api/v1/openapi.json', timeout=3).close()"
+      interval: 10s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  backend-data:

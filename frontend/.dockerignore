@@ -1,0 +1,18 @@
+# Only build inputs enter the context, excluding local configuration.
+**
+!package.json
+!package-lock.json
+!index.html
+!tsconfig.json
+!tsconfig.app.json
+!tsconfig.node.json
+!vite.config.ts
+!nginx.conf
+!src/
+!src/**
+!public/
+!public/**
+**/.env
+**/.env.*
+**/*.pem
+**/*.key

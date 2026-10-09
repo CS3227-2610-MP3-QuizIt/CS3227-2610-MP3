@@ -47,6 +47,8 @@ For production, supply a separate environment file with `ENVIRONMENT=production`
 Use a separate named volume and serve the frontend and API through the same HTTPS
 origin using a reverse proxy. Allow at least ten seconds for container shutdown.
 
+Run both apps using the [Compose instructions](../docs/DeveloperGuide.md#docker-compose).
+
 ## Demo accounts
 
 Startup automatically initializes and seeds a fresh database in both development

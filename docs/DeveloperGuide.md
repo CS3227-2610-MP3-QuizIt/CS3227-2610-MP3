@@ -231,6 +231,60 @@ and HTTPX mocked responses. They do not read `.env` secrets or call live SoCLaaS
 `uv run --locked quiz-backend live-check --allow-live-requests` is an optional operator
 command that makes three small metered calls. It was not run for this delivery.
 
+## Docker Compose
+
+The root `compose.yaml` builds each app from its own folder. Run Compose commands
+from the repository root; standalone app commands still run in their app folders:
+
+```bash
+docker compose up --build -d --wait
+docker compose logs --tail=100
+docker compose down
+```
+
+Open `http://localhost:8080`; API documentation is at
+`http://localhost:8080/api/v1/docs`. Only the frontend port is published, bound to
+loopback. Non-root Nginx serves the compiled frontend and proxies `/api/` to the
+single backend worker, with SSE buffering disabled and multipart uploads allowed.
+Compose waits for backend readiness before starting the frontend. The project-scoped
+`backend-data` named volume preserves SQLite and private notes through container
+replacement and `docker compose down`. `docker compose down --volumes` deletes it.
+
+Compose optionally reads `backend/.env` for backend-only gateway configuration.
+Ordinary workflows also start without that file; AI requires a configured key,
+models, and context limits. Preserve existing private configuration. Compose
+overrides database/storage paths to the volume, selects development cookie settings
+by default, and allows all browser origins with `["*"]`, regardless
+of those values in `backend/.env`. `frontend/.env` is not read. Do not publish
+resolved Compose configuration containing secrets.
+
+Wildcard mode disables Origin-based CSRF protection. Authentication and resource
+authorization still apply. Set `APP_ALLOWED_ORIGINS` to an exact list to restore
+Origin protection. For example, to change the local port and restrict its origin:
+
+```bash
+FRONTEND_PORT=8081 APP_ALLOWED_ORIGINS='["http://localhost:8081"]' docker compose up --build -d --wait
+```
+
+For production, provision an HTTPS reverse proxy in front of the loopback frontend
+port and a separate backend environment file. For example:
+
+```bash
+BACKEND_ENV_FILE=/secure/path/production.env APP_ENVIRONMENT=production APP_ALLOWED_ORIGINS='["https://your-app.example"]' docker compose -p quiz-production up --build -d --wait
+```
+
+Use a separate project name to isolate production storage, and a separate host or
+frontend port if running alongside development. HTTPS termination, backups,
+deployment automation, and trusted proxy/client-IP configuration remain operator
+responsibilities. Nginx replaces forwarding headers; configure the trust boundary
+deliberately if adding an outer proxy. Do not scale the backend beyond one instance.
+
+Container validation is recorded in `workflow/containerization.md`, and the verified
+interaction summary is in `logs/containerization.md`. Configuration references:
+[Compose startup ordering](https://docs.docker.com/compose/how-tos/startup-order/),
+[Nginx unprivileged image](https://github.com/nginx/docker-nginx-unprivileged), and
+[Nginx proxy directives](https://nginx.org/en/docs/http/ngx_http_proxy_module.html).
+
 The team's future deployment must serve frontend and `/api/v1` on one HTTPS origin with
 persistent backend disk, one instance, and one worker. Configure trusted reverse proxy
 handling deliberately so source-IP login protection uses the intended client address;

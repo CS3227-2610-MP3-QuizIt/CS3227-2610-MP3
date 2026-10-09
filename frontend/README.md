@@ -53,6 +53,17 @@ The build writes `frontend/dist/`. Preview serves the compiled frontend; it does
 not proxy API requests. Production must serve this build and `/api/v1` under one
 HTTPS origin. Deployment remains the team's responsibility.
 
+## Docker
+
+Build from this folder with `docker build -t quiz-frontend .`. The image builds
+with locked npm dependencies and serves `dist/` with non-root Nginx on port 8080.
+It proxies `/api/` to `backend:7000` on the Docker network, preserves the browser
+Origin, and disables buffering for SSE. Local `.env` files and gateway credentials
+are excluded from the build context. `BACKEND_SERVER_URL` is only used by Vite
+development, not this image.
+
+Run both apps using the [Compose instructions](../docs/DeveloperGuide.md#docker-compose).
+
 `src/api` contains typed, cookie-authenticated API access. `src/auth` manages the
 backend identity and login. `src/admin`, `src/teacher`, and `src/student` contain their respective
 role screens. `src/shared` contains UI components, guarded resource reads, the
