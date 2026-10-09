@@ -124,6 +124,8 @@ HTTP(S) origin reachable from the container, without trailing slash or API path.
 Changing it requires container recreation, with no frontend image rebuild.
 The proxy preserves API paths, browser Origin, and SSE behavior, and uses the
 upstream Host, HTTPS SNI, and certificate verification for hosted backends.
+At startup, use the container's nameservers from `/etc/resolv.conf` for dynamic
+upstream resolution, supporting both Docker Compose and hosted Docker services.
 
 Acceptance checks:
 
@@ -131,3 +133,4 @@ Acceptance checks:
 - An environment-file override changes the proxy target in the same image after recreation.
 - Nginx variables remain intact during template substitution; `nginx -t` succeeds.
 - HTTPS proxy configuration enables SNI and verifies certificates using the CA bundle.
+- The generated resolver uses the container's nameservers rather than a hardcoded Docker DNS address.

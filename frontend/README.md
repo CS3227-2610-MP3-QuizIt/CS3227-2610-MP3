@@ -63,6 +63,8 @@ It proxies `/api/` without stripping the path, preserves the browser Origin, sen
 the upstream Host, enables HTTPS SNI and certificate verification, and disables
 buffering for SSE. Local `.env` files and gateway credentials are excluded from
 the build context. The same built image supports different backend origins.
+The image discovers DNS nameservers from the container's `/etc/resolv.conf` at
+startup, so upstream resolution works on Compose and hosted Docker services.
 
 For a standalone container, set `frontend/.env` to a backend origin reachable from
 inside Docker (no trailing slash, path, query, or fragment), then run from `frontend/`:
@@ -92,6 +94,23 @@ standalone Docker, recreate the container with `--env-file .env`. Changes take e
 at container creation/startup, not while Nginx is already running.
 
 Run both apps using the [Compose instructions](../docs/DeveloperGuide.md#docker-compose).
+
+### Render Docker services
+
+In the frontend service's Render Environment settings, set
+`BACKEND_SERVER_URL=https://cs3227-2610-mp3.onrender.com` and save/redeploy.
+Local `frontend/.env` is excluded from the image and is not loaded on Render.
+Deploy the updated image so Nginx uses Render's container DNS.
+
+In the backend service, set `ENVIRONMENT=production` and
+`ALLOWED_ORIGINS=["https://cs3227-2610-mp3-1.onrender.com"]`, then redeploy.
+Keep the backend's database and uploads on persistent disk.
+
+Browser requests should still go to
+`https://cs3227-2610-mp3-1.onrender.com/api/v1/...`: Nginx forwards these to the
+backend while keeping cookies on the frontend origin. A logged-out
+`/api/v1/auth/me` response should be JSON with HTTP 401. HTTP 502 indicates an
+upstream connection problem; check frontend Nginx logs for DNS or TLS errors.
 
 `src/api` contains typed, cookie-authenticated API access. `src/auth` manages the
 backend identity and login. `src/admin`, `src/teacher`, and `src/student` contain their respective

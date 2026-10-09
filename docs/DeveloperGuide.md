@@ -253,6 +253,17 @@ command that makes four small metered calls (quiz, hint generation, hint verific
 
 ## Docker Compose
 
+For separate Render Docker services, follow the environment settings in
+[frontend/README.md](../frontend/README.md#render-docker-services). The browser
+uses the frontend origin for `/api/v1`; Nginx forwards requests to the configured
+backend origin. Its entrypoint discovers nameservers from `/etc/resolv.conf`,
+supporting hosted containers as well as Compose's Docker DNS. Local `.env` files
+are excluded from images; set runtime variables in the hosting dashboard.
+DNS discovery reuses the Nginx image's existing
+[local-resolver entrypoint](https://github.com/nginx/docker-nginx/blob/master/entrypoint/15-local-resolvers.envsh).
+Build/configuration and hosted-backend forwarding evidence is recorded in
+[logs/render-proxy-fix.md](../logs/render-proxy-fix.md).
+
 The root `compose.yaml` builds each app from its own folder. Run Compose commands
 from the repository root; standalone app commands still run in their app folders:
 
