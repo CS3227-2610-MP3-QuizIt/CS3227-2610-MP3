@@ -52,3 +52,24 @@ All automated provider traffic used HTTPX mocks. No live SoCLaaS calls, commits,
 to external people, deployments, or production database changes were made. Browser UI,
 frontend version reconciliation, product website, live integration and separate team
 deployment remain outstanding work.
+
+## Shared model configuration — 2026-10-09
+
+The user requested that the three SoCLaaS features be allowed to share one model. During
+planning, the user chose to retain the three settings and current example IDs, then
+explicitly required removal of tests about model equality or distinctness and no new
+such tests. The user approved implementation of the revised plan.
+
+Inspection found the duplicate-ID rejection in `SoCLaaS._check_configuration()` and
+one matching rejection case in the gateway contract tests. Implementation removed
+both, renamed the remaining invalid-configuration test, and updated the error message,
+specification, repository guidance, example comments, README, and developer guide.
+The Python general skill guided the small code change. Existing feature-specific
+prompts, validators, limits, meaningful tests, and unrelated edits were preserved.
+No schema migration, API change, new dependency, or equality/distinctness test was added.
+
+Ruff formatting/lint and mypy passed. A sandbox test run reported permission errors
+and was interrupted; the escalated full mocked suite passed 147 tests in 40.44 seconds.
+The final whitespace check passed. Evidence is in `workflow/backend-validation.md`.
+No private `.env` was inspected or changed, no live gateway calls were made, and no
+commit, deployment, or external message was created.

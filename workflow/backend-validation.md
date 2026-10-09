@@ -112,3 +112,29 @@ draft. The original failure therefore remains unreproduced; a precise explanatio
 that specific response requires upstream evidence that is not present in this checkout
 or either container. Prompt strengthening is a robustness improvement, not proof of
 the original cause or a guarantee that every future model response will be valid.
+
+## Shared model configuration follow-up — 2026-10-09
+
+The approved requirement now permits any two or all three feature model settings to
+contain the same ID. This supersedes the earlier distinct-model requirement. Removed
+only the uniqueness check from AI configuration validation and its rejection test case;
+no tests for model equality or distinctness were added. Existing feature routing,
+stateless request, context-budget, and invalid-configuration checks remain. Required
+credentials, gateway validation, and positive per-feature context limits are unchanged.
+The specification, repository guidance, example comments, README, and developer guide
+were updated together. Existing example IDs/context values and private configuration
+were preserved. No public API or persistence schema changed.
+
+Checks ran from `backend/`, except the repository whitespace check:
+
+| Check | Verified result |
+| --- | --- |
+| `.venv/bin/python -m pytest -q` | 147 passed in 40.44 seconds; all provider traffic mocked |
+| `.venv/bin/python -m ruff format --check .` | Passed; 28 files already formatted |
+| `.venv/bin/python -m ruff check .` | All checks passed |
+| `.venv/bin/python -m mypy src/quiz_backend` | Passed; 17 source files |
+| `git diff --check` | Passed |
+
+The sandboxed test attempt reported permission errors and was interrupted. The full
+suite passed with scoped escalation. No live gateway calls, model availability checks,
+deployment, or private `.env` reads were performed. Unrelated working-tree edits remain.

@@ -14,7 +14,8 @@ This disables Origin-based CSRF protection. An explicit origin list instead requ
 an approved `Origin` on every mutation, including curl and the API documentation page.
 
 Create `.env` from `.env.example` only if no private configuration exists. Configure
-three distinct permitted text models and their verified context limits for AI features.
+a permitted text model and verified context limit for each AI feature. Any two or all
+three features may use the same model ID; configure each feature's context limit separately.
 Missing AI configuration returns a safe error for fresh AI requests; other workflows
 remain available. Do not overwrite an existing `.env`.
 

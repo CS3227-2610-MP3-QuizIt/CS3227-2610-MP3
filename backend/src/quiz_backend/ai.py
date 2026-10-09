@@ -380,13 +380,12 @@ class SoCLaaS:
             or base.fragment
             or not self.settings.soclaas_api_key.get_secret_value().strip()
             or not all(models)
-            or len(set(models)) != 3
             or any(limit <= 0 for limit in contexts)
         ):
             raise AIError(
                 503,
                 "AI_CONFIGURATION_ERROR",
-                "AI is unavailable until the operator configures the gateway and three distinct text models with context limits.",
+                "AI is unavailable until the operator configures the gateway and a text model with a context limit for each feature.",
             )
 
     async def generate_hint(self, snapshot: Snapshot) -> AIResult:

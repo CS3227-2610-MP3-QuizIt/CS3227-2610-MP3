@@ -91,12 +91,13 @@ configuration, virtual environments, caches, builds, SQLite files, and private s
 are ignored. Custom private storage outside `backend/private` must also be excluded by
 the operator. Do not put private files in static directories or HTTP response logs.
 
-AI requires `SOCLAAS_BASE_URL` as an HTTPS origin, `SOCLAAS_API_KEY`, three distinct
+AI requires `SOCLAAS_BASE_URL` as an HTTPS origin, `SOCLAAS_API_KEY`, three configured
 fixed model IDs (`SOCLAAS_HINT_MODEL`, `SOCLAAS_QUIZ_MODEL`, `SOCLAAS_SUMMARY_MODEL`), and
 positive verified context limits (`SOCLAAS_HINT_CONTEXT_TOKENS`,
-`SOCLAAS_QUIZ_CONTEXT_TOKENS`, `SOCLAAS_SUMMARY_CONTEXT_TOKENS`). No runtime catalog lookup
-occurs. Verify permitted text models independently during deployment. The supplied
-catalog is a dated snapshot. Invalid AI configuration does not prevent login or ordinary
+`SOCLAAS_QUIZ_CONTEXT_TOKENS`, `SOCLAAS_SUMMARY_CONTEXT_TOKENS`). Any two or all three
+model settings may use the same ID; context and output limits remain feature-specific.
+No runtime catalog lookup occurs. Verify permitted text models independently during
+deployment. The supplied catalog is a dated snapshot. Invalid AI configuration does not prevent login or ordinary
 quiz work; fresh AI requests return `AI_CONFIGURATION_ERROR` before consuming admission.
 
 Settings reserve 256 hint, 8192 quiz, and 1024 summary output tokens and 512 safety tokens.

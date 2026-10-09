@@ -287,13 +287,12 @@ async def test_invalid_operator_estimator_is_a_safe_configuration_error(estimate
 @pytest.mark.parametrize(
     "overrides",
     [
-        {"soclaas_hint_model": "quiz-model"},
         {"soclaas_summary_model": ""},
         {"soclaas_hint_context_tokens": 0},
         {"soclaas_base_url": "https://gateway.example.com/v1"},
     ],
 )
-async def test_unavailable_or_non_distinct_configuration_makes_no_request(
+async def test_unavailable_configuration_makes_no_request(
     overrides: dict[str, Any],
 ) -> None:
     async with httpx.AsyncClient(

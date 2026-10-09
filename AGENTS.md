@@ -45,7 +45,7 @@ Treat `backend/` and `frontend/` as standalone folders. Instructions to install 
 
 ## AI and concurrency
 
-- Route every application AI request through backend-only SoCLaaS. Expose exactly `generate_hint`, `generate_quiz`, and `generate_quiz_result_summary`, each using its own distinct fixed configured text model.
+- Route every application AI request through backend-only SoCLaaS. Expose exactly `generate_hint`, `generate_quiz`, and `generate_quiz_result_summary`, each using a fixed configured text model and its own context limit. Any two or all three features may use the same model ID.
 - Use nonstreaming, stateless `POST /v1/responses`. Do not add tools, gateway background mode, conversation memory, alternate providers, automatic model fallback, or automatic provider retries.
 - Run one FastAPI process with one Uvicorn worker. Use a shared async HTTP client and lifespan-managed async tasks with strong references. Move blocking file parsing outside the event loop.
 - Atomically admit at most 30 fresh AI requests in a rolling 60-second window across all users/features using SQLite timestamps. Reject excess immediately with `429 AI_APP_RATE_LIMIT` and retry timing. Replays, reads, and reused work consume no new allowance.
