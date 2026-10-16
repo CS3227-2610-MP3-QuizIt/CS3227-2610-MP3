@@ -2,14 +2,14 @@
 
 ## Project and current state
 
-This is CS3227 MP3: a secured class quiz application with student, teacher, and admin roles, each with a SoCLaaS-powered AI feature. The repository currently contains requirements and reference documents only. There is no application entry point, dependency manifest, test suite, or established build/run command. `frontend/` is empty; `backend/` contains gateway documentation and environment configuration.
+This is CS3227 MP3: a secured class quiz application with student, teacher, and admin roles, each with a SoCLaaS-powered AI feature. The repository contains the React/Vite frontend, FastAPI/SQLite backend, automated tests, specifications, workflow evidence, and product documentation. Use the component READMEs for setup, run, and verification commands; do not assume a check ran unless you ran it.
 
 Read these sources before changing the relevant behavior:
 
 - `assignment-brief.md`: assignment restrictions, engineering process, deployment, and submission deliverables.
 - `specs/backend-spec.md`: specifications for the backend server.
-- `specs/frontend-spec.md:` specifications for the frontend.
-- `specs/schema.sql`: reference SQLite DDL. It is not a migration runner and contains known stale AI queue definitions.
+- `specs/frontend-spec.md`: frontend behavior and acceptance requirements.
+- `specs/schema.sql`: reference SQLite DDL. Runtime initialization uses the versioned migration under `backend/src/quiz_backend/migrations/`; keep both aligned when changing the schema.
 - `backend/soclaas-docs.md`: supplied gateway API contract. Its model catalog is a dated snapshot, not a guarantee of current availability.
 - `backend/.env.example`: example backend configuration; never print or copy secrets from `.env`.
 
@@ -17,21 +17,17 @@ Read these sources before changing the relevant behavior:
 
 Implement from the specification and its acceptance criteria. When requirements change, update the specification, affected schema, implementation, and acceptance tests together. Surface material contradictions instead of silently inventing behavior.
 
-Before implementing AI persistence, align `specs/schema.sql` with the current specification: tasks use only `running`, `succeeded`, and `failed`; remove queue dispatch and output-staging requirements and the obsolete ten-unfinished-task rule; retain per-target unfinished uniqueness and add an admission-time index. The specification explicitly documents this mismatch.
-
 The assignment requires a custom spec-driven process and basic multi-agent software engineering evidence. Keep workflow artifacts under `workflow/` where practical and verified summaries of development prompts/interactions under `logs/`. Do not use an SDD toolkit. Record reused material in the developer guide's acknowledgements.
 
-## Planned structure and stack
+## Repository layout and stack
 
-Use the assignment's `src/` convention for application source when scaffolding:
+- `frontend/`: React 19, TypeScript, Tailwind CSS, and Vite; role screens live under `frontend/src/`.
+- `backend/`: Python 3.14, FastAPI, and SQLite; application source and versioned migrations live under `backend/src/quiz_backend/`.
+- `workflow/` and `logs/`: development process artifacts and verified interaction summaries.
+- `docs/`: user guide, developer guide, and reflections.
+- `pages/`: the project website.
 
-- `frontend/`: TypeScript, React 19, Tailwind CSS, and Vite. Keep role screens separate; share typed API access, authentication, and UI components.
-- `backend/`: Python, FastAPI, and SQLite. Separate routes and schemas from domain services, AI integration, task management, and persistence.
-- `workflow/`: development workflow instructions, scripts, and evidence.
-- `docs/UserGuide.md`, `docs/DeveloperGuide.md`, `docs/Reflections.md`: required documentation matching the delivered product.
-- `logs/`: verified development interaction summaries.
-
-Treat `backend/` and `frontend/` as standalone folders. Instructions to install and run the backend are to be executed when in `backend/`, likewise for `frontend/`. Anyone installation needed for `backend/` should be placed inside `backend/`, likewise for `frontend/`. Do not introduce any shared dependency between `backend/` and `frontend/`.
+Frontend and backend are separate applications. Install dependencies and run their commands from their respective folders; do not introduce shared dependencies between them. See their READMEs and the Developer Guide for current commands.
 
 
 ## Product invariants
@@ -58,7 +54,7 @@ Treat `backend/` and `frontend/` as standalone folders. Instructions to install 
 ## Security and data handling
 
 - Keep gateway keys, passwords, session tokens, private uploads, and database contents out of source control, browser bundles, responses, and development logs. `.env` and `.venv/` are ignored; extend ignore rules as generated/private artifacts are introduced.
-- Enforce roles and resource ownership in the backend. Use Argon2id password hashes, hashed opaque session tokens, secure production cookies, exact Origin checks on mutating browser requests, and exact development CORS origins.
+- Enforce roles and resource ownership in the backend. Use Argon2id password hashes, hashed opaque session tokens, and secure production cookies. Compose currently defaults to wildcard CORS (`["*"]`), which disables Origin-based CSRF protection; configure exact allowed origins when Origin-based CSRF protection is required.
 - Treat DOCX text and user prompts as untrusted data. Bound and validate uploads, archive expansion, extracted text, prompt context, and generated output. Never fetch external DOCX content.
 - Keep model instructions separate from source text. Parse and validate strict feature JSON; render generated text safely. Invalid output must not partially replace application data.
 - Hint generation inputs omit options, answer keys, and explanations. A separate private SoCLaaS verification call receives the candidate and answer context; keep one task running until verification approves it. AI judges relevance and answer leakage; deterministic checks validate structure only. Summary inputs contain anonymous aggregates, not student identities or individual answer records. Backend calculations remain authoritative.
@@ -66,7 +62,7 @@ Treat `backend/` and `frontend/` as standalone folders. Instructions to install 
 
 ## Validation and delivery
 
-Use `specs/specification.md` acceptance criteria to guide meaningful tests, especially authorization, answer leakage, prompt injection, upload rejection, publication/submit races, rolling admission boundaries, idempotency, timeout/restart handling, atomic completion, and frontend version reconciliation.
+Use `specs/backend-spec.md` and `specs/frontend-spec.md` as the product requirements and acceptance criteria. Run relevant checks documented in `backend/README.md` and `frontend/README.md`; backend tests mock SoCLaaS, and frontend tests use mocked APIs. Meaningful coverage includes authorization, answer leakage, prompt injection, upload rejection, publication/submit races, rolling admission boundaries, idempotency, timeout/restart handling, atomic completion, and frontend version reconciliation.
 
 Mock SoCLaaS for automated success, failure, and injection tests. Live integration checks should be small and explicitly configured. Report which checks actually ran and any limitations. Initialization-only documentation changes do not need application tests.
 
