@@ -91,7 +91,7 @@ for the user to approve or adjust this grouping before staging. This plan
 approval does not replace the explicit confirmation required immediately
 before each `git commit`.
 
-Stage explicit paths only:
+Stage whole files when their changes belong together; for mixed files, stage only the relevant hunks when supported, then review the staged diff.
 
 ```bash
 git add -- path/to/file
