@@ -52,6 +52,14 @@ Run `npm run build`, `npm test`, `npm run lint`, and `npm run format:check` from
 or live SoCLaaS calls are used. Component upload tests submit the React form directly
 because jsdom reports a selected synthetic FileList as missing for native validation.
 Actual native file dialogs, visual layout, and live integration remain manual checks.
+
+`.github/workflows/frontend.yml` runs those four checks on relevant pushes and
+pull requests, and can be started manually from GitHub Actions. It uses Node.js
+24, matching the frontend Docker build, and installs dependencies from the lockfile
+with `npm ci`. The workflow needs no application secrets and does not deploy or
+make live AI requests. A passing run does not establish browser end-to-end or
+production behaviour.
+
 Teacher acceptance mapping and check evidence are in `workflow/teacher-ui.md`;
 the verified interaction summary is `logs/teacher-ui.md`. The teacher UI reuses the
 repository's authentication, API client, component styles, and summary reconciliation;
