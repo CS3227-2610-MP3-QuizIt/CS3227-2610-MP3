@@ -1,7 +1,7 @@
 # Review report
 
 The reviewer writes or updates one selected logical report under `reviews/`,
-such as `reviews/technician-resolution-01.md`. This file is the canonical
+such as `reviews/quiz-publication-01.md`. This file is the canonical
 review and handoff for follow-up work; do not overwrite unrelated reviews.
 
 Every finding has a stable ID in the form `CR-<review>-<number>` and a status.
@@ -29,7 +29,7 @@ Keep IDs across reruns. Valid statuses are `Open`, `Accepted`, `In progress`,
 | Documentation consistency | | |
 
 ## Next actions
-- Rerun write-code skill: YES | NO
+- Implementation follow-up required: YES | NO
 - Edit documentation: YES | NO | AFTER CODE FIX
 - Rerun code-review skill: YES | NO | AFTER FOLLOW-UP WORK
 - Reason:

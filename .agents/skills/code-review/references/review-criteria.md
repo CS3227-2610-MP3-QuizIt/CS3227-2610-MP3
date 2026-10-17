@@ -13,10 +13,10 @@ Use the relevant sections; do not demand every principle mechanically.
 ## Code and design
 
 - readability, naming, long methods, nesting, expressions, magic values;
-- Java conventions: package/class/method/variable naming, 4-space indentation,
-  Java-source line length, consistent imports, braces, scope, and useful
-  Javadocs. Apply resource-formatting rules only when the project defines them
-  for that resource type;
+- Python and TypeScript/React conventions from the relevant project config
+  and documented standards. Use configured Ruff/mypy and frontend
+  formatting/lint/build checks; review naming, types, responsibilities and
+  useful documentation beyond what tooling establishes;
 - SLAP, KISS, abstraction, happy-path clarity, dead code, scope, duplication;
 - comments, exceptions, assertions, logging, defensive coding;
 - responsibility, cohesion, coupling, separation of concerns, dependency
@@ -40,7 +40,8 @@ documentation workflow for follow-up.
 
 These criteria follow the CS2103/T guidance on [code quality], [quality
 assurance], [testing], [test design], [architecture], [principles],
-[refactoring], [debugging], [security], and the [SE-EDU Java coding standard].
+[refactoring], [debugging], and [security]. These are supplementary;
+QuizIt's approved requirements and configured conventions take precedence.
 
 [code quality]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/codeQuality.html
 [quality assurance]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/qualityAssurance.html
@@ -51,4 +52,3 @@ assurance], [testing], [test design], [architecture], [principles],
 [refactoring]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/refactoring.html
 [debugging]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/debugging.html
 [security]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/security.html
-[SE-EDU Java coding standard]: https://se-education.org/guides/conventions/java/

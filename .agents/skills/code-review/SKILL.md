@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: Review an implemented ResolveIT change after testing and documentation updates; report actionable findings and whether follow-up work must run.
+description: Review an implemented QuizIt change after testing and documentation updates; report actionable findings and whether follow-up work must run.
 ---
 
 # Code review
@@ -12,15 +12,18 @@ Preserve unrelated changes. Do not edit code, tests, guides, specifications,
 build files, logs, Git, or GitHub; do not install tools or dependencies.
 
 Write each review to a unique, logical report under `reviews/`, using a number
-when useful, for example `reviews/technician-resolution-01.md` or
+when useful, for example `reviews/quiz-publication-01.md` or
 `reviews/release-readiness-01.md`. For a rerun, update only the matching report;
 do not overwrite unrelated reviews.
 
 ## Truth and gates
 
-Use this order: verified behaviour/evidence, approved issue and acceptance
-criteria, `requirements/PROJECT.md`, `requirements/MP2-requirements.md`, current
-guides, then textbook guidance. Project sources define behaviour.
+Read `AGENTS.md` for project routing. Use `assignment-brief.md`, the relevant
+`specs/backend-spec.md` and `specs/frontend-spec.md`, and approved task acceptance
+criteria to establish expected behaviour. Implementation and execution evidence
+establish actual behaviour; current guides and textbook guidance do not override
+approved requirements. Report material contradictions rather than treating
+existing behaviour as correct.
 
 Use Codex's native todo/plan facility to create one item for every applicable
 review check. Mark an item complete only after obtaining evidence; do not
@@ -53,11 +56,9 @@ unverified behaviour available.
 Steps 1–3 are mandatory for a normal feature review. Narrow later steps only
 when irrelevant; report what was skipped and why.
 
-When Java source changed: read the routed Java coding-standard reference; run
-and record a 120-character scan on changed Java files; and inspect changed
-public APIs, non-trivial private methods, and class responsibilities for
-concise Javadocs. Every violation must be a finding; otherwise code quality
-cannot pass.
+For Python and TypeScript/React changes, use the relevant project's configured
+formatting, lint and type checks, and review conventions not covered by tooling.
+Do not impose conventions from another language or project.
 
 ## Finding rules
 
@@ -86,7 +87,7 @@ silently delete old findings.
 
 Report all four explicitly:
 
-- `Rerun write-code skill: YES` for implementation defects, unmet criteria,
+- `Implementation follow-up required: YES` for implementation defects, unmet criteria,
   broken behaviour, data-loss/security risk, serious regression, or code-level
   defensive/design fixes; otherwise `NO`.
 - `Edit documentation: YES` for stale/missing docs, diagrams, commands,
