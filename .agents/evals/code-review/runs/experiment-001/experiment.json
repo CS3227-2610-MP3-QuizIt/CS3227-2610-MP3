@@ -1,0 +1,454 @@
+{
+  "id": "experiment-001",
+  "skill": "code-review",
+  "test_cases": [
+    "delegated-child-boundary",
+    "single-agent-route"
+  ],
+  "configurations": [
+    "with-skill"
+  ],
+  "trials": 3,
+  "worker_trials": 6,
+  "worker_calls": 6,
+  "model": "codex-configured-default",
+  "timeout_seconds": 600,
+  "semantic_grading": true,
+  "semantic_judges": 3,
+  "started_at": "2026-10-17T16:17:37.305293+00:00",
+  "status": "completed",
+  "completed_at": "2026-10-17T16:40:43.785572+00:00",
+  "graded_trials": 4,
+  "needs_review_trials": 0,
+  "passed_trials": 4,
+  "completed_trials": 6,
+  "mean_score": 80.83,
+  "overall_pass": false,
+  "aggregates": {
+    "cells": {
+      "delegated-child-boundary": {
+        "with-skill": {
+          "passed_trials": 1,
+          "needs_review_trials": 0,
+          "total_trials": 3,
+          "mean_score": 86.67,
+          "mean_deterministic_score": 98.33,
+          "mean_semantic_score": 91.67,
+          "mean_tokens": {
+            "input_tokens": 1212217.33,
+            "cached_input_tokens": 1133696.0,
+            "cache_write_input_tokens": 0.0,
+            "uncached_input_tokens": 78521.33,
+            "output_tokens": 14804.67,
+            "reasoning_output_tokens": 2129.67,
+            "billed_output_tokens": 16934.33
+          }
+        }
+      },
+      "single-agent-route": {
+        "with-skill": {
+          "passed_trials": 3,
+          "needs_review_trials": 0,
+          "total_trials": 3,
+          "mean_score": 75.0,
+          "mean_deterministic_score": 75.0,
+          "mean_semantic_score": 91.67,
+          "mean_tokens": {
+            "input_tokens": 136320.0,
+            "cached_input_tokens": 114858.67,
+            "cache_write_input_tokens": 0.0,
+            "uncached_input_tokens": 21461.33,
+            "output_tokens": 4035.67,
+            "reasoning_output_tokens": 342.67,
+            "billed_output_tokens": 4378.33
+          }
+        }
+      }
+    },
+    "comparisons": {}
+  },
+  "results": [
+    {
+      "status": "ungraded",
+      "skill": "code-review",
+      "test_case": "delegated-child-boundary",
+      "configuration": "with-skill",
+      "trial": 1,
+      "overall_pass": false,
+      "needs_review": false,
+      "score": 75,
+      "deterministic_score": 105,
+      "semantic_score": 75,
+      "deterministic_pass": true,
+      "semantic_pass": true,
+      "semantic_judges": 3,
+      "worker_exit_code": 0,
+      "tokens": {
+        "input_tokens": 825217,
+        "cached_input_tokens": 775680,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 49537,
+        "output_tokens": 9462,
+        "reasoning_output_tokens": 1238,
+        "billed_output_tokens": 10700
+      },
+      "parent_tokens": {
+        "input_tokens": 486570,
+        "cached_input_tokens": 453504,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 33066,
+        "output_tokens": 2687,
+        "reasoning_output_tokens": 293,
+        "billed_output_tokens": 2980
+      },
+      "subagent_tokens": {
+        "input_tokens": 338647,
+        "cached_input_tokens": 322176,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 16471,
+        "output_tokens": 6775,
+        "reasoning_output_tokens": 945,
+        "billed_output_tokens": 7720
+      },
+      "subagent_spawn_count": 5,
+      "subagent_wait_count": 4,
+      "subagent_thread_ids": [
+        "01a14aa8-33e7-7e82-b063-593ead4d2d3e",
+        "01a14aa8-3430-7c33-af6d-cdf7839ee90f",
+        "01a14aa8-3463-7932-91e1-e96f9ee831c4",
+        "01a14aa8-349b-7902-b703-103b8f93ed66",
+        "01a14aa8-f119-7df3-ad9b-9a3ffdf2efa3"
+      ],
+      "model": null,
+      "resolved_model": "gpt-5.6-luna",
+      "resolved_reasoning_effort": "low",
+      "worker_turns_planned": 1,
+      "worker_turns_completed": 1,
+      "protected_inputs_intact": true,
+      "deterministic_status": "invalid",
+      "semantic_status": "completed",
+      "workspace_git_metadata_removed": true,
+      "failure_reasons": [
+        "deterministic: score must be an integer from 0 to 100",
+        "semantic/main-does-not-read-child-skills: The main agent directly read all four child review SKILL.md files in its command execution (`for f in .agents/skills/{code-quality-review,spec-contract-review,security-boundary-review,verification-review}/SKILL.md; ... sed ...`). This violates an explicit essential pass condition, so the overall score is capped below 70.",
+        "semantic/main-does-not-read-child-skills: The main agent's own command explicitly includes a `CHILD SKILLS` section and reads all four child review SKILL.md files with `sed`. This directly violates the criterion, even though the specialist children also read their assigned skills."
+      ],
+      "run_directory": "/Users/junhaong/Documents/y3s1/CS3227/CS3227-2610-MP3/.agents/evals/code-review/runs/experiment-001/trials/delegated-child-boundary/with-skill/trial-01"
+    },
+    {
+      "status": "graded",
+      "skill": "code-review",
+      "test_case": "delegated-child-boundary",
+      "configuration": "with-skill",
+      "trial": 2,
+      "overall_pass": true,
+      "needs_review": false,
+      "score": 85,
+      "deterministic_score": 85,
+      "semantic_score": 100,
+      "deterministic_pass": true,
+      "semantic_pass": true,
+      "semantic_judges": 3,
+      "worker_exit_code": 0,
+      "tokens": {
+        "input_tokens": 1921207,
+        "cached_input_tokens": 1794560,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 126647,
+        "output_tokens": 23490,
+        "reasoning_output_tokens": 3751,
+        "billed_output_tokens": 27241
+      },
+      "parent_tokens": {
+        "input_tokens": 728238,
+        "cached_input_tokens": 690688,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 37550,
+        "output_tokens": 4522,
+        "reasoning_output_tokens": 667,
+        "billed_output_tokens": 5189
+      },
+      "subagent_tokens": {
+        "input_tokens": 1192969,
+        "cached_input_tokens": 1103872,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 89097,
+        "output_tokens": 18968,
+        "reasoning_output_tokens": 3084,
+        "billed_output_tokens": 22052
+      },
+      "subagent_spawn_count": 13,
+      "subagent_wait_count": 9,
+      "subagent_thread_ids": [
+        "01a14aab-cbee-75b1-bfbe-117101d11aa8",
+        "01a14aab-cc38-7212-9e0e-46778852d20b",
+        "01a14aab-cc6b-7853-b8c1-7ac5f43da0be",
+        "01a14aab-ccaa-7131-863a-623402f94409",
+        "01a14aad-9ff4-7ca1-ae6a-2a250f917a9a",
+        "01a14aad-a077-7640-8627-3cd2b4c285ab",
+        "01a14aad-d113-7652-999f-88b8861d32ec",
+        "01a14aad-d186-72a3-968b-bb0b8eda341c",
+        "01a14aad-d1dd-76e3-a6aa-1183c4799417",
+        "01a14aad-d235-7a31-824f-ae5536bf897b",
+        "01a14aae-c9fb-7f82-b2e0-551ef972f212"
+      ],
+      "model": null,
+      "resolved_model": "gpt-5.6-luna",
+      "resolved_reasoning_effort": "low",
+      "worker_turns_planned": 1,
+      "worker_turns_completed": 1,
+      "protected_inputs_intact": true,
+      "deterministic_status": "completed",
+      "semantic_status": "completed",
+      "workspace_git_metadata_removed": true,
+      "failure_reasons": [
+        "deterministic/four-specialists: specialist_ids={'CQ': ['01a14aab-cbee-75b1-bfbe-117101d11aa8', '01a14aad-9ff4-7ca1-ae6a-2a250f917a9a', '01a14aad-d113-7652-999f-88b8861d32ec'], 'SC': ['01a14aab-cc38-7212-9e0e-46778852d20b', '01a14aad-a077-7640-8627-3cd2b4c285ab', '01a14aad-d186-72a3-968b-bb0b8eda341c'], 'SB': ['01a14aab-cc6b-7853-b8c1-7ac5f43da0be', '01a14aad-d1dd-76e3-a6aa-1183c4799417'], 'VR': ['01a14aab-ccaa-7131-863a-623402f94409', '01a14aad-d235-7a31-824f-ae5536bf897b']}"
+      ],
+      "run_directory": "/Users/junhaong/Documents/y3s1/CS3227/CS3227-2610-MP3/.agents/evals/code-review/runs/experiment-001/trials/delegated-child-boundary/with-skill/trial-02"
+    },
+    {
+      "status": "ungraded",
+      "skill": "code-review",
+      "test_case": "delegated-child-boundary",
+      "configuration": "with-skill",
+      "trial": 3,
+      "overall_pass": false,
+      "needs_review": false,
+      "score": 100,
+      "deterministic_score": 105,
+      "semantic_score": 100,
+      "deterministic_pass": true,
+      "semantic_pass": true,
+      "semantic_judges": 3,
+      "worker_exit_code": 0,
+      "tokens": {
+        "input_tokens": 890228,
+        "cached_input_tokens": 830848,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 59380,
+        "output_tokens": 11462,
+        "reasoning_output_tokens": 1400,
+        "billed_output_tokens": 12862
+      },
+      "parent_tokens": {
+        "input_tokens": 405830,
+        "cached_input_tokens": 375040,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 30790,
+        "output_tokens": 2289,
+        "reasoning_output_tokens": 203,
+        "billed_output_tokens": 2492
+      },
+      "subagent_tokens": {
+        "input_tokens": 484398,
+        "cached_input_tokens": 455808,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 28590,
+        "output_tokens": 9173,
+        "reasoning_output_tokens": 1197,
+        "billed_output_tokens": 10370
+      },
+      "subagent_spawn_count": 5,
+      "subagent_wait_count": 5,
+      "subagent_thread_ids": [
+        "01a14ab1-930a-7a03-b418-4972b04e6a65",
+        "01a14ab1-9369-7210-83d3-4d2ffb018027",
+        "01a14ab1-93c5-7c81-9425-9b9a23642f1a",
+        "01a14ab1-941f-75d1-a5ad-371040ca199f",
+        "01a14ab2-90d6-7ca3-a7c8-bd2d91ab282b"
+      ],
+      "model": null,
+      "resolved_model": "gpt-5.6-luna",
+      "resolved_reasoning_effort": "low",
+      "worker_turns_planned": 1,
+      "worker_turns_completed": 1,
+      "protected_inputs_intact": true,
+      "deterministic_status": "invalid",
+      "semantic_status": "completed",
+      "workspace_git_metadata_removed": true,
+      "failure_reasons": [
+        "deterministic: score must be an integer from 0 to 100"
+      ],
+      "run_directory": "/Users/junhaong/Documents/y3s1/CS3227/CS3227-2610-MP3/.agents/evals/code-review/runs/experiment-001/trials/delegated-child-boundary/with-skill/trial-03"
+    },
+    {
+      "status": "graded",
+      "skill": "code-review",
+      "test_case": "single-agent-route",
+      "configuration": "with-skill",
+      "trial": 1,
+      "overall_pass": true,
+      "needs_review": false,
+      "score": 75,
+      "deterministic_score": 75,
+      "semantic_score": 75,
+      "deterministic_pass": true,
+      "semantic_pass": true,
+      "semantic_judges": 3,
+      "worker_exit_code": 0,
+      "tokens": {
+        "input_tokens": 111432,
+        "cached_input_tokens": 88192,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 23240,
+        "output_tokens": 4638,
+        "reasoning_output_tokens": 363,
+        "billed_output_tokens": 5001
+      },
+      "parent_tokens": {
+        "input_tokens": 111432,
+        "cached_input_tokens": 88192,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 23240,
+        "output_tokens": 4638,
+        "reasoning_output_tokens": 363,
+        "billed_output_tokens": 5001
+      },
+      "subagent_tokens": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "billed_output_tokens": 0
+      },
+      "subagent_spawn_count": 0,
+      "subagent_wait_count": 0,
+      "subagent_thread_ids": [],
+      "model": null,
+      "resolved_model": "gpt-5.6-luna",
+      "resolved_reasoning_effort": "low",
+      "worker_turns_planned": 1,
+      "worker_turns_completed": 1,
+      "protected_inputs_intact": true,
+      "deterministic_status": "completed",
+      "semantic_status": "completed",
+      "workspace_git_metadata_removed": true,
+      "failure_reasons": [
+        "deterministic/does-not-read-delegated-files: Delegated workflow files must not be read.",
+        "semantic/does-not-read-delegated-files: The captured worker trace shows the repository file inventory included and read both .agents/skills/code-review/SUBAGENTS.md and .agents/skills/code-review/AGGREGATOR.md. This violates the requirement not to read either delegated workflow file, so all 25 points are deducted.",
+        "semantic/does-not-read-delegated-files: The deterministic grading evidence marks this criterion as failed: delegated workflow files were read. The trace visibly shows the skill directory containing SUBAGENTS.md and AGGREGATOR.md, but the available deterministic result is the authoritative evidence for this criterion. Deduction: all 25 points."
+      ],
+      "run_directory": "/Users/junhaong/Documents/y3s1/CS3227/CS3227-2610-MP3/.agents/evals/code-review/runs/experiment-001/trials/single-agent-route/with-skill/trial-01"
+    },
+    {
+      "status": "graded",
+      "skill": "code-review",
+      "test_case": "single-agent-route",
+      "configuration": "with-skill",
+      "trial": 2,
+      "overall_pass": true,
+      "needs_review": false,
+      "score": 75,
+      "deterministic_score": 75,
+      "semantic_score": 100,
+      "deterministic_pass": true,
+      "semantic_pass": true,
+      "semantic_judges": 3,
+      "worker_exit_code": 0,
+      "tokens": {
+        "input_tokens": 142012,
+        "cached_input_tokens": 115584,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 26428,
+        "output_tokens": 3569,
+        "reasoning_output_tokens": 221,
+        "billed_output_tokens": 3790
+      },
+      "parent_tokens": {
+        "input_tokens": 142012,
+        "cached_input_tokens": 115584,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 26428,
+        "output_tokens": 3569,
+        "reasoning_output_tokens": 221,
+        "billed_output_tokens": 3790
+      },
+      "subagent_tokens": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "billed_output_tokens": 0
+      },
+      "subagent_spawn_count": 0,
+      "subagent_wait_count": 0,
+      "subagent_thread_ids": [],
+      "model": null,
+      "resolved_model": "gpt-5.6-luna",
+      "resolved_reasoning_effort": "low",
+      "worker_turns_planned": 1,
+      "worker_turns_completed": 1,
+      "protected_inputs_intact": true,
+      "deterministic_status": "completed",
+      "semantic_status": "completed",
+      "workspace_git_metadata_removed": true,
+      "failure_reasons": [
+        "deterministic/does-not-read-delegated-files: Delegated workflow files must not be read."
+      ],
+      "run_directory": "/Users/junhaong/Documents/y3s1/CS3227/CS3227-2610-MP3/.agents/evals/code-review/runs/experiment-001/trials/single-agent-route/with-skill/trial-02"
+    },
+    {
+      "status": "graded",
+      "skill": "code-review",
+      "test_case": "single-agent-route",
+      "configuration": "with-skill",
+      "trial": 3,
+      "overall_pass": true,
+      "needs_review": false,
+      "score": 75,
+      "deterministic_score": 75,
+      "semantic_score": 100,
+      "deterministic_pass": true,
+      "semantic_pass": true,
+      "semantic_judges": 3,
+      "worker_exit_code": 0,
+      "tokens": {
+        "input_tokens": 155516,
+        "cached_input_tokens": 140800,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 14716,
+        "output_tokens": 3900,
+        "reasoning_output_tokens": 444,
+        "billed_output_tokens": 4344
+      },
+      "parent_tokens": {
+        "input_tokens": 155516,
+        "cached_input_tokens": 140800,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 14716,
+        "output_tokens": 3900,
+        "reasoning_output_tokens": 444,
+        "billed_output_tokens": 4344
+      },
+      "subagent_tokens": {
+        "input_tokens": 0,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 0,
+        "output_tokens": 0,
+        "reasoning_output_tokens": 0,
+        "billed_output_tokens": 0
+      },
+      "subagent_spawn_count": 0,
+      "subagent_wait_count": 0,
+      "subagent_thread_ids": [],
+      "model": null,
+      "resolved_model": "gpt-5.6-luna",
+      "resolved_reasoning_effort": "low",
+      "worker_turns_planned": 1,
+      "worker_turns_completed": 1,
+      "protected_inputs_intact": true,
+      "deterministic_status": "completed",
+      "semantic_status": "completed",
+      "workspace_git_metadata_removed": true,
+      "failure_reasons": [
+        "deterministic/does-not-read-delegated-files: Delegated workflow files must not be read."
+      ],
+      "run_directory": "/Users/junhaong/Documents/y3s1/CS3227/CS3227-2610-MP3/.agents/evals/code-review/runs/experiment-001/trials/single-agent-route/with-skill/trial-03"
+    }
+  ]
+}
