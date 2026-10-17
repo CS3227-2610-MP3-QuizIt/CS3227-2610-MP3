@@ -13,10 +13,10 @@ Use the relevant sections; do not demand every principle mechanically.
 ## Code and design
 
 - readability, naming, long methods, nesting, expressions, magic values;
-- Python and TypeScript/React conventions from the relevant project config
-  and documented standards. Use configured Ruff/mypy and frontend
-  formatting/lint/build checks; review naming, types, responsibilities and
-  useful documentation beyond what tooling establishes;
+- Python and TypeScript/React conventions from the relevant project config and
+  [QuizIt project standards](project-standards.md). Use configured Ruff/mypy and
+  frontend formatting/lint/build checks; review naming, types, responsibilities
+  and useful documentation beyond what tooling establishes;
 - SLAP, KISS, abstraction, happy-path clarity, dead code, scope, duplication;
 - comments, exceptions, assertions, logging, defensive coding;
 - responsibility, cohesion, coupling, separation of concerns, dependency
@@ -38,17 +38,7 @@ status, and release status. Classify each affected claim as verified, stale,
 inaccurate, incomplete, or not verifiable. Do not edit; route to the
 documentation workflow for follow-up.
 
-These criteria follow the CS2103/T guidance on [code quality], [quality
-assurance], [testing], [test design], [architecture], [principles],
-[refactoring], [debugging], and [security]. These are supplementary;
-QuizIt's approved requirements and configured conventions take precedence.
-
-[code quality]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/codeQuality.html
-[quality assurance]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/qualityAssurance.html
-[testing]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/testing.html
-[test design]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/testCaseDesign.html
-[architecture]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/architecture.html
-[principles]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/principles.html
-[refactoring]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/refactoring.html
-[debugging]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/debugging.html
-[security]: https://nus-cs2103-ay2627-s1.github.io/website/se-book-adapted/chapters/security.html
+These criteria are supplementary review heuristics. QuizIt's assignment
+requirements, approved specifications, `AGENTS.md`, component documentation,
+configured tools, and [project standards](project-standards.md) take
+precedence.

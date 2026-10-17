@@ -19,11 +19,12 @@ do not overwrite unrelated reviews.
 ## Truth and gates
 
 Read `AGENTS.md` for project routing. Use `assignment-brief.md`, the relevant
-`specs/backend-spec.md` and `specs/frontend-spec.md`, and approved task acceptance
-criteria to establish expected behaviour. Implementation and execution evidence
-establish actual behaviour; current guides and textbook guidance do not override
-approved requirements. Report material contradictions rather than treating
-existing behaviour as correct.
+`specs/backend-spec.md` and `specs/frontend-spec.md`, approved task acceptance
+criteria, and [project standards](references/project-standards.md) to establish
+expected behaviour and design boundaries. Implementation and execution evidence
+establish actual behaviour; current guides do not override approved
+requirements. Report material contradictions rather than treating existing
+behaviour as correct.
 
 Use Codex's native todo/plan facility to create one item for every applicable
 review check. Mark an item complete only after obtaining evidence; do not
@@ -45,8 +46,10 @@ unverified behaviour available.
    requirement against implementation and evidence.
 4. Exercise the changed feature as a user: happy path, invalid inputs,
    boundaries, state changes, recovery, persistence, and adjacent workflows.
-5. Review code quality, design, architecture, tests, regression protection,
-   security where applicable, and maintainability.
+5. Review code quality and design as a first-class axis: responsibility,
+   cohesion, coupling, dependency direction, duplication, complexity,
+   testability, maintainability, and the relevant frontend/backend boundaries.
+   Then review tests, regression protection, and security where applicable.
 6. Compare code and observed behaviour with every affected guide, command,
    example, diagram, error claim, and manual-testing instruction.
 7. Read [report](references/review-report.md); write or update the canonical
@@ -57,8 +60,9 @@ Steps 1–3 are mandatory for a normal feature review. Narrow later steps only
 when irrelevant; report what was skipped and why.
 
 For Python and TypeScript/React changes, use the relevant project's configured
-formatting, lint and type checks, and review conventions not covered by tooling.
-Do not impose conventions from another language or project.
+formatting, lint and type checks, [project standards](references/project-standards.md),
+and review conventions not covered by tooling. Do not impose conventions from
+another language or project.
 
 ## Finding rules
 
