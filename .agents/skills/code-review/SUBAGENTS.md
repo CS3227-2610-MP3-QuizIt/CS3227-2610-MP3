@@ -4,7 +4,7 @@ Use this path when review subagents are available.
 
 The main agent orchestrates. It resolves the fixed target, changed files, task
 or requirements, relevant evidence, and one unique artifact path per review.
-It does not perform the four review axes itself and does not read child
+It does not perform the review axes itself and does not read child
 artifacts. It passes the same review context to each child and waits for all
 children.
 
@@ -13,14 +13,9 @@ The main agent must NOT read `DEFAULT.md`, child `SKILL.md` files,
 
 ## 1. Spawn review children
 
-Spawn these four children concurrently:
-
-| Child | Skill | Scope | ID prefix |
-|---|---|---|---|
-| 1 | `../code-quality-review/SKILL.md` | Code quality and maintainability | `CQ-` |
-| 2 | `../spec-contract-review/SKILL.md` | Requirements and contracts | `SC-` |
-| 3 | `../security-boundary-review/SKILL.md` | Trust boundaries and exposure | `SB-` |
-| 4 | `../verification-review/SKILL.md` | Tests and evidence | `VR-` |
+Read [review axes](references/review-axes.md). Spawn one child per row
+concurrently, passing its resolved skill path, scope and ID prefix.
+Read the roster ONLY for dispatch; do NOT follow its skill links in main.
 
 Each child receives the fixed target, changed files, task or requirements,
 relevant evidence, and its unique artifact path. Instruct each child to run
@@ -29,8 +24,8 @@ the path and finding count.
 
 ## 2. Spawn aggregator
 
-After all four children finish, spawn one aggregator. Give it the run directory,
-the four returned artifact paths, the fixed target, and the report path under
+After all children finish, spawn one aggregator. Give it the roster path,
+run directory, returned artifact paths, fixed target, and report path under
 `reviews/`. Its first instruction must be:
 
 ```text
@@ -42,7 +37,7 @@ aggregator's report path and verdict.
 
 ## 3. Completion
 
-Require exactly four child artifacts and one aggregator report. If a child is
+Require one artifact per roster row and one aggregator report. If a child is
 missing or blocked, the aggregator must record that limitation; it must not
 call the overall review passed. The main agent reports the final path and
 verdict without editing the reviewed repository.

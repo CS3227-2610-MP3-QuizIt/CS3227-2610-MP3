@@ -1,16 +1,13 @@
 # Code-review aggregator
 
-Read the four supplied child artifacts. Do not rerun the review or fix code.
-Check that each required axis has exactly one artifact and record missing or
-blocked children as limitations.
+Read ONLY [review axes](references/review-axes.md), the
+[report contract](references/review-report.md) and supplied child artifacts.
+Use the roster without loading child skills. Do not rerun the review or fix
+code. Check that each required axis has exactly one artifact and record
+missing or blocked children as limitations.
 
-Write the canonical report to the supplied `reviews/` path. Keep sections in
-this order:
-
-1. Code quality
-2. Specification and contracts
-3. Security boundaries
-4. Verification and evidence
+Write the canonical report to the supplied `reviews/` path, with axis sections
+in roster order.
 
 Preserve child finding IDs, evidence, severity, status, and limitations. Do
 not silently merge duplicate findings or discard an axis. Add an overall
