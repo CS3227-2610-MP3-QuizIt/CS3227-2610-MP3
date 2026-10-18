@@ -13,8 +13,11 @@ path saves JSON instead; relative output paths resolve from the repository root:
 sh workflow/security/semgrep.sh /tmp/quizit-semgrep.json
 ```
 
-The [script](semgrep.sh) defines rules and scope. No Semgrep account/token or
-platform upload is used; findings remain local.
+The [script](semgrep.sh) defines rules and scope. The
+[CI workflow](../../.github/workflows/security.yml) pins the scanner version
+and calls the same script on relevant PRs, master pushes and manual dispatch.
+Findings remain in the job log; no Semgrep account/token or platform upload is used.
+Branch-protection settings are unchanged. CI execution is not yet observed.
 
 For local setup, use an isolated tool environment rather than backend dependencies:
 
@@ -23,7 +26,7 @@ uv tool install --python 3.13 semgrep==1.170.0
 ```
 
 Installation is a setup action, not a review action. Record the actual local
-version when sharing scan evidence.
+version; update CI's pin deliberately when upgrading.
 
 ## Policy and scope
 
@@ -40,12 +43,12 @@ version when sharing scan evidence.
 - Metrics/version checks and auto-fixes are disabled. JSON may contain source
   snippets; redact sensitive values before sharing reports.
 - Initial mode is advisory: findings and coverage warnings require assessment,
-  but do not automatically fail the scan command. Scanner execution/configuration failures
+  but do not automatically fail CI. Scanner execution/configuration failures
   retain their nonzero status. Exit zero means execution completed, not a
   security pass. Agree blocking rules after triage; do not suppress issues to
   obtain green checks.
 - Reviewers reuse evidence only for matching source, rules/engine and coverage.
-  A committed-source result does not cover later uncommitted changes. Unknown rule
+  A committed CI result does not cover later uncommitted changes. Unknown rule
   equivalence or coverage limits remain explicit; verification review does not
   duplicate the security reviewer's scan.
 
@@ -73,7 +76,9 @@ script/output path, verifying repository-root resolution.
 
 Local JSON: `/tmp/quizit-semgrep.Psw7tx/baseline.json` and `configured.json` in
 the same directory. These are not committed and may expire. Shell syntax,
-invalid-argument/remote-output/missing-tool exits, local links and whitespace
-checks passed. No application fixes or eval changes were made.
+invalid-argument/remote-output/missing-tool exits, workflow YAML/triggers/pin/
+permissions, local links and whitespace checks passed. GitHub Actions was not
+run. No application fixes or eval changes were made.
 
-Method: [Semgrep local rules](https://docs.semgrep.dev/running-rules).
+Method: [Semgrep local rules](https://docs.semgrep.dev/running-rules) and
+[Semgrep CE CI example](https://docs.semgrep.dev/semgrep-ci/sample-ci-configs).

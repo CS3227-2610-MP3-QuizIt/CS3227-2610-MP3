@@ -1,0 +1,40 @@
+name: Security scan (advisory)
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "backend/src/**"
+      - "frontend/src/**"
+      - "workflow/security/semgrep*"
+      - ".github/workflows/security.yml"
+      - ".gitignore"
+      - ".semgrepignore"
+  pull_request:
+    paths:
+      - "backend/src/**"
+      - "frontend/src/**"
+      - "workflow/security/semgrep*"
+      - ".github/workflows/security.yml"
+      - ".gitignore"
+      - ".semgrepignore"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.23"
+      - name: Install isolated scanner
+        run: uv tool install --python 3.13 semgrep==1.170.0
+      - name: Scan source and report findings/coverage
+        run: sh workflow/security/semgrep.sh
