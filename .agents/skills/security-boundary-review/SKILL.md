@@ -20,6 +20,8 @@ evidence. If the request path or security configuration is untraceable, report
 
 1. Pin the range and identify changed identity, role, ownership, state,
    Origin, session, upload, AI, secret, logging, or deployment boundaries.
+   If the task links threat-matrix rows, inspect those rows and their evidence;
+   planned controls do not override approved requirements.
 2. Trace input/request → authorization → domain → persistence/gateway → response
    → logging.
 3. For protected operations, record allowed and denied role/owner/state cases;
