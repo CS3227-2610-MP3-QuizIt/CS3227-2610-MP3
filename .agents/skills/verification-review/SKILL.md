@@ -22,6 +22,8 @@ configured checks with existing dependencies and record blocked checks.
    container, deployment or live service. Run applicable configured compilation,
    formatting, lint, type, test, smoke, static-analysis, packaging and resource
    checks; explain omissions.
+   Security review owns Semgrep execution/triage; verify supplied target,
+   configuration and coverage evidence rather than duplicating its scan.
 3. Inspect positive/negative cases, equivalence partitions, boundaries,
    role/resource/state matrices, persistence, concurrency, stale results,
    timeout and recovery.

@@ -358,6 +358,8 @@ observed checks (`workflow/backend-validation.md`), and specialist review/handof
 The [security coverage map](../workflow/security/security-matrix.md) records selected
 authorization rules, application-AI threats, coding-agent threats, controls and
 test links. It distinguishes source inspection, historical runs and planned checks.
+The [Semgrep setup and baseline](../workflow/security/semgrep.md) documents the
+shared local/CI scan command, advisory policy and known parser coverage limit.
 The unrestricted-origin requirement and verification are recorded in
 `workflow/origin-policy.md`, with its interaction summary in `logs/origin-policy.md`.
 The canonical completed specialist review is `reviews/backend-01.md`; both findings

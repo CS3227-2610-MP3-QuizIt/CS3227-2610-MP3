@@ -38,6 +38,9 @@ assuming a separate typecheck script or introducing new checks.
 
 ## Scope and evidence
 
+Security review owns the [configured Semgrep scan](../../../../workflow/security/semgrep.md).
+Reuse matching evidence; do not duplicate that scan in verification review.
+
 Run only applicable checks. Backend tests mock SoCLaaS; frontend tests mock
 APIs. These do not prove live AI, browser end-to-end or deployed behaviour.
 Use the documented smoke/deployment procedure when the requested review

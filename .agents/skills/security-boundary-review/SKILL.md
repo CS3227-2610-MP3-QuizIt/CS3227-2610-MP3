@@ -28,7 +28,10 @@ evidence. If the request path or security configuration is untraceable, report
    verify rejection leaves protected state unchanged.
 4. Check answer exposure, prompt/upload handling, secrets, tokens, cookies,
    private data, provider output, and diagnostic logs.
-5. Cite location, evidence, impact, confidence, and verification.
+5. For implementation/security-config changes or requested static security
+   checks, read and follow [Semgrep scan](references/semgrep.md) ONLY for that
+   scan. Record missing setup and coverage limits; continue boundary review.
+6. Cite location, evidence, impact, confidence, and verification.
 
 ## Completion criterion
 
