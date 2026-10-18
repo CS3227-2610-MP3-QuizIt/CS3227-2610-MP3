@@ -355,6 +355,9 @@ public submission repository/master-branch maintenance remain outside this backe
 
 Workflow files describe the custom process (`workflow/backend-implementation.md`),
 observed checks (`workflow/backend-validation.md`), and specialist review/handoffs.
+The [security coverage map](../workflow/security/security-matrix.md) records selected
+authorization rules, application-AI threats, coding-agent threats, controls and
+test links. It distinguishes source inspection, historical runs and planned checks.
 The unrestricted-origin requirement and verification are recorded in
 `workflow/origin-policy.md`, with its interaction summary in `logs/origin-policy.md`.
 The canonical completed specialist review is `reviews/backend-01.md`; both findings
