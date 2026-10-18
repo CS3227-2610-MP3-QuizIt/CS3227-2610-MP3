@@ -5,6 +5,7 @@ description: Review QuizIt changes for alignment with approved requirements, API
 
 # Specification and contract review
 
+Read the [report contract](../code-review/references/review-report.md) before review.
 Review contract alignment. Use the assignment brief, `AGENTS.md`, relevant
 specifications, acceptance criteria, and [project standards](../code-review/references/project-standards.md).
 
@@ -18,8 +19,9 @@ If no requirement source exists, report the limitation.
 1. Pin the range and identify the task or requirement.
 2. Map each requirement to implementation, evidence, and user outcome.
 3. Check omissions, partial or incorrect behaviour, and scope creep.
-4. Compare affected routes, schemas, persistence, guides, diagrams, commands,
-   examples, and deployment claims with observed behaviour.
+4. Compare affected routes, schemas, persistence, User Guide, Developer Guide,
+   diagrams, commands, examples, error claims, manual-testing instructions and
+   feature/release status and deployment claims with observed behaviour.
 5. Mark each claim `verified`, `stale`, `inaccurate`, `incomplete`, or
    `not verifiable`. Report contradictions.
 
@@ -29,6 +31,5 @@ Map every changed requirement and contract, or state why it could not be assesse
 
 ## Output
 
-Use the shared [report format](../code-review/references/review-report.md).
-Use the parent artifact path, or a unique `reviews/` path standalone. Use
-`SC-<review>-<number>` IDs; a parent may remap them.
+Use the report contract and parent output mode, or a unique `reviews/` path
+standalone. Use `SC-<review>-<number>` IDs; a parent may remap them.

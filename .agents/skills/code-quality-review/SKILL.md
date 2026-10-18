@@ -5,8 +5,9 @@ description: Review changed QuizIt implementation for cohesion, responsibility b
 
 # Code-quality review
 
-Review only. Read [project standards](../code-review/references/project-standards.md)
-and use configured tools as evidence.
+Read the [report contract](../code-review/references/review-report.md) and
+[project standards](../code-review/references/project-standards.md) before review.
+Use configured tools as evidence.
 
 ## Inputs
 
@@ -16,12 +17,17 @@ scope is missing, report `BLOCKED`.
 ## Procedure
 
 1. Pin the range and inspect the diff and affected paths.
-2. Check responsibilities, cohesion, coupling, dependencies, duplication,
-   complexity, naming, errors, logging, types, and testability.
-3. Check affected frontend/backend, persistence, transaction, and async
+2. Check readability, naming, long methods, nesting, expressions, magic values,
+   SLAP, KISS, abstraction, happy-path clarity, dead code, duplication and scope.
+3. Check responsibility, cohesion, coupling, separation of concerns, dependency
+   direction, complexity, testability, maintainability, types, comments,
+   exceptions, assertions, logging and defensive coding. Use the project's
+   Python/TypeScript conventions and configured formatting, lint and type checks.
+4. Check affected UI/domain, frontend/backend, persistence, transaction, and async
    boundaries.
-4. Treat size as a signal, not a defect. Report concrete maintenance risks only.
-5. Cite location, evidence, impact, confidence, and verification.
+5. Treat size as a signal, not a defect. Report concrete maintenance risks only;
+   apply principles where relevant, not mechanically.
+6. Cite location, evidence, impact, confidence, and verification.
 
 ## Completion criterion
 
@@ -30,6 +36,5 @@ needs location, evidence, impact, confidence, and verification.
 
 ## Output
 
-Use the shared [report format](../code-review/references/review-report.md).
-Use the parent artifact path, or a unique `reviews/` path standalone. Use
-`CQ-<review>-<number>` IDs; a parent may remap them.
+Use the report contract and parent output mode, or a unique `reviews/` path
+standalone. Use `CQ-<review>-<number>` IDs; a parent may remap them.
