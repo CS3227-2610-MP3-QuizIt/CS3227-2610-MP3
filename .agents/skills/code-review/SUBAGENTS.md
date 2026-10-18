@@ -8,6 +8,9 @@ It does not perform the four review axes itself and does not read child
 artifacts. It passes the same review context to each child and waits for all
 children.
 
+The main agent must NOT read `DEFAULT.md`, child `SKILL.md` files,
+`AGGREGATOR.md`, or child artifacts; it passes their paths to the relevant agents.
+
 ## 1. Spawn review children
 
 Spawn these four children concurrently:
