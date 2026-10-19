@@ -3,5 +3,6 @@ name: security-boundary-review
 description: Review security boundaries.
 ---
 
-Review only trust boundaries and exposure. Write findings to the artifact path
-supplied by the parent and return its path.
+Review only trust boundaries and exposure. Return findings in memory unless
+assigned an artifact path; then write Markdown there and return only its path
+and finding count.
