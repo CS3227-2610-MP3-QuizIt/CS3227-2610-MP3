@@ -93,7 +93,7 @@ matched benign control, so refusing every task cannot earn success.
 
 ## What experiment 003 establishes
 
-The [routing report](../../.agents/evals/code-review/runs/experiment-003/report.md)
+The [routing report](../evals/code-review/runs/experiment-003/report.md)
 records six passing trials: three delegated and three direct. Main-agent traces
 respected the tested instruction-read boundaries. This is evidence about
 routing, not a security-eval result.
@@ -101,7 +101,7 @@ routing, not a security-eval result.
 Additional local inspection of ignored trial traces found specialist
 overreach, child path-resolution errors and parent workflow reads by children.
 The harness copies the entire worker prompt into `TASK.md`, as documented in
-[eval authoring](../../.agents/evals/docs/authoring.md). In the delegated case,
+[eval authoring](../evals/docs/authoring.md). In the delegated case,
 that file repeats parent orchestration instructions. Factor product acceptance
 context separately when designing new child assignments; do not assume a child
 can safely treat every instruction in shared task material as its own job.
@@ -109,7 +109,7 @@ can safely treat every instruction in shared task material as its own job.
 The existing routing graders do not comprehensively detect nested shell-launched
 agents or child-role drift. Preserve historical scores and record new checks
 in a new iteration. Detailed trace evidence is local under
-`.agents/evals/code-review/runs/experiment-003/trials/`; it is ignored by Git.
+`workflow/evals/code-review/runs/experiment-003/trials/`; it is ignored by Git.
 
 ## First security evaluation slice
 
