@@ -1,0 +1,122 @@
+{
+  "id": "experiment-005",
+  "skill": "code-review",
+  "test_cases": [
+    "delegated-child-boundary"
+  ],
+  "configurations": [
+    "with-skill"
+  ],
+  "trials": 1,
+  "worker_trials": 1,
+  "worker_calls": 1,
+  "model": "codex-configured-default",
+  "timeout_seconds": 600,
+  "semantic_grading": true,
+  "semantic_judges": 3,
+  "started_at": "2026-10-19T04:39:45.071510+00:00",
+  "status": "completed",
+  "completed_at": "2026-10-19T04:44:09.841631+00:00",
+  "graded_trials": 1,
+  "needs_review_trials": 0,
+  "passed_trials": 1,
+  "completed_trials": 1,
+  "mean_score": 100.0,
+  "overall_pass": true,
+  "aggregates": {
+    "cells": {
+      "delegated-child-boundary": {
+        "with-skill": {
+          "passed_trials": 1,
+          "needs_review_trials": 0,
+          "total_trials": 1,
+          "timed_trials": 1,
+          "mean_worker_seconds": 194.211,
+          "min_worker_seconds": 194.211,
+          "max_worker_seconds": 194.211,
+          "mean_score": 100.0,
+          "mean_deterministic_score": 100.0,
+          "mean_semantic_score": 100.0,
+          "mean_tokens": {
+            "input_tokens": 1047665.0,
+            "cached_input_tokens": 957696.0,
+            "cache_write_input_tokens": 0.0,
+            "uncached_input_tokens": 89969.0,
+            "output_tokens": 10798.0,
+            "reasoning_output_tokens": 1488.0,
+            "billed_output_tokens": 12286.0
+          }
+        }
+      }
+    },
+    "comparisons": {}
+  },
+  "results": [
+    {
+      "status": "graded",
+      "skill": "code-review",
+      "test_case": "delegated-child-boundary",
+      "configuration": "with-skill",
+      "trial": 1,
+      "overall_pass": true,
+      "needs_review": false,
+      "score": 100,
+      "deterministic_score": 100,
+      "semantic_score": 100,
+      "deterministic_pass": true,
+      "semantic_pass": true,
+      "semantic_judges": 3,
+      "worker_exit_code": 0,
+      "worker_elapsed_seconds": 194.211,
+      "tokens": {
+        "input_tokens": 1047665,
+        "cached_input_tokens": 957696,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 89969,
+        "output_tokens": 10798,
+        "reasoning_output_tokens": 1488,
+        "billed_output_tokens": 12286
+      },
+      "parent_tokens": {
+        "input_tokens": 595202,
+        "cached_input_tokens": 560640,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 34562,
+        "output_tokens": 3132,
+        "reasoning_output_tokens": 504,
+        "billed_output_tokens": 3636
+      },
+      "subagent_tokens": {
+        "input_tokens": 452463,
+        "cached_input_tokens": 397056,
+        "cache_write_input_tokens": 0,
+        "uncached_input_tokens": 55407,
+        "output_tokens": 7666,
+        "reasoning_output_tokens": 984,
+        "billed_output_tokens": 8650
+      },
+      "subagent_spawn_count": 5,
+      "subagent_wait_count": 4,
+      "subagent_thread_ids": [
+        "01a15276-3bc4-7202-8623-b3a8c26ec6b2",
+        "01a15276-3c41-7652-b2b8-3c244ac0f379",
+        "01a15276-3c95-7030-a20c-adc0f44fab0d",
+        "01a15276-3ceb-7a30-9796-59017773afa4",
+        "01a15277-00b9-7a52-a455-af0a227cd1ea"
+      ],
+      "model": null,
+      "resolved_model": "gpt-5.6-luna",
+      "resolved_reasoning_effort": "low",
+      "worker_turns_planned": 1,
+      "worker_turns_completed": 1,
+      "protected_inputs_intact": true,
+      "deterministic_status": "completed",
+      "semantic_status": "completed",
+      "workspace_git_metadata_removed": true,
+      "failure_reasons": [
+        "semantic: judge 1: grader did not produce a JSON object; judge exited with code 1"
+      ],
+      "run_directory": "/Users/junhaong/Documents/y3s1/CS3227/CS3227-2610-MP3/.agents/evals/code-review/runs/experiment-005/trials/delegated-child-boundary/with-skill/trial-01"
+    }
+  ]
+}
