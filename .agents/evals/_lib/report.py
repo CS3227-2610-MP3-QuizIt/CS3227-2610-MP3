@@ -6,6 +6,7 @@ from pathlib import Path
 
 from _lib.common import _fmt, markdown_cell, read_json, write_json
 from _lib.grading import score_band
+from _lib.timing import format_seconds, timing_summary, worker_seconds
 from _lib.pricing import (
     PRICING,
     PRICING_AS_OF,
@@ -39,12 +40,15 @@ def aggregate(results: list[dict]) -> dict:
                 "det_scores": [],
                 "sem_scores": [],
                 "token_samples": [],
+                "timing_samples": [],
                 "passed_trials": 0,
                 "needs_review_trials": 0,
                 "total_trials": 0,
             },
         )
         cell["total_trials"] += 1
+        # Timing includes failed and abstained trials, unlike score means.
+        cell["timing_samples"].append(result)
         if result.get("needs_review") or result.get("status") == "needs_review":
             # Neither a pass nor a fail: an honest "not enough evidence to
             # decide". Excluded from passed_trials and from the score mean.
@@ -68,6 +72,7 @@ def aggregate(results: list[dict]) -> dict:
     comparisons: dict[str, dict] = {}
     for test_case_name, configurations in cells.items():
         for cell in configurations.values():
+            cell.update(timing_summary(cell.pop("timing_samples")))
             scores = cell.pop("scores")
             det_scores = cell.pop("det_scores")
             sem_scores = cell.pop("sem_scores")
@@ -178,14 +183,36 @@ def write_report(
         f"{len(results)}/{experiment['worker_trials']} | "
         f"{format_cost(total_cost)} |",
         "",
+    ]
+    lines.extend([
+        "## Worker runtime",
+        "",
+        "| Test case | Config | Timed trials | Mean worker time | Min–max |",
+        "|---|---|---:|---:|---|",
+    ])
+    for name, configurations in aggregates.get("cells", {}).items():
+        for config, cell in configurations.items():
+            lines.append(
+                f"| {markdown_cell(name)} | {markdown_cell(config)} | "
+                f"{cell.get('timed_trials', 0)}/{cell['total_trials']} | "
+                f"{format_seconds(cell.get('mean_worker_seconds'))} | "
+                f"{format_seconds(cell.get('min_worker_seconds'))}–"
+                f"{format_seconds(cell.get('max_worker_seconds'))} |"
+            )
+    lines.extend([
+        "",
+        "_Worker time is wall-clock execution across all turns, including tool calls "
+        "and subagent waits; excludes setup, subsequent evidence capture and grading. "
+        "Means and ranges include all timed trials, regardless of outcome; missing timings are N/A._",
+        "",
         "## Trials",
         "",
-    ]
+    ])
     if results:
         lines.extend(
             [
-                "| Test case | Config | Trial | Score | Det | Sem | Band | Pass | Evidence |",
-                "|---|---|---:|---:|---:|---:|:--:|:--:|---|",
+                "| Test case | Config | Trial | Score | Det | Sem | Band | Pass | Worker time | Evidence |",
+                "|---|---|---:|---:|---:|---:|:--:|:--:|---:|---|",
             ]
         )
         for result in results:
@@ -236,6 +263,7 @@ def write_report(
                             if is_review
                             else ("Yes" if result["overall_pass"] else "No")
                         ),
+                        format_seconds(worker_seconds(result)),
                         f"[result.json]({details.as_posix()})",
                     ]
                 )

@@ -548,6 +548,7 @@ def run_trial(
         else None,
         "semantic_judges": len(semantic.get("judges", [])),
         "worker_exit_code": worker_exit_code,
+        "worker_elapsed_seconds": worker_seconds,
         "tokens": {
             "input_tokens": metrics.get("input_tokens", 0),
             "cached_input_tokens": metrics.get("cached_input_tokens", 0),

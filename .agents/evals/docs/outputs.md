@@ -82,3 +82,17 @@ The following grader directories are optional and therefore appear last:
 
 Every worker trial begins from a fresh fixture copy. Repeated trials never share
 a workspace, and neither workers nor judges modify the original fixture.
+
+### Worker runtime
+
+Trial `result.json` stores `worker_elapsed_seconds`, also captured in
+`worker/metrics.json`. This is worker wall-clock time across all turns, including
+tool calls and subagent waits; it excludes setup, subsequent evidence capture
+and grading. Concurrent subagent durations are not summed.
+
+Reports show per-trial worker time and per-cell timed counts, mean and min–max.
+Comparisons show mean-time changes (new minus old; negative means faster).
+All available timings count, including failed and needs-review trials. Missing
+timings are N/A, never zero. Older comparisons can read retained worker metrics
+when trial summaries lack timing; absent raw evidence remains N/A. No historical
+results are rewritten by this lookup.
