@@ -7,7 +7,93 @@ import pytest
 
 from quiz_backend.db import all_rows, one
 
-from .conftest import API, OPTIONS, Course, assert_error, docx_bytes, quiz_output
+from .conftest import API, OPTIONS, Course, Harness, assert_error, docx_bytes, quiz_output
+
+
+async def summary_security_state(harness: Harness) -> dict[str, list[dict[str, Any]]]:
+    async with harness.app.state.db.read() as conn:
+        return {
+            table: await all_rows(conn, f"SELECT * FROM {table} ORDER BY rowid")
+            for table in ("ai_requests", "ai_operation_keys", "ai_targets", "quiz_summaries")
+        }
+
+
+@pytest.mark.parametrize("actor", ["anonymous", "teacher", "student"])
+async def test_admin_analytics_role_denials(course: Course, actor: str) -> None:
+    harness = course.harness
+    quiz = await course.published()
+    await course.submit(quiz)
+    await course.submit(quiz, index=1)
+    client = {
+        "anonymous": harness.client(),
+        "teacher": course.teacher,
+        "student": course.students[0],
+    }[actor]
+    path = f"/quizzes/{quiz['id']}"
+    # Verify access both without a target and with a stored successful summary.
+    for existing_summary in (False, True):
+        if existing_summary:
+            assert (await harness.ai_post(course.admin, f"{path}/summary")).status_code == 202
+            await harness.drain()
+        before = await summary_security_state(harness)
+        calls = len(harness.gateway.calls)
+        paths = [f"{path}/completion", f"{path}/summary"]
+        for read_path in paths:
+            response = await client.get(f"{API}{read_path}")
+            assert_error(
+                response,
+                401 if actor == "anonymous" else 403,
+                "AUTH_REQUIRED" if actor == "anonymous" else "FORBIDDEN_ROLE",
+            )
+            assert await summary_security_state(harness) == before
+            assert len(harness.gateway.calls) == calls
+        # Existing-target Teacher/Student POSTs belong to the reuse test below.
+        if not existing_summary or actor == "anonymous":
+            response = await harness.ai_post(client, f"{path}/summary")
+            assert_error(
+                response,
+                401 if actor == "anonymous" else 403,
+                "AUTH_REQUIRED" if actor == "anonymous" else "FORBIDDEN_ROLE",
+            )
+            assert await summary_security_state(harness) == before
+            assert len(harness.gateway.calls) == calls
+
+
+@pytest.mark.parametrize("actor", ["teacher", "student"])
+async def test_unauthorized_summary_reuse_preserves_accepted_work(
+    course: Course, actor: str
+) -> None:
+    harness = course.harness
+    quiz = await course.published()
+    await course.submit(quiz)
+    await course.submit(quiz, index=1)
+    client = course.teacher if actor == "teacher" else course.students[0]
+    path = f"/quizzes/{quiz['id']}/summary"
+    admin_key = str(uuid4())
+    harness.gateway.blocked = True
+    harness.gateway.entered.clear()
+    accepted = await harness.ai_post(course.admin, path, key=admin_key)
+    assert accepted.status_code == 202
+    await asyncio.wait_for(harness.gateway.entered.wait(), 5)
+    try:
+        for running in (True, False):
+            if not running:
+                harness.gateway.release.set()
+                await harness.drain()
+            before = await summary_security_state(harness)
+            calls = len(harness.gateway.calls)
+            for action in ("ensure", "new"):
+                for key in (admin_key, str(uuid4())):
+                    rejected = await harness.ai_post(client, path, {"action": action}, key=key)
+                    assert_error(rejected, 403, "FORBIDDEN_ROLE")
+                    assert await summary_security_state(harness) == before
+                    assert len(harness.gateway.calls) == calls
+            state = (await course.admin.get(f"{API}{path}")).json()
+            assert state["task_id"] == accepted.json()["task_id"]
+            assert state["status"] == ("in_progress" if running else "success")
+    finally:
+        harness.gateway.release.set()
+        await harness.drain()
 
 
 async def test_generation_commits_result_and_versions_together(course: Course) -> None:
