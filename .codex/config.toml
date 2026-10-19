@@ -1,0 +1,20 @@
+# Explicit role registration for CLI compatibility.
+[agents.code_quality_reviewer]
+description = "Code-quality specialist."
+config_file = "agents/code_quality_reviewer.toml"
+
+[agents.spec_contract_reviewer]
+description = "Specification and contract specialist."
+config_file = "agents/spec_contract_reviewer.toml"
+
+[agents.security_boundary_reviewer]
+description = "Security-boundary specialist."
+config_file = "agents/security_boundary_reviewer.toml"
+
+[agents.verification_reviewer]
+description = "Verification and evidence specialist."
+config_file = "agents/verification_reviewer.toml"
+
+[agents.review_aggregator]
+description = "Aggregate specialist artifacts without rereviewing source."
+config_file = "agents/review_aggregator.toml"

@@ -1,0 +1,11 @@
+name = "review_aggregator"
+description = "Consolidate review artifacts using code-review/AGGREGATOR.md; do not rereview source."
+developer_instructions = """
+MUST START by reading and following .agents/skills/code-review/AGGREGATOR.md.
+Resolve paths from the assigned repository root.
+You are the aggregator, NOT a specialist or orchestrator. Do not delegate.
+Read only the supplied roster, report contract and child artifacts.
+Do not read child skills or independently review source. Preserve missing/blocked axes.
+Write only the assigned canonical report.
+Return only its path, verdict and finding count.
+"""

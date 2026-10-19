@@ -2,35 +2,48 @@
 
 Use this path when review subagents are available.
 
+Spawn every specialist and the aggregator with fresh conversation context.
+Do NOT fork the parent conversation; share the repository, not the conversation.
+
 The main agent orchestrates. It resolves the fixed target, changed files, task
 or requirements, relevant evidence, and one unique artifact path per review.
 It does not perform the review axes itself and does not read child
-artifacts. It passes the same review context to each child and waits for all
+artifacts. It passes the same target/evidence packet to each child and waits for all
 children.
 
 The main agent must NOT read `DEFAULT.md`, child `SKILL.md` files,
-`AGGREGATOR.md`, or child artifacts; it passes their paths to the relevant agents.
+`AGGREGATOR.md`, profile instruction files, or child artifacts.
 
 ## 1. Spawn review children
 
 Read [review axes](references/review-axes.md). Spawn one child per row
-concurrently, passing its resolved skill path, scope and ID prefix.
+concurrently using its named agent profile. If a profile is unavailable, report
+`BLOCKED`; do not substitute a general-purpose agent.
 Read the roster ONLY for dispatch; do NOT follow its skill links in main.
 
-Each child receives the fixed target, changed files, task or requirements,
-relevant evidence, and its unique artifact path. Instruct each child to run
-the assigned skill, review only its axis, write to that path, and return only
-the path and finding count.
+Each child receives the repository root, fixed target, changed files,
+requirements/evidence paths and its unique artifact path. The profile binds
+the skill, axis and return contract; do not paste its instructions into main.
+
+Pass task arguments only:
+
+```text
+Repository: <root>
+Target: <revision and diff range>
+Changed files: <paths>
+Requirements: <paths>
+Evidence: <paths>
+Output: <unique artifact path>
+```
+
+Append only relevant task context, not parent workflow instructions.
 
 ## 2. Spawn aggregator
 
-After all children finish, spawn one aggregator. Give it the roster path,
+After all children finish, spawn `review_aggregator` with fresh context.
+If unavailable, report `BLOCKED`. Give it the repository root, roster path,
 run directory, returned artifact paths, fixed target, and report path under
-`reviews/`. Its first instruction must be:
-
-```text
-MUST START by reading and following code-review/AGGREGATOR.md.
-```
+`reviews/`. Its profile binds `AGGREGATOR.md` and the return contract.
 
 Do not read or summarize the child artifacts in the main agent. Return only the
 aggregator's report path and verdict.
