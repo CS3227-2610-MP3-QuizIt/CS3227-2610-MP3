@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Callable
 
 from _lib.common import _fmt, read_json
+from _lib.paths import trial_directory
 from _lib.pricing import (
     PRICING,
     PRICING_AS_OF,
@@ -195,23 +196,23 @@ def _confounds(old_rep: dict, new_rep: dict) -> list[str]:
 
 def _run_field(result: dict, field: str):
     """Read a field from a trial's run.json via its run_directory. READ-ONLY."""
-    run_directory = result.get("run_directory")
-    if not run_directory:
+    run_directory = trial_directory(result)
+    if run_directory is None:
         return None
-    metadata = read_json(Path(run_directory) / "run.json") or {}
+    metadata = read_json(run_directory / "run.json") or {}
     return metadata.get(field)
 
 
 def _skill_diff(old_rep: dict, new_rep: dict) -> list[str]:
     """Unified diff of the two experiments' captured SKILL.md snapshots."""
-    old_dir = old_rep.get("run_directory")
-    new_dir = new_rep.get("run_directory")
-    if not old_dir or not new_dir:
+    old_dir = trial_directory(old_rep)
+    new_dir = trial_directory(new_rep)
+    if old_dir is None or new_dir is None:
         return []
-    old_meta = read_json(Path(old_dir) / "run.json") or {}
-    new_meta = read_json(Path(new_dir) / "run.json") or {}
-    old_text = read_skill_snapshot_text(Path(old_dir), old_meta)
-    new_text = read_skill_snapshot_text(Path(new_dir), new_meta)
+    old_meta = read_json(old_dir / "run.json") or {}
+    new_meta = read_json(new_dir / "run.json") or {}
+    old_text = read_skill_snapshot_text(old_dir, old_meta)
+    new_text = read_skill_snapshot_text(new_dir, new_meta)
     if old_text is None or new_text is None or old_text == new_text:
         return []
     return list(

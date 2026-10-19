@@ -94,7 +94,7 @@ def read_commands(path: Path, workspace: Path) -> list[str]:
             return []
     parts = [part for command in commands(path) for part in segments(command)]
     # Expand ordinary file globs against actual case inputs, case-normalized.
-    targets = [target for root in (workspace / ".agents" / "skills", workspace / "reviews")
+    targets = [target for root in (workspace / ".agents" / "skills", workspace / "workflow" / "reviews")
                for target in root.rglob("*.md") if target.is_file()]
     targets.extend((workspace / ".codex" / "agents").glob("*.toml"))
     for part in list(parts):
@@ -151,7 +151,7 @@ def main() -> None:
         if isinstance(child, dict) and isinstance(child.get("thread_id"), str)
     ]
     waits = int(metrics.get("subagent_wait_count", 0) or 0)
-    reports = [path for path in (args.workspace / "reviews").rglob("*.md") if path.stat().st_size]
+    reports = [path for path in (args.workspace / "workflow" / "reviews").rglob("*.md") if path.stat().st_size]
     specialist_ids = {
         prefix: [
             child["thread_id"] for child in subagents
@@ -172,7 +172,7 @@ def main() -> None:
     roster_ok = "review-axes.md" in main_text
     add("main-routes-to-subagents", route_ok and roster_ok, 15, "Main must read SUBAGENTS.md and the shared roster, not DEFAULT.md.")
     forbidden = [path for path in CHILD_SKILLS if path in main_text]
-    forbidden.extend(path for path in ("aggregator.md", ".codex/agents/", "reviews/") if path in main_text)
+    forbidden.extend(path for path in ("aggregator.md", ".codex/agents/", "workflow/reviews/") if path in main_text)
     # Detect explicit full-history forks in captured spawn requests. Role
     # selection comes from child metadata, not a name mentioned in a prompt.
     forked = False
@@ -223,7 +223,7 @@ def main() -> None:
     add("aggregator-reads-own-instructions", aggregator_ok, 15, f"aggregator_ids={aggregator_ids}, rollouts={len(aggregator_rollouts)}, starts with AGGREGATOR.md={aggregator_starts_correctly}")
     add("canonical-report", bool(reports), 10, f"reports={len(reports)}")
     changed = changed_paths(args.run.parent)
-    source_changes = sorted(path for path in changed if not path.startswith("reviews/"))
+    source_changes = sorted(path for path in changed if not path.startswith("workflow/reviews/"))
     add("source-preserved", not source_changes, 5, f"non-review changes={source_changes}")
 
     score = sum(check["points"] for check in checks)

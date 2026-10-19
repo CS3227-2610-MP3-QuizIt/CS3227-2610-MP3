@@ -10,8 +10,6 @@ from pathlib import Path
 
 
 EVALS_ROOT = Path(__file__).resolve().parent
-AGENTS_ROOT = EVALS_ROOT.parent
-SKILLS_ROOT = AGENTS_ROOT / "skills"
 LIB_ROOT = EVALS_ROOT / "_lib"
 SCHEMA = LIB_ROOT / "grade.schema.json"
 DEFAULT_TIMEOUT_SECONDS = 600
@@ -20,6 +18,8 @@ if str(EVALS_ROOT) not in sys.path:
     sys.path.insert(0, str(EVALS_ROOT))
 if str(LIB_ROOT) not in sys.path:
     sys.path.insert(0, str(LIB_ROOT))
+
+from _lib.paths import SKILLS_ROOT  # noqa: E402
 
 from _lib.common import (  # noqa: E402, F401
     HarnessError,

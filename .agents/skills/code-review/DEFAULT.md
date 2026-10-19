@@ -8,7 +8,7 @@ Do NOT read `SUBAGENTS.md` or `AGGREGATOR.md`.
 
 1. Fix the requested scope, target issue/release, revision or worktree diff,
    changed files, requirements, tests, evidence, guides and diagrams. Identify
-   unrelated changes and select a unique canonical report under `reviews/`;
+   unrelated changes and select a unique canonical report under `workflow/reviews/`;
    reuse only the matching report on reruns.
 2. Read and apply each listed skill sequentially to that target in this agent.
    Use the native todo/plan facility for one item per applicable check. Collect

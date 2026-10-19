@@ -5,7 +5,7 @@ Reference for the files written under `runs/` by each experiment and trial. See 
 ### Where the outputs go
 
 ```text
-.agents/evals/<skill-name>/
+workflow/evals/<skill-name>/
 ├── comparisons/
 │   └── <old-exp>-vs-<new-exp>.md
 └── runs/
@@ -28,7 +28,7 @@ At the end of a normal run, the terminal points directly to it:
 Evaluation complete.
 Result: PASS
 Score: 84/100
-Report: .../.agents/evals/<skill-name>/runs/experiment-NNN/report.md
+Report: .../workflow/evals/<skill-name>/runs/experiment-NNN/report.md
 ```
 
 | Output | When written | Meaning |
@@ -83,6 +83,12 @@ The following grader directories are optional and therefore appear last:
 
 Every worker trial begins from a fresh fixture copy. Repeated trials never share
 a workspace, and neither workers nor judges modify the original fixture.
+
+Historical absolute `run_directory` paths are execution provenance. After a
+checkout move or the migration from `.agents/evals/`, report/comparison readers
+look for the matching trial under this checkout's `workflow/evals/` first.
+They do not modify historical JSON, snapshots or scores. Ignored trial evidence
+is local-only; absent raw artifacts cannot be recovered from a summary.
 
 ### Worker runtime
 

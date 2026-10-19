@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from _lib.common import _fmt, markdown_cell, read_json, write_json
+from _lib.paths import trial_directory
 from _lib.grading import score_band
 from _lib.timing import format_seconds, timing_summary, worker_seconds
 from _lib.pricing import (
@@ -216,7 +217,7 @@ def write_report(
             ]
         )
         for result in results:
-            run_dir = Path(result["run_directory"])
+            run_dir = trial_directory(result)
             try:
                 details = (run_dir / "result.json").relative_to(experiment_root)
             except ValueError:
@@ -285,14 +286,14 @@ def write_report(
                     if item and item not in combined:
                         combined.append(str(item))
         r_score = r.get("score")
-        run_dir = r.get("run_directory")
+        run_dir = trial_directory(r)
         if (
             not combined
             and isinstance(r_score, (int, float))
             and r_score < 100
             and run_dir
         ):
-            sem_file = Path(run_dir) / "grades" / "semantic" / "result.json"
+            sem_file = run_dir / "grades" / "semantic" / "result.json"
             sem_data = read_json(sem_file) if sem_file.is_file() else None
             if isinstance(sem_data, dict):
                 for j in sem_data.get("judges") or []:

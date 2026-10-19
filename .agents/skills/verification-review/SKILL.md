@@ -44,5 +44,5 @@ not applicable with a reason. Record every command/result and unverified boundar
 
 ## Output
 
-Use the report contract and parent output mode, or a unique `reviews/` path
+Use the report contract and parent output mode, or a unique `workflow/reviews/` path
 standalone. Use `VR-<review>-<number>` IDs; a parent may remap them.

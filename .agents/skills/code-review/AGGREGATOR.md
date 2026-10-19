@@ -6,7 +6,7 @@ Use the roster without loading child skills. Do not rerun the review or fix
 code. Check that each required axis has exactly one artifact and record
 missing or blocked children as limitations.
 
-Write the canonical report to the supplied `reviews/` path, with axis sections
+Write the canonical report to the supplied `workflow/reviews/` path, with axis sections
 in roster order.
 
 Preserve child finding IDs, evidence, severity, status, and limitations. Do

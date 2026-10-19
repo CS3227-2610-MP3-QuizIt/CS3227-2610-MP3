@@ -3,9 +3,8 @@
 from __future__ import annotations
 
 import math
-from pathlib import Path
-
 from _lib.common import read_json
+from _lib.paths import trial_directory
 
 
 def valid_seconds(value) -> bool:
@@ -19,7 +18,8 @@ def worker_seconds(result: dict) -> float | None:
     value = result.get("worker_elapsed_seconds")
     if "worker_elapsed_seconds" not in result and result.get("run_directory"):
         # Older manifests omitted timing; never rewrite the original evidence.
-        metrics = read_json(Path(result["run_directory"]) / "worker" / "metrics.json") or {}
+        run_dir = trial_directory(result)
+        metrics = (read_json(run_dir / "worker" / "metrics.json") if run_dir else None) or {}
         value = metrics.get("worker_elapsed_seconds")
     return float(value) if valid_seconds(value) else None
 

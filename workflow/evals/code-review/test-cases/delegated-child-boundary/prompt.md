@@ -4,4 +4,4 @@ against the assignment brief and tests. The later
 `eval: prepare controlled workspace` commit contains harness inputs, not product
 changes; exclude it from the review. Spawn the four specialist reviewers and
 then one aggregator. Do not perform the specialist reviews in the main agent.
-Write the canonical report under reviews/ and do not modify source files.
+Write the canonical report under workflow/reviews/ and do not modify source files.

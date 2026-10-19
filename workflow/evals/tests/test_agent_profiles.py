@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from _lib.agent_profiles import discover_profiles, inject_profiles, profile_hashes, profile_overrides
 from _lib.common import HarnessError
+from _lib.paths import SKILLS_ROOT
 from _lib.harness import discover_cases
 from _lib import harness
 from _lib.trace import read_rollout_metrics
@@ -67,7 +68,7 @@ class ProfileTests(unittest.TestCase):
 
     def test_actual_cases_declare_same_profiles(self):
         evals = Path(__file__).resolve().parents[1]
-        cases = discover_cases(evals / "code-review", evals.parent / "skills" / "code-review")
+        cases = discover_cases(evals / "code-review", SKILLS_ROOT / "code-review")
         delegated, direct = cases["delegated-child-boundary"], cases["single-agent-route"]
         self.assertEqual(len(delegated.agent_profiles), 5)
         self.assertEqual(delegated.agent_profiles, direct.agent_profiles)
@@ -85,7 +86,7 @@ class ProfileTests(unittest.TestCase):
 
     def test_worker_gets_profiles_and_tampering_fails_protection(self):
         evals = Path(__file__).resolve().parents[1]
-        skill = evals.parent / "skills" / "code-review"
+        skill = SKILLS_ROOT / "code-review"
         case = replace(discover_cases(evals / "code-review", skill)["single-agent-route"],
                        checker=None, expected=None)
         def worker(command, **options):
@@ -111,6 +112,43 @@ class ProfileTests(unittest.TestCase):
         metadata = json.loads((run_dir / "run.json").read_text())
         self.assertEqual(len(metadata["agent_profile_sha256"]), 5)
         self.assertTrue((run_dir / "agent-profile-snapshot/spec_contract_reviewer.toml").is_file())
+
+    def test_new_review_output_passes_real_grader_in_disposable_workspace(self):
+        evals = Path(__file__).resolve().parents[1]
+        skill = SKILLS_ROOT / "code-review"
+        case = replace(discover_cases(evals / "code-review", skill)["single-agent-route"],
+                       expected=None)
+
+        def worker(command, **options):
+            workspace = options["cwd"]
+            output = workspace / "workflow/reviews/synthetic.md"
+            output.parent.mkdir(parents=True)
+            output.write_text("# Synthetic harness integration fixture\n")
+            reads = ["code-review/DEFAULT.md", "code-review/references/review-axes.md",
+                     "code-review/references/review-report.md"]
+            reads.extend(f"{name}/SKILL.md" for name in (
+                "code-quality-review", "spec-contract-review",
+                "security-boundary-review", "verification-review"))
+            events = [{"item": {"type": "command_execution",
+                       "command": f"cat .agents/skills/{path}"}} for path in reads]
+            events.append({"type": "turn.completed", "usage": {}})
+            options["stdout_path"].write_text("\n".join(json.dumps(event) for event in events) + "\n")
+            return subprocess.CompletedProcess(command, 0)
+
+        def capture(parts, destination, *unused):
+            shutil.copyfile(parts[0], destination)
+
+        run_dir = self.root / "passing-trial"
+        with patch.object(harness, "run_command", side_effect=worker), \
+             patch.object(harness, "capture_main_rollout", side_effect=capture), \
+             contextlib.redirect_stdout(io.StringIO()):
+            result = harness.run_trial(case=case, skill_root=skill, configuration="with-skill",
+                                       trial=1, run_dir=run_dir, schema=evals / "_lib/grade.schema.json",
+                                       semantic_enabled=False, semantic_judges=0, timeout=5, model=None)
+        self.assertTrue(result["protected_inputs_intact"])
+        self.assertTrue(result["overall_pass"])
+        self.assertEqual(result["deterministic_score"], 100)
+        self.assertTrue((run_dir / "workspace/workflow/reviews/synthetic.md").is_file())
 
 
 if __name__ == "__main__":

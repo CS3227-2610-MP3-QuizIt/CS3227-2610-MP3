@@ -10,17 +10,17 @@ Run commands from the repository root.
 
 | Goal | Command | Calls a model? |
 |---|---|---:|
-| List available skill evaluations | `python3 .agents/evals/eval.py list` | No |
-| List one skill's test cases | `python3 .agents/evals/eval.py list <skill-name>` | No |
-| Structurally validate one evaluation | `python3 .agents/evals/eval.py check <skill-name>` | No |
-| Run every test case | `python3 .agents/evals/eval.py run <skill-name>` | Yes |
-| Run one test case | `python3 .agents/evals/eval.py run <skill-name> <test-case-name>` | Yes |
-| Compare two existing experiments | `python3 .agents/evals/eval.py compare <skill-name> <old-exp> <new-exp>` | No |
+| List available skill evaluations | `python3 workflow/evals/eval.py list` | No |
+| List one skill's test cases | `python3 workflow/evals/eval.py list <skill-name>` | No |
+| Structurally validate one evaluation | `python3 workflow/evals/eval.py check <skill-name>` | No |
+| Run every test case | `python3 workflow/evals/eval.py run <skill-name>` | Yes |
+| Run one test case | `python3 workflow/evals/eval.py run <skill-name> <test-case-name>` | Yes |
+| Compare two existing experiments | `python3 workflow/evals/eval.py compare <skill-name> <old-exp> <new-exp>` | No |
 
 The simplest real run is:
 
 ```bash
-python3 .agents/evals/eval.py run <skill-name>
+python3 workflow/evals/eval.py run <skill-name>
 ```
 
 It runs every test case once with the target skill. For each completed worker
@@ -60,19 +60,19 @@ Examples:
 
 ```bash
 # Run one test case with the default three semantic judges
-python3 .agents/evals/eval.py run <skill-name> <test-case-name>
+python3 workflow/evals/eval.py run <skill-name> <test-case-name>
 
 # Run all test cases without any semantic-grader model calls
-python3 .agents/evals/eval.py run <skill-name> --no-semantic-judges
+python3 workflow/evals/eval.py run <skill-name> --no-semantic-judges
 
 # Run three independent worker trials per test case
-python3 .agents/evals/eval.py run <skill-name> --trials 3
+python3 workflow/evals/eval.py run <skill-name> --trials 3
 
 # Use five semantic judges per completed worker trial
-python3 .agents/evals/eval.py run <skill-name> --judges 5
+python3 workflow/evals/eval.py run <skill-name> --judges 5
 
 # Compare the same prompts without and with the target skill
-python3 .agents/evals/eval.py run <skill-name> --compare
+python3 workflow/evals/eval.py run <skill-name> --compare
 ```
 
 The runner prints the number of planned worker-turn and semantic-judge calls
@@ -131,13 +131,13 @@ To compare two saved experiments (for example before and after editing
 
 ```bash
 # Compare with-skill cells (default) -> writes comparisons/<old>-vs-<new>.md
-python3 .agents/evals/eval.py compare <skill-name> experiment-001 experiment-002
+python3 workflow/evals/eval.py compare <skill-name> experiment-001 experiment-002
 
 # Compare baseline cells -> writes comparisons/<old>-vs-<new>-baseline.md
-python3 .agents/evals/eval.py compare <skill-name> experiment-001 experiment-002 --config baseline
+python3 workflow/evals/eval.py compare <skill-name> experiment-001 experiment-002 --config baseline
 ```
 
-The generated Markdown report under `.agents/evals/<skill-name>/comparisons/`
+The generated Markdown report under `workflow/evals/<skill-name>/comparisons/`
 includes a `Setup` and `Summary` header, a one-row-per-case `## Case overview`
 table, per-case score/token/cost breakdowns (including `det score` and
 `sem score` when available), confound detection when the model or fixture

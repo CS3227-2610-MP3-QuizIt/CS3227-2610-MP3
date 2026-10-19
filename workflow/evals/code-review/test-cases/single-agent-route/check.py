@@ -73,7 +73,7 @@ def read_commands(path: Path, workspace: Path) -> list[str]:
             return []
     parts = [part for command in commands(path) for part in segments(command)]
     # Expand ordinary file globs against actual case inputs, case-normalized.
-    targets = [target for root in (workspace / ".agents" / "skills", workspace / "reviews")
+    targets = [target for root in (workspace / ".agents" / "skills", workspace / "workflow" / "reviews")
                for target in root.rglob("*.md") if target.is_file()]
     targets.extend((workspace / ".codex" / "agents").glob("*.toml"))
     for part in list(parts):
@@ -119,7 +119,7 @@ def main() -> None:
     metrics_path = args.run.parent / "worker" / "metrics.json"
     metrics = json.loads(metrics_path.read_text()) if metrics_path.is_file() else {}
     spawned = int(metrics.get("subagent_spawn_count", -1))
-    reports = [path for path in (args.workspace / "reviews").rglob("*.md") if path.stat().st_size]
+    reports = [path for path in (args.workspace / "workflow" / "reviews").rglob("*.md") if path.stat().st_size]
     child_skills = (
         "code-quality-review/skill.md", "spec-contract-review/skill.md",
         "security-boundary-review/skill.md", "verification-review/skill.md",
@@ -127,7 +127,7 @@ def main() -> None:
     routes = all(path in text for path in ("default.md", "review-axes.md", "review-report.md"))
     children = all(path in text for path in child_skills)
     boundary = all(path not in text for path in ("subagents.md", "aggregator.md", ".codex/agents/"))
-    source_changes = [path for path in changed_paths(args.run.parent) if not path.startswith("reviews/")]
+    source_changes = [path for path in changed_paths(args.run.parent) if not path.startswith("workflow/reviews/")]
     checks = [
         {"id": "reads-default-and-shared-contracts", "pass": routes, "points": 15 if routes else 0, "notes": "Read DEFAULT.md, review-axes.md and review-report.md."},
         {"id": "main-reads-all-four-skills", "pass": children, "points": 30 if children else 0, "notes": "Main reads every roster skill."},

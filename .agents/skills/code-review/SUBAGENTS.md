@@ -43,7 +43,7 @@ Append only relevant task context, not parent workflow instructions.
 After all children finish, spawn `review_aggregator` with fresh context.
 If unavailable, report `BLOCKED`. Give it the repository root, roster path,
 run directory, returned artifact paths, fixed target, and report path under
-`reviews/`. Its profile binds `AGGREGATOR.md` and the return contract.
+`workflow/reviews/`. Its profile binds `AGGREGATOR.md` and the return contract.
 
 Do not read or summarize the child artifacts in the main agent. Return only the
 aggregator's report path and verdict.

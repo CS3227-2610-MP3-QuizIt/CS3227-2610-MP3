@@ -19,8 +19,8 @@ class RoutingTests(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
         self.workspace = self.root / "workspace"
-        (self.workspace / "reviews").mkdir(parents=True)
-        (self.workspace / "reviews" / "report.md").write_text("# Canonical report\n")
+        (self.workspace / "workflow" / "reviews").mkdir(parents=True)
+        (self.workspace / "workflow" / "reviews" / "report.md").write_text("# Canonical report\n")
         for name in SKILLS:
             skill = self.workspace / ".agents" / "skills" / name / "SKILL.md"
             skill.parent.mkdir(parents=True)
@@ -86,7 +86,7 @@ class RoutingTests(unittest.TestCase):
             thread = f"specialist-{index}"
             children.append({"thread_id": thread, "agent_role": PROFILES[index], "prompt": "Target: fixture-base..fixture-target; Output: assigned artifact"})
             self.trace_file(self.worker / "subagents" / f"{thread}.jsonl", [f"cat .agents/skills/{name}/SKILL.md"])
-            (self.workspace / "reviews" / f"{name}.md").write_text("# Axis findings\n")
+            (self.workspace / "workflow" / "reviews" / f"{name}.md").write_text("# Axis findings\n")
         children.append({"thread_id": "aggregator", "agent_role": "review_aggregator", "prompt": "Aggregate assigned artifacts"})
         self.trace_file(self.worker / "subagents" / "aggregator.jsonl", [
             "cat .agents/skills/code-review/AGGREGATOR.md",
@@ -166,7 +166,7 @@ class RoutingTests(unittest.TestCase):
                 elif mutation == "missing-metrics":
                     (self.worker / "metrics.json").unlink()
                 else:
-                    (self.workspace / "reviews" / "quality.md").write_text("# Extra artifact\n")
+                    (self.workspace / "workflow" / "reviews" / "quality.md").write_text("# Extra artifact\n")
                 self.assertFalse(self.grade("single-agent-route")["overall_pass"])
 
     def test_delegated_valid_routing_passes(self):
@@ -195,7 +195,7 @@ class RoutingTests(unittest.TestCase):
         self.assertFalse(self.grade("delegated-child-boundary")["overall_pass"])
 
     def test_delegated_main_forbidden_reads_fail(self):
-        for target in ("DEFAULT.md", "AGGREGATOR.md", "code-quality-review/SKILL.md", "reviews/quality.md", ".agents/skills/*/SKILL.md"):
+        for target in ("DEFAULT.md", "AGGREGATOR.md", "code-quality-review/SKILL.md", "workflow/reviews/quality.md", ".agents/skills/*/SKILL.md"):
             with self.subTest(target=target):
                 commands = self.delegated()
                 self.trace_file(self.trace, commands + [f"cat {target}"])
@@ -248,6 +248,27 @@ class RoutingTests(unittest.TestCase):
             relative = Path("supporting-skills") / name / "SKILL.md"
             self.assertEqual((CASES / "single-agent-route" / relative).read_bytes(),
                              (CASES / "delegated-child-boundary" / relative).read_bytes())
+
+    def test_legacy_root_report_is_not_a_canonical_output(self):
+        self.default()
+        (self.workspace / "workflow/reviews/report.md").unlink()
+        (self.workspace / "reviews").mkdir()
+        (self.workspace / "reviews/report.md").write_text("# Wrong output directory\n")
+        self.assertFalse(self.grade("single-agent-route")["overall_pass"])
+
+    def test_only_new_review_directory_is_an_allowed_write(self):
+        (self.root / "git").mkdir()
+        patch = self.root / "git/changes.patch"
+        for case, prepare in (("single-agent-route", self.default),
+                              ("delegated-child-boundary", self.delegated)):
+            for target, allowed in (("workflow/reviews/report.md", True),
+                                    ("reviews/report.md", False),
+                                    ("workflow/reviews-archive/report.md", False),
+                                    ("workflow/README.md", False)):
+                with self.subTest(case=case, target=target):
+                    prepare()
+                    patch.write_text(f"diff --git a/{target} b/{target}\n+++ b/{target}\n")
+                    self.assertEqual(self.grade(case)["overall_pass"], allowed)
 
 
 if __name__ == "__main__":

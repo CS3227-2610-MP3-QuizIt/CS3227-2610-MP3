@@ -19,7 +19,7 @@ delivery artifact, and `uv lock --check` passed. No commit or live deployment wa
 | Distribution inspection | Migration is included; `.env`, private files, `.venv`, and `.uv-cache` are excluded |
 | Process restart/persistence smoke | `python ../workflow/backend_persistence_smoke.py` passed using two isolated subprocesses, API login/class reads, one migration version, and SQLite integrity check |
 | Git whitespace check | `git diff --check` passed |
-| Specialist final review | **PASS for backend scope**, no unresolved findings; `reviews/backend-01.md` records two fixed findings and eight independently rerun regressions |
+| Specialist final review | **PASS for backend scope**, no unresolved findings; `workflow/reviews/backend-01.md` records two fixed findings and eight independently rerun regressions |
 
 Sandboxed async database tests stall because worker/event-loop facilities are restricted.
 Tests and the process smoke check were rerun with scoped escalation. Dependency download

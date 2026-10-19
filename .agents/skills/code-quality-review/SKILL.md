@@ -36,5 +36,5 @@ needs location, evidence, impact, confidence, and verification.
 
 ## Output
 
-Use the report contract and parent output mode, or a unique `reviews/` path
+Use the report contract and parent output mode, or a unique `workflow/reviews/` path
 standalone. Use `CQ-<review>-<number>` IDs; a parent may remap them.

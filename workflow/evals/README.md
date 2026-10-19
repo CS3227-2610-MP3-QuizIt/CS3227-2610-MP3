@@ -2,7 +2,7 @@
 
 A reproducible harness for evaluating project-local Codex skills against
 repeatable software-engineering tasks. You install it into an existing Codex
-project at `.agents/evals/`, and it evaluates the skills in the sibling
+project at `workflow/evals/`, and it evaluates the skills in the project's
 `.agents/skills/` directory.
 
 > **Safety and cost:** Trials run `codex exec` with write access to disposable
@@ -28,14 +28,14 @@ exec` works in your environment.
 From the root of the project you want to evaluate:
 
 ```bash
-mkdir -p .agents
-npx degit junhao4/codex-skill-evals .agents/evals
+mkdir -p workflow
+npx degit junhao4/codex-skill-evals workflow/evals
 ```
 
 Then verify it from the same project root:
 
 ```bash
-python3 .agents/evals/eval.py list
+python3 workflow/evals/eval.py list
 ```
 
 `list` makes no model calls. If it runs, the harness is installed correctly.
@@ -43,11 +43,11 @@ python3 .agents/evals/eval.py list
 **Install notes**
 
 - Run the command from the target project root so the files land in that
-  project's `.agents/evals/`, not a home-level `.agents/`.
+  project's `workflow/evals/`, not a home-level `workflow/`.
 - `degit` copies the files without creating a nested Git repository.
 - Pin a release for a stable version:
-  `npx degit junhao4/codex-skill-evals#v0.1.0 .agents/evals`.
-- Only re-run `degit` over an existing `.agents/evals/` if you intend to
+  `npx degit junhao4/codex-skill-evals#v0.1.0 workflow/evals`.
+- Only re-run `degit` over an existing `workflow/evals/` if you intend to
   replace it.
 - The harness ships no skills or test cases — you add those yourself (below).
 
@@ -78,7 +78,7 @@ The key relationship is:
 ```text
 .agents/skills/<skill-name>/SKILL.md
                   │
-                  └── evaluated by ──> .agents/evals/<skill-name>/test-cases/
+                  └── evaluated by ──> workflow/evals/<skill-name>/test-cases/
 ```
 
 ## Add a skill to evaluate
@@ -86,11 +86,8 @@ The key relationship is:
 Create the skill and a matching evaluation directory:
 
 ```text
-.agents/
-├── skills/
-│   └── <skill-name>/
-│       └── SKILL.md
-└── evals/
+.agents/skills/<skill-name>/SKILL.md
+workflow/evals/
     ├── eval.py             # command-line entry point
     ├── _lib/               # internal harness implementation
     └── <skill-name>/
@@ -102,9 +99,9 @@ Create the skill and a matching evaluation directory:
 | Path | Required? | Purpose |
 |---|---:|---|
 | `.agents/skills/<skill-name>/SKILL.md` | Yes | The skill being evaluated—the system under test |
-| `.agents/evals/<skill-name>/test-cases/` | Yes | Holds the scenarios used to evaluate that skill |
-| `.agents/evals/<skill-name>/runs/` | Generated | Numbered experiments, human-readable reports, workspaces, traces, and grades |
-| `.agents/evals/<skill-name>/comparisons/` | Generated | Cross-experiment comparison reports (`<old>-vs-<new>.md`) |
+| `workflow/evals/<skill-name>/test-cases/` | Yes | Holds the scenarios used to evaluate that skill |
+| `workflow/evals/<skill-name>/runs/` | Generated | Numbered experiments, human-readable reports, workspaces, traces, and grades |
+| `workflow/evals/<skill-name>/comparisons/` | Generated | Cross-experiment comparison reports (`<old>-vs-<new>.md`) |
 
 The two `<skill-name>` directory names must match exactly. A skill also needs at
 least one valid test case before it can be run. You do not manually populate
@@ -113,7 +110,7 @@ least one valid test case before it can be run. You do not manually populate
 Check whether the harness discovers it:
 
 ```bash
-python3 .agents/evals/eval.py list
+python3 workflow/evals/eval.py list
 ```
 
 No model is called by `list`.

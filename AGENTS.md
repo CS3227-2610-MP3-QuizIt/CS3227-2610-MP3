@@ -24,6 +24,7 @@ The assignment requires a custom spec-driven process and basic multi-agent softw
 - `frontend/`: React 19, TypeScript, Tailwind CSS, and Vite; role screens live under `frontend/src/`.
 - `backend/`: Python 3.14, FastAPI, and SQLite; application source and versioned migrations live under `backend/src/quiz_backend/`.
 - `workflow/` and `logs/`: development process artifacts and verified interaction summaries.
+- `workflow/evals/` and `workflow/reviews/`: skill evaluations and review artifacts; skill discovery stays under `.agents/skills/` and named profiles under `.codex/agents/`.
 - `docs/`: user guide, developer guide, and reflections.
 - `pages/`: the project website.
 

@@ -8,7 +8,7 @@ A skill should normally have several test cases covering different tasks,
 starting states, and failure modes. Create one folder per scenario:
 
 ```text
-.agents/evals/<skill-name>/test-cases/<test-case-name>/
+workflow/evals/<skill-name>/test-cases/<test-case-name>/
 ├── fixture/              # files copied into a fresh repository
 ├── prompt.md             # first user turn
 ├── expected.md           # private instructions for semantic judges
@@ -66,7 +66,7 @@ fixture:
 | `with-skill` | Injected from `.agents/skills/<skill-name>/` | Injected |
 
 The `<skill-name>` shared by `.agents/skills/<skill-name>/` and
-`.agents/evals/<skill-name>/` identifies the target skill. Because the fixture
+`workflow/evals/<skill-name>/` identifies the target skill. Because the fixture
 contains no `.agents/`, these injections are the only repository-local skills
 available in the disposable workspace.
 
@@ -353,7 +353,7 @@ interaction adds one worker model call. The installed Codex CLI must support
 Structurally validate the evaluation definition before spending model calls:
 
 ```bash
-python3 .agents/evals/eval.py check <skill-name>
+python3 workflow/evals/eval.py check <skill-name>
 ```
 
 This checks fixture cleanliness, required files, grader presence,

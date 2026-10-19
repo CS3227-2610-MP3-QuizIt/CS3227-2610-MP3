@@ -43,7 +43,7 @@ Root inspection also bounded provider usage integers to SQLite's signed 64-bit r
 verified that huge untrusted counts cannot prevent a valid task from becoming terminal.
 The final review uses the repository code-review skill with Python
 checks and current project specifications. Final observed counts, review results, and
-limitations are recorded in `workflow/backend-validation.md` and `reviews/backend-01.md`.
+limitations are recorded in `workflow/backend-validation.md` and `workflow/reviews/backend-01.md`.
 The final specialist review passed for backend scope, with both recorded findings fixed
 and no unresolved findings. It independently reran eight relevant regressions and
 checked schema alignment, packaging, static checks, and documentation consistency.

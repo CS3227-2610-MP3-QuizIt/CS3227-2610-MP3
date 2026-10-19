@@ -40,10 +40,10 @@ Include every finding field in the template below.
 
 ## Completion and handoff
 
-For the final review, write one selected canonical report under `reviews/`, such as
-`reviews/quiz-publication-01.md`; reuse only its matching report on reruns.
+For the final review, write one selected canonical report under `workflow/reviews/`, such as
+`workflow/reviews/quiz-publication-01.md`; reuse only its matching report on reruns.
 Specialists use the parent's output mode: in-memory findings or an assigned
-artifact instead. Standalone specialists select a unique `reviews/` path.
+artifact instead. Standalone specialists select a unique `workflow/reviews/` path.
 
 Report these decisions explicitly:
 

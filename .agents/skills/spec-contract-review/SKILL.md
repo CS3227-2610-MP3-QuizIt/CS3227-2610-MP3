@@ -31,5 +31,5 @@ Map every changed requirement and contract, or state why it could not be assesse
 
 ## Output
 
-Use the report contract and parent output mode, or a unique `reviews/` path
+Use the report contract and parent output mode, or a unique `workflow/reviews/` path
 standalone. Use `SC-<review>-<number>` IDs; a parent may remap them.

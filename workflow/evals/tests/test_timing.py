@@ -1,4 +1,4 @@
-"""Model-free tests: python3 -B -m unittest discover -s .agents/evals/tests."""
+"""Model-free tests: python3 -B -m pytest workflow/evals/tests -q."""
 
 from pathlib import Path
 import sys
