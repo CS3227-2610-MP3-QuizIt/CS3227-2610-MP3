@@ -48,6 +48,7 @@ Each trial directory contains:
 | `result.json` | Final trial result, separate grader scores, model, and a `tokens` breakdown (uncached/cached input, output, reasoning, billed output; automatically rolls up parent + spawned subagent usage when subagents ran) |
 | `run.json` | Trial inputs, configuration, initial Git state, skill snapshot paths, invocation mode, turn metadata, thread id, and resolved model/reasoning effort read from the rollout |
 | `skill-snapshot/` | Immutable copy of the injected target skill (and any supporting skills) captured at trial start for `eval.py compare` |
+| `agent-profile-snapshot/` | Copies of explicitly declared project agent profiles; hashes and paths are recorded in `run.json`. Profile changes are surfaced as comparison confounds. |
 | `workspace/` | Final file snapshot left by the worker; its temporary `.git/` is removed after the graders finish |
 | `worker/result.json` | Worker exit status, rolled-up metrics, final Git state, protected-input checks, and untracked paths |
 | `worker/metrics.json` | Normalized trace and token metrics, including `parent_token_usage`, `subagent_token_usage`, `subagent_spawn_count`, `subagent_wait_count`, `subagent_thread_ids`, and `subagents` summary records |

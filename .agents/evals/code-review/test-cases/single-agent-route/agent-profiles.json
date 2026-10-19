@@ -1,0 +1,7 @@
+[
+  "code_quality_reviewer",
+  "spec_contract_reviewer",
+  "security_boundary_reviewer",
+  "verification_reviewer",
+  "review_aggregator"
+]

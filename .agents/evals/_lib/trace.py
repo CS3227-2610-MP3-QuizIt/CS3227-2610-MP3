@@ -586,6 +586,8 @@ def read_rollout_metrics(rollout: Path) -> dict[str, Any]:
                     agent_nickname = payload["agent_nickname"]
                 if isinstance(payload.get("agent_role"), str):
                     agent_role = payload["agent_role"]
+                elif isinstance(payload.get("agent_type"), str):
+                    agent_role = payload["agent_type"]
                 source = payload.get("source")
                 if isinstance(source, dict):
                     sub = source.get("subagent")
@@ -602,6 +604,8 @@ def read_rollout_metrics(rollout: Path) -> dict[str, Any]:
                                 agent_nickname = spawn["agent_nickname"]
                             if isinstance(spawn.get("agent_role"), str):
                                 agent_role = spawn["agent_role"]
+                            elif isinstance(spawn.get("agent_type"), str):
+                                agent_role = spawn["agent_type"]
         elif ev_type == "turn_context":
             payload = event.get("payload", event)
             if isinstance(payload, dict):

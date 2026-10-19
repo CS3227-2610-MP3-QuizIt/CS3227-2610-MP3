@@ -39,7 +39,7 @@ never the original fixture.
 |---|---|
 | It contains the relevant code and task context | The worker must have enough information to do the task |
 | It does not contain `.git/` | The fixture remains an ordinary directory that the main project can track; the harness creates Git history in each disposable copy |
-| It does not contain `.agents/` | The harness controls every repository-local skill exposed to the worker, while private evaluator files remain outside the workspace |
+| It does not contain `.agents/` or `.codex/` | The harness controls injected skills and declared agent profiles; private evaluator files remain outside the workspace |
 
 Different test cases may—and usually should—use different fixture directories.
 
@@ -305,6 +305,27 @@ not also appear under `supporting-skills/`.
 
 Injected target and supporting skills are protected inputs. A trial fails if
 the worker edits or deletes one of them.
+
+### `agent-profiles.json`: optional project agent dependencies
+
+For named Codex agents, list the required profile names in a case-local JSON array:
+
+```json
+["reviewer", "aggregator"]
+```
+
+Each name resolves to `.codex/agents/<name>.toml` in the project. The harness
+copies only declared profiles into each workspace and a separate
+`agent-profile-snapshot/`, records their hashes, and registers their config
+paths explicitly for every worker turn. Both configurations receive the same
+profiles; baseline still means without the target skill. No global config is
+copied. Keep `.codex/` out of `fixture/`, and use the fixed product revision
+rather than the later setup commit as the review target.
+
+Profile edits/deletions fail protected-input checks. Grade actual child role
+metadata and behavior, not a role name merely mentioned in a spawn prompt.
+Role instructions do not create an independent sandbox. Verify runtime support
+before a model run; unavailable roles are blockers, not general-agent substitutes.
 
 ### `interactions/`: optional multi-turn user messages
 

@@ -172,6 +172,7 @@ def list_evaluations(args: argparse.Namespace, skills: dict[str, Path]) -> int:
                 f"  {case.name}\n"
                 f"    Turns: {1 + len(case.interactions)}\n"
                 f"    Supporting skills: {supporting}\n"
+                f"    Agent profiles: {', '.join(p.stem for p in case.agent_profiles) or 'none'}\n"
                 f"    Graders: {' + '.join(graders)}"
             )
         return 0
@@ -200,7 +201,7 @@ def check_evaluation(args: argparse.Namespace, skills: dict[str, Path]) -> int:
             graders.append("semantic")
         print(
             f"  ✓ {case.name} ({1 + len(case.interactions)} turn(s); "
-            f"{' + '.join(graders)})"
+            f"{' + '.join(graders)}; {len(case.agent_profiles)} agent profile(s))"
         )
     print(f"\n{len(cases)} test case definition(s) structurally valid.")
     print("Graders were not executed and no model calls were made.")

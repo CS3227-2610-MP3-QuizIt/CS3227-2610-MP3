@@ -186,6 +186,10 @@ def _confounds(old_rep: dict, new_rep: dict) -> list[str]:
     new_fixture = _run_field(new_rep, "fixture_sha256")
     if old_fixture and new_fixture and old_fixture != new_fixture:
         warnings.append("fixture changed")
+    old_profiles = _run_field(old_rep, "agent_profile_sha256") or {}
+    new_profiles = _run_field(new_rep, "agent_profile_sha256") or {}
+    if old_profiles != new_profiles:
+        warnings.append("agent profiles changed")
     return warnings
 
 
