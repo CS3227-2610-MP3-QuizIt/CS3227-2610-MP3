@@ -85,3 +85,231 @@ The project showed why this matters. An inherited gateway URL caused test config
 Each agent should leave a reviewable change, an explanation tied to requirements, exact checks and observed results, known limitations, and outstanding decisions. Evidence should distinguish mocks from live dependencies and independently rerun checks from supplied results. Secrets, private uploads, session tokens, and real user records do not belong in these artifacts.
 
 Our [backend workflow](../workflow/backend-implementation.md), [validation record](../workflow/backend-validation.md), [review report](../workflow/reviews/backend-01.md), and verified summaries under `logs/` provide this trail. The reviewer disclosed having implemented some modules, which limits independence for that scope. A person can inspect requirements, changes, tests, findings, and fixes rather than rely on agreement among agents. For future work, we would make requirement-to-test traceability more explicit and add live semantic and browser checks where mocks cannot establish the intended protection.
+
+# Individual reflections
+
+## Individual reflection — Teo Keng Jer
+
+### AI Security
+
+For AI security, I was testing and verifying whether the existing Admin
+authorization and AI-summary boundaries behaved safely under negative cases. This
+distinction became important to me during MP3 because a system can return the
+correct error message while still performing an unintended side effect.
+
+While extending the Admin backend tests, I added cases for anonymous, Teacher, and
+Student callers attempting Admin-only operations. I initially thought of
+authorization mainly as checking for the expected `401` or `403` response. However,
+I strengthened the tests to compare database state before and after a rejected
+request. This covered users, classes and memberships for management operations, and
+AI-request, operation-key, target and summary state for analytics operations. The
+tests also checked that rejected AI requests did not cause additional mocked
+gateway calls.
+
+This changed how I think about negative-path security testing. An authorization
+check is not fully tested just because the API reports `FORBIDDEN_ROLE`. A request
+could still mutate data, consume an AI request, or partially create state before
+returning the error. I therefore learned to test both the visible response and the
+absence of side effects. If I repeated this work, I would define a role-operation
+matrix and the expected preserved state before writing the tests, rather than
+adding individual denial cases incrementally.
+
+I also added tests for an authorization boundary that I would previously have been
+less likely to notice: reuse of existing AI work. I attempted to reuse an Admin
+summary task as a Teacher or Student, including using the Admin's existing
+idempotency key and trying both running and completed work. The expected result was
+still rejection, with the accepted Admin task and gateway-call count unchanged.
+This showed me that optimisations such as idempotency and result reuse are also
+security-sensitive paths. Knowing or possessing an idempotency key must not implicitly
+grant permission to use the task. In future, I would explicitly check
+authorization across fresh creation, reuse, latest-result reads and historical
+reads whenever an AI workflow introduces caching or idempotency.
+
+A second area I focused on was privacy of the Admin AI summary. I strengthened the
+aggregate-summary tests by inserting synthetic private identity markers and
+checking the exact payload fields sent to the AI boundary. The tests check that
+aggregate metrics and question context are used while tested names, usernames,
+student identifiers, individual selected-answer fields and credential markers are
+absent. This made the privacy requirement more concrete to me. Rather than relying
+on the statement that a payload is "anonymous", I found it more useful to specify
+what data is allowed to cross the AI boundary and test that contract directly.
+
+At the same time, this exercise exposed an important limitation. Removing direct
+identifiers does not guarantee anonymity. During my production smoke test I created
+a one-student class so that I could complete the full Admin-summary workflow. The
+summary correctly operated on aggregate metrics, but an aggregate for one student
+can obviously reveal that student's performance. I therefore would not claim that
+our aggregate design guarantees anonymity. For a real deployment, I would consider
+a minimum-cohort or suppression policy when the privacy requirement includes
+protection against inference as well as removal of direct identifiers.
+
+The production smoke test also helped me separate controlled test evidence from
+live AI behavior. I observed that summary generation was unavailable when only
+1 of 10 students had submitted, and later successfully generated a summary for a
+separate 1-of-1 completed roster. The exact score and percentage were displayed as
+authoritative metrics, while the AI supplied narrative observations. This reinforced
+the design principle that AI should interpret deterministic results rather than
+decide grades or eligibility.
+
+During the same smoke session, a student hint request returned
+`AI_INVALID_OUTPUT` and no failed hint was shown. I explicitly retried with different
+wording and received a conceptual hint that did not explicitly state the answer.
+This was useful evidence that a failed AI result could be withheld safely while
+still allowing recovery. However, I cannot conclude that the first request was
+rejected because it leaked the answer, because the recorded evidence does not
+identify the precise rejection reason. I also did not implement the hint verifier.
+This distinction reminded me that a successful safety observation should not be
+turned into a broader claim than the evidence supports.
+
+Overall, my main lesson from the AI-security work is that security evidence needs
+both negative-path testing and careful limits on what the evidence establishes.
+Mocked tests let me exercise authorization, state preservation and payload
+boundaries precisely, while the production smoke test exposed real workflow
+behavior. Neither proves universal AI safety. In future work, I would preserve
+commit-specific test results more consistently, test small-cohort privacy
+explicitly, and design authorization tests around complete state transitions rather
+than response codes alone.
+
+### Spec-Driven Development
+
+For spec-driven development, I was using existing requirements to decide what should be tested,
+verified, and documented. This made me realise that a specification is useful only
+when it can be translated into observable outcomes, especially for failure and
+recovery cases.
+
+One example was the Admin authorization testing. The backend specification states
+which roles may perform Admin operations, but I learned that the intent of this
+requirement is broader than simply returning `401` or `403`. In my backend test changes, I translated this requirement into assertions about
+preserved state and unchanged mocked gateway-call counts. This helped me translate an access-control
+requirement into observable state assertions rather than only response-code checks.
+
+The same idea appeared in my Admin UI tests. I added regression cases for account
+creation, class membership, summary eligibility, task states, retries and failure
+recovery. These tests were more useful when the requirements described transitions
+and exceptional states rather than only screens or buttons. For example, an Admin
+summary is not just a page with a Generate button; the UI also needs to represent
+partial-roster ineligibility, running work, retry states and the distinction between
+new and reused AI work. This showed me that workflow specifications need to describe
+what happens before, during and after an action, including failure paths.
+
+A limitation is that the repository cannot prove that I read every relevant
+specification before writing each test. I therefore should not claim a perfectly
+linear “spec first, then test” process for all my work. What I can establish is that
+my tests map to existing frontend and backend requirements. In future, I would make
+this traceability more explicit by recording a small requirement-to-test matrix
+before implementation, including the role, operation, expected state change or
+preserved state, and the evidence needed to accept the result.
+
+My documentation work gave me another perspective on SDD. While working on the
+Developer Guide, I had to reconcile current source and configuration with older
+review and validation evidence. For example, historical evidence referred to a
+30-request limit and distinct model IDs, while the current implementation uses a
+1024-request rolling limit and permits shared model IDs. I also documented that the
+frontend environment example omits the required `BACKEND_SERVER_URL`. These cases
+showed me that a specification or review artifact can be detailed but still become
+stale. Traceability therefore needs scope and version awareness, not just links to
+old reports.
+
+I also learned that not every clarification requires a product change. My Admin
+backend work strengthened privacy and authorization tests without changing
+application behavior, while the UI test work added coverage without modifying the
+Admin pages themselves. Similarly, parts of my guide work clarified the current
+contract and evidence limits without introducing a new requirement. This helped me
+distinguish between a requirement change, a defect correction, and an improvement
+to verification or documentation. In future, I would label these categories
+explicitly so that the team knows which artifacts actually need to change.
+
+The production smoke test made the specifications more concrete. The incomplete ten-student roster and separate completed one-student scenario
+described above showed how test-data setup determines whether the specified
+workflow can complete.
+This did not introduce the frozen-roster rule, but it gave me direct evidence of how
+that existing requirement appears in production. It also taught me that acceptance
+testing depends on deliberate test data: the roster size itself determines whether
+the expected workflow can complete.
+
+Overall, SDD was most useful to me as a way to connect requirements, tests,
+documentation and observed behavior. The main lesson was not that specifications
+eliminate ambiguity, but that they give the team something concrete to challenge.
+Tests can still encode a shared misunderstanding, documentation can become stale,
+and a production smoke test covers only the scenarios actually exercised. In future,
+I would preserve clearer requirement-to-evidence mappings and classify each change
+as a new requirement, clarification, defect correction or evidence improvement
+before deciding which artifacts need updating.
+
+### Basic Multi-Agent Software Engineering
+
+My experience with Basic Multi-Agent Software Engineering in MP3 was about learning how to direct
+and verify AI-assisted engineering work through bounded tasks and explicit handoffs.
+The repository contains broader team workflows with specialist agents, reviewers,
+aggregators and evaluations, which I documented. My
+contribution was mainly in how I used Codex to inspect evidence, perform scoped
+documentation tasks, and help me reason about what work was genuinely still needed.
+
+These personal examples involved staged work with Codex, rather than independent
+specialist agents.
+
+One practice that worked well for me was separating evidence collection from writing
+and editing. Before asking Codex to create reflection content, I first asked it to
+inspect the repository and identify what evidence supported my contributions.
+Only after reviewing those findings did I allow it to append reflection sections.
+This created a simple staged workflow: inspect, assess evidence, review the result,
+then authorize editing. I found this useful because unsupported assumptions were
+easier to catch before they became polished prose.
+
+For example, when reviewing remaining team work before starting the reflection,
+Codex initially identified several possible gaps. I then asked it to inspect existing
+logs, workflow artifacts and ownership so that we would not duplicate teammates'
+work. That follow-up showed that my production smoke testing was already documented,
+that my Admin UI and security-test work mainly needed interaction summaries, and
+that the planned development-agent security scenarios should be coordinated with the
+teammate maintaining the existing evaluation infrastructure. This taught me that an apparent evidence gap is not the same
+as a missing implementation or missing test. In future, I would require any proposed
+gap to state the existing evidence, the exact missing claim, and the smallest
+necessary follow-up before acting on it.
+
+I also found that explicit authority boundaries made Codex easier to use safely in
+a shared repository. I repeatedly specified which single file could be changed,
+which existing content must remain untouched, that no commit or push should occur. When appending my reflection,
+I required Codex to preserve all earlier content and report the exact diff.
+
+This changed how I think about agent handoffs. A useful handoff is not just a task
+description such as “update the reflection.” It should also state the authoritative
+sources, allowed files, protected files, expected output, prohibited actions and
+verification method. Shared repository access does not imply permission to rewrite
+shared material. Next time, I would define these boundaries at the start of every
+significant agent task rather than adding them only when the work becomes risky.
+
+Another lesson came from reviewing agent-generated claims. Codex was useful for
+collecting evidence across tests, logs, specifications and documentation, but I
+still had to decide whether its conclusions were justified. For instance, the
+later frontend test log recorded 109 passing tests, but that did not prove that the
+same result came from my original Admin UI test session. Likewise, I found no commit-specific local run record in the inspected repository artifacts
+for my Admin security additions. This made me more careful about provenance: a correct-looking statement
+still needs evidence for its exact scope.
+
+While working on the Developer Guide, I also documented the team’s review and
+evaluation artifacts. One useful example was an evaluation that reported passing
+trials but still retained adverse judge observations and comparison limitations.
+This showed me that an aggregate pass result cannot replace inspection of the
+underlying findings, experimental conditions and coverage. I did not create or
+independently rerun that evaluation infrastructure, but documenting it helped me
+understand why agent-generated review evidence still needs interpretation by a
+person.
+
+The wider project also showed the value of specialist roles and handoffs. Earlier
+team workflows separated domain/authentication work, AI/DOCX work, testing and
+review. I documented these workflows and the
+artifacts showed that specialization is useful when ownership and interfaces are
+clear, but role names alone do not guarantee independent reasoning. A reviewer who
+previously implemented part of the system has a different independence level from
+one with no involvement, and fresh context still does not eliminate shared-model
+errors.
+
+Overall, my main lesson is that effective AI-assisted software engineering depends
+less on giving an agent a large autonomous task and more on creating clear stages,
+authority boundaries and human verification points. Codex helped me inspect a large
+repository, organize evidence and perform constrained edits efficiently, but the
+same AI performing multiple stages is not an independent reviewer. In future, I
+would preserve short task and handoff records during development, define allowed and
+protected files explicitly, and use a genuinely separate review process when
+independent verification matters.
