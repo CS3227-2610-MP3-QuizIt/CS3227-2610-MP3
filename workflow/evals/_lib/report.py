@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+from os.path import relpath
 from pathlib import Path
+import re
+from urllib.parse import quote
 
 from _lib.common import _fmt, markdown_cell, read_json, write_json
 from _lib.paths import trial_directory
@@ -27,6 +30,40 @@ TOKEN_FIELDS = (
     "reasoning_output_tokens",
     "billed_output_tokens",
 )
+
+
+def _report_link(label: str, target: Path, root: Path) -> str:
+    if not target.is_absolute():
+        target = root / target
+    relative = Path(relpath(target.resolve(), root.resolve())).as_posix()
+    return f"[{label}]({quote(relative, safe='/')})"
+
+
+def _finding_text(reason: str, run_dir: Path | None, root: Path) -> str:
+    """Link unambiguous workspace file mentions; preserve existing Markdown."""
+    text = markdown_cell(reason)
+    if run_dir is None:
+        return text
+    workspace = (run_dir if run_dir.is_absolute() else root / run_dir) / "workspace"
+    if not workspace.is_dir():
+        return text
+    links = {}
+
+    def replace(match):
+        name = match[0]
+        if name not in links:
+            candidates = [workspace / name] if "/" in name else workspace.rglob(name)
+            matches = [path for path in candidates if path.is_file() and not path.is_symlink()
+                       and path.resolve().is_relative_to(workspace.resolve())]
+            links[name] = _report_link(name, matches[0], root) if len(matches) == 1 else name
+        return links[name]
+
+    # Avoid nesting links or putting link markup inside inline code.
+    parts = re.split(r"(`+[^`]*`+|\[[^\]]*\]\([^)]*\))", text)
+    for index in range(0, len(parts), 2):
+        parts[index] = re.sub(r"(?<![\w./-])(?:[\w.-]+/)*[\w.-]+\.[A-Za-z][A-Za-z0-9]*(?![\w./-])",
+                              replace, parts[index])
+    return "".join(parts)
 
 
 def aggregate(results: list[dict]) -> dict:
@@ -218,10 +255,6 @@ def write_report(
         )
         for result in results:
             run_dir = trial_directory(result)
-            try:
-                details = (run_dir / "result.json").relative_to(experiment_root)
-            except ValueError:
-                details = run_dir / "result.json"
             result_score = result.get("score")
             shown_score = (
                 result_score if isinstance(result_score, (int, float)) else "—"
@@ -265,7 +298,7 @@ def write_report(
                             else ("Yes" if result["overall_pass"] else "No")
                         ),
                         format_seconds(worker_seconds(result)),
-                        f"[result.json]({details.as_posix()})",
+                        _report_link("result.json", run_dir / "result.json", experiment_root),
                     ]
                 )
                 + " |"
@@ -347,8 +380,9 @@ def write_report(
                 "The trial did not satisfy every configured pass condition."
             ]
             for reason in reasons:
+                shown_reason = _finding_text(reason, trial_directory(result), experiment_root)
                 lines.append(
-                    f"- **{markdown_cell(label)}** (`{tag}`): {markdown_cell(reason)}"
+                    f"- **{markdown_cell(label)}** (`{tag}`): {shown_reason}"
                 )
 
     comparisons = aggregates.get("comparisons", {})
