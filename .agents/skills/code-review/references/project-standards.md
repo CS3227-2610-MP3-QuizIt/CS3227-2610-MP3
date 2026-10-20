@@ -7,6 +7,11 @@ over this reference when they disagree.
 
 ## Architecture and responsibility
 
+- SRP: give each component or module a cohesive responsibility and clear
+  ownership, especially shared storage, authorization and AI integration.
+- DRY: maintain one source for each shared rule or policy. Reuse code when its
+  meaning and contract match; keep distinct role behavior separate rather than
+  coupling it through a generic abstraction.
 - Keep the React/Vite frontend and FastAPI/SQLite backend as distinct
   boundaries. Do not move backend authority into the browser.
 - Keep API contracts, schemas, persistence behaviour, tests, and guides aligned
@@ -14,12 +19,28 @@ over this reference when they disagree.
 - Keep route handling, domain decisions, persistence, and external gateway I/O
   separable and testable. Do not hold a database transaction during gateway
   I/O.
-- Treat module size as a signal for inspection, not as a defect by itself.
-  Report a design issue when the touched change demonstrates mixed
-  responsibilities, unnecessary coupling, duplication, or poor change
-  isolation.
 - Preserve clear ownership for asynchronous task state, version checks,
   timeout/restart handling, and atomic result application.
+
+## Coding and design
+
+- Inspect existing patterns, helpers, framework features and installed libraries
+  before adding alternatives. New dependencies need a concrete benefit.
+- KISS/YAGNI: choose the simplest clear design for current requirements.
+  Add layers or abstractions for a demonstrated need, not speculative reuse.
+- Keep interfaces small and internals private. Make infrastructure dependencies
+  and side effects explicit; keep calculations testable apart from I/O.
+- Use names that communicate domain meaning, units and effects. Name non-obvious
+  rules and limits; use constrained types for known states where appropriate.
+- Keep the success path and abstraction levels easy to follow. Simplify complex
+  expressions and nesting; extract helpers when they clarify responsibility.
+- Handle failures deliberately and preserve error contracts. Ignored failures
+  need a justified safe outcome, not an empty catch.
+- Explain intent, invariants and non-obvious constraints in comments; remove
+  redundant comments and code made obsolete by the change.
+- Treat size as an inspection signal, not a defect or minimum-line-count target.
+  Report concrete risks from mixed responsibilities, coupling, duplication or
+  poor change isolation. Refactor within scope with tests green.
 
 ## Backend
 
@@ -33,6 +54,8 @@ over this reference when they disagree.
 
 ## Frontend
 
+- Reuse existing components and design tokens; preserve accessibility and
+  responsive behavior while keeping role-specific flows clear.
 - Follow the TypeScript, React, formatting, lint, test, and build conventions
   configured in `frontend/package.json` and the frontend tool configuration.
 - Keep server state, task versions, loading/failure/retry states, and role-based
