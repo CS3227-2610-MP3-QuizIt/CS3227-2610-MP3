@@ -1,145 +1,321 @@
-# Classroom user guide
+# QuizIt user guide
 
-This delivery supplies the backend API and browser login, admin, teacher, and student screens. From
-`frontend/`, run `npm ci` and `npm run dev`, then open http://localhost:5173.
-Start the backend separately as described in the developer guide. There is no public
-deployed application yet. A fresh deployment automatically creates
-the demo accounts listed in [the backend README](../backend/README.md).
+## 1. About QuizIt and this guide
 
-Administrators can use Accounts to create and filter student and teacher accounts;
-Classes to create a class and assign or unassign members; and Quiz performance to
-view frozen-roster completion and generate, retry, or regenerate an AI summary once
-everyone submits. Summaries show exact backend metrics alongside labeled AI observations.
-Latest running or failed work replaces older successful content in the display; rate
-rejection retains the prior state. Refresh workspace reloads accounts, classes, and
-quizzes, and each selected class or quiz has a refresh control. Sign out revokes the
-session.
+QuizIt brings classroom quizzes into one workspace for administrators, teachers, and
+students. Teachers turn DOCX notes into AI-generated draft questions, review them,
+and publish quizzes. Students answer questions and request conceptual hints. Admins
+manage accounts and classes, track completion, and generate AI class-performance summaries.
 
-Students open **My quizzes** to see published quizzes from their frozen assignment roster,
-including quizzes from classes they have since left. Select **Start**, **Resume**, or
-**View results**. **Refresh quizzes** reloads the list. The attempt shows every question
-in order with four options and restores saved choices. Selecting an option saves it
-immediately; that question is disabled while saving. Wait for **Saved**. **Save failed**
-keeps your choice visible; select **Retry save** or change the choice explicitly.
+This guide starts with a complete testing example, followed by detailed role
+workflows for reference. Production observations are recorded in the
+[smoke-test summary](../logs/production-smoke-test.md); new AI output
+and scores may differ from those recorded results.
 
-Each question offers an optional hint prompt of at most 500 characters. **Ask for a hint**
-restores existing latest work or requests a first conceptual hint. **Another hint** and
-**Retry hint** request fresh work. Generation is disabled while hint state is unresolved
-or running. The backend generates and then checks each hint for relevance and answer
-leakage; the hint stays in progress until both steps finish. Rejected or unverifiable
-hints are withheld; use **Retry hint** to request another. AI checks can still misjudge
-a hint, so review its guidance critically. A latest running or failed hint replaces an older hint in the display;
-rejected admission keeps the previous state. If a request is uncertain, **Repeat previous
-request** preserves its original prompt and key. Rate errors show retry timing when known;
-requests never repeat automatically. The backend enforces the successful-hint allowance;
-the UI shows allowance errors without estimating a remaining count. Hint problems do not
-prevent saving answers or submitting. Hint state recovers on focus, network recovery,
-SSE reconnect, and five-second polling while unfinished, with backoff on failed reads.
+## 2. Access the deployed application
 
-Select **Submit quiz** after choosing every answer. Submission freezes editing and waits
-for pending saves; retry failed saves before submitting. An uncertain submission pauses
-editing until the backend confirms whether it committed. If that check fails, use
-**Check submission**. After submission, the results show your final score, percentage,
-selected and correct answers, correctness, and explanations. Submitted attempts cannot
-be edited. Signing out clears browser session state; saved answers remain on the server.
+Open **https://cs3227-2610-mp3-1-hxlp.onrender.com** for all roles. The login page
+shows Username, Password, and **Sign in**. No local installation is required.
+You do not need a Render account. Open this public URL and sign in using a QuizIt demo account below.
 
-Teachers open **My classes** to see assigned classes and **My quizzes** to search or
-filter their own drafts and published quizzes. Select **Create quiz**, choose a class,
-select a DOCX no larger than 5 MiB, and select **Upload notes**. After extraction succeeds,
-enter a title (at most 150 characters), select 1–10 questions (default 5), and select
-**Create draft**. This creates a private draft without calling AI.
+![QuizIt login screen](images/login-screen.png)
 
-In the draft, enter optional generation instructions (at most 1,000 characters) and
-select **Generate questions**. Review every question, all four options, the marked
-correct answer, and the explanation. To refine them, enter new instructions and select
-**Regenerate questions**. The question count stays fixed. Your last valid questions
-remain visible during generation and after a failure; generation and publication are
-disabled while work is running. **Retry generation** explicitly retries failed work.
-An uncertain network request offers **Repeat previous request**, which preserves the
-original instructions and operation key. No generation is automatically retried.
+_Figure 1. QuizIt login screen._
 
-Check the confirmation that you reviewed the displayed revision, then select
-**Publish quiz**. A new revision or generation request clears that confirmation.
-Publication requires at least one currently assigned student and freezes both the
-questions and roster. Published quizzes are available for reading only. **Refresh quiz**,
-page entry, window focus, and network recovery restore backend state. Running generation
-is checked every five seconds, so you can leave and reopen the draft. Your administrator
-must keep you assigned to the class for quiz access.
+## 3. Demo accounts and first sign-in
 
-All paths below start with `/api/v1`. Local development listens on port 7000. The example configuration allows any browser Origin. With an explicit origin list,
-your frontend must use one of the listed origins; the code default is `http://localhost:5173`. Login with `POST /auth/login` and
-`{"username":"...","password":"..."}`. Retain the returned cookie; `GET /auth/me`
-shows your identity and `POST /auth/logout` revokes the session. Sessions expire after
-eight hours. All errors have an `error` object with a code, safe message, details, and
-optional retry timing.
+These demo accounts are available for testing:
 
-Administrators create student and teacher accounts through `POST /users`, supplying
-username, display name, a password of 12–128 characters, and role `student` or `teacher`.
-They list accounts with `GET /users`, create classes with `POST /classes`, and manage
-membership through `PUT` or `DELETE /classes/{class_id}/members/{user_id}`. Repeated
-assignments are safe. Creating additional administrators through the API is unsupported.
+| Role    | Username                | Initial demo password | Seeded class |
+| ------- | ----------------------- | --------------------- | ------------ |
+| Admin   | `admin`                 | `QuizDemo2026!`       | All classes  |
+| Teacher | `teacher1`              | `QuizDemo2026!`       | Class 1      |
+| Teacher | `teacher2`              | `QuizDemo2026!`       | Class 2      |
+| Student | `student01`–`student10` | `QuizDemo2026!`       | Class 1      |
+| Student | `student11`–`student20` | `QuizDemo2026!`       | Class 2      |
 
-Teachers see their assigned classes and own quizzes. Upload one DOCX using multipart
-field `file` at `POST /classes/{class_id}/notes`. The limits are 5 MiB compressed,
-20 MiB expanded, and 12,000 extracted text characters. Paragraphs and table text are
-supported; images, equations, and external content are not extracted. Create a draft
-using `POST /quizzes` with `class_id`, `note_id`, `title`, and optional `question_count`
-(default 5, range 1–10).
+Enter the username and password, then select **Sign in** to open that role's workspace.
+Use `admin`, `teacher1`, and `student01` for the end-to-end scenario. Select **Sign out**
+before changing roles in the same browser.
 
-Generate a draft through `POST /quizzes/{quiz_id}/generate` with `expected_revision`,
-optional `prompt`, and optional `action`. Read `GET /quizzes/{quiz_id}` to review all
-questions, four options, correct options, and explanations. Use `action: "new"` with
-a fresh operation key to reprompt. After reviewing the exact revision, explicitly
-publish through `POST /quizzes/{quiz_id}/publish` with that `expected_revision`.
-Publishing requires valid questions, at least one assigned student, and no active
-generation. Published content and its student roster are frozen. A teacher must remain
-assigned to manage or read their quizzes.
+Use `Smoke Test Class`, Teacher 1 (`teacher1`), Student 01 (`student01`), and a
+three-question quiz named `Admin Summary Smoke Test` as the example throughout this
+guide. Add your initials or a timestamp to class and quiz names if needed to avoid
+confusing them with existing records, and use those names consistently.
 
-On the draft review screen, select **Delete draft**, then **Confirm deletion**.
-Published quizzes and drafts with running generation cannot be deleted. Deletion
-removes the draft and its questions; uploaded notes are also removed when no other
-quiz uses them. After deletion, you return to your refreshed quiz list.
+Demo accounts are seeded only when the database has no users. They are not recreated
+on every restart or deployment; existing passwords and memberships are retained.
+Contact the team/admin if initial credentials no longer work. There is no self-service
+registration or password reset. If sign-in fails, check your username and re-enter
+the password. Follow any displayed retry time; use **Reconnect** for a connection error.
 
-Students list their assigned published quizzes through `GET /quizzes`. Start or resume
-with `POST /quizzes/{quiz_id}/attempt`. Read the quiz and attempt, and save selections
-using `PUT /attempts/{attempt_id}/answers/{question_id}` with `selected_option` A–D.
-Selections survive refresh. Students can request a conceptual hint through
-`POST /attempts/{attempt_id}/questions/{question_id}/hints` with an optional prompt.
-Each question allows the configured number of verified successful hints (default 1000); failed hints do not count. New hints require
-an in-progress attempt. Submit through `POST /attempts/{attempt_id}/submit` after saving
-every answer. Submission freezes the result and computes the score without AI.
-`GET /attempts/{attempt_id}/results` then reveals correct options and explanations.
-An unassigned student still retains an existing frozen publication attempt.
+## 4. Complete testing example
 
-Administrators read `GET /quizzes/{quiz_id}/completion`. A summary becomes eligible only
-after every student in the frozen roster submits. Request it through
-`POST /quizzes/{quiz_id}/summary` with `{}`; use `{"action":"new"}` to regenerate.
-`GET /quizzes/{quiz_id}/summary` returns the latest task and, on success, exact backend
-metrics alongside AI observations. Treat those observations as AI generated and review
-them critically. No pass mark or pass rate is defined.
+If you are testing QuizIt for the first time, follow this complete example from start to finish. The later role sections provide more detailed reference instructions.
 
-Each AI POST requires a UUID `Idempotency-Key` header. Keep the key and unchanged input
-when repeating one action. `ensure` is the default: it returns existing latest work,
-including an existing failure. Explicit retries or regenerations use `new` and a fresh
-key. An active task is reused even if a later request proposes another prompt.
-AI POSTs return immediately with 202 for active work or 200 for a reused terminal task.
-Fetch generation, hint, summary, or historical task state to see the outcome. A failed
-task is returned with HTTP 200 and a nested error containing its original failure status.
-For invalid AI output, the error details also identify the validation stage and a safe
-reason, such as malformed JSON or an incorrect question count. No partial questions
-replace the draft. An explicit new generation is required to retry.
+Use the demo accounts listed above, selecting **Sign out** before each role change. Add your
+initials or a timestamp to the example class and quiz names if needed, then use those
+same names throughout. Use a new one-student class: each seeded class has ten students.
 
-`GET /ai/events` sends change notifications containing IDs and versions only. Read the
-relevant state endpoint afterward. A client should reconcile unfinished work every five
-seconds, back off failed reads, and ignore responses older than its applied target
-version. AI generation has a 300-second execution deadline. A browser disconnect does
-not cancel accepted work. Restarted running tasks become interrupted failures; retry
-explicitly when eligible.
+1. **Admin:** sign in as `admin`. In **Classes**, use **Create class** to create
+   `Smoke Test Class`. Under **Assign an account**, assign only Teacher 1 (`teacher1`)
+   and Student 01 (`student01`) using **Assign**. Check **1 teacher** and **1 student**.
+2. **Teacher:** sign out and sign in as `teacher1`. Open **Create quiz**, select
+   `Smoke Test Class`, and **Upload notes** using
+   [Photosynthesis_O_Level.docx](../test-docs/Photosynthesis_O_Level.docx).
+   Enter `Admin Summary Smoke Test`, select **3** questions, and **Create draft**.
+   Select **Generate questions**, review all questions, answers, and explanations,
+   check the review confirmation, and **Publish quiz**. Check **Published to 1 student**.
+3. **Student:** sign out and sign in as `student01`. In **My quizzes**, find
+   `Admin Summary Smoke Test` and select **Start**. Select **Ask for a hint** for a
+   conceptual hint, using **Retry hint** if needed. Answer all three questions, wait
+   for **Saved**, and **Submit quiz**. Check the **Submitted** results page.
+4. **Admin:** sign out and sign in as `admin`. Open **Quiz performance**, select
+   `Admin Summary Smoke Test`, and use **Refresh quiz performance**. Check
+   **1 / 1 submitted** and **Ready for insights**, then select **Generate summary**.
 
-The application allows 1024 fresh AI requests across all users and features in a rolling
-60-second window. An excess request returns 429 `AI_APP_RATE_LIMIT` immediately with
-matching `Retry-After` and `retry_after_seconds`. This timing reserves no slot. Gateway
-rate or budget failures have code `AI_PROVIDER_LIMIT`. No provider call is retried
-automatically. Hints cannot guarantee the absence of every semantic answer implication;
-teachers remain responsible for quiz correctness. Ordinary answer saving, submission,
-and publication of an already reviewed draft work during AI outages.
+**Expected:** the summary displays Average score, Average percentage, Score range,
+and Submitted roster (**1 / 1**), alongside AI Overview, Strengths, and Areas to
+review. Expand **Question breakdown** to inspect the three questions. Scores,
+generated questions, and AI observations may vary.
+
+Every student in the frozen publication roster must submit before Admin summary
+generation is available. Later membership changes do not change that requirement.
+
+## 5. Navigation and shared controls
+
+Use the workspace navigation to move between your role's screens:
+
+| Role    | Main screens                                                                  |
+| ------- | ----------------------------------------------------------------------------- |
+| Admin   | **Overview**, **Accounts**, **Classes**, **Quiz performance**                 |
+| Teacher | **My classes**, **My quizzes**, **Create quiz**                               |
+| Student | **My quizzes**, with **Start**, **Resume**, or **View results** for each quiz |
+
+**Refresh workspace** reloads Admin accounts, classes, and quizzes. Selected class
+members and quiz performance have their own refresh controls. Teachers use **Refresh
+quiz** for a selected quiz; students use **Refresh quizzes** for their list. Search
+and filters help locate records: Admin Accounts supports search/role filters, and
+Teacher **My quizzes** supports search, class, and status filters.
+
+Refresh or reopen a page to check your progress. AI generation may continue after
+you leave the page. If it fails, use the offered retry control; it does not retry
+automatically. If you are unsure whether a request went through, use **Repeat previous
+request** when offered. If asked to wait before trying again, follow the displayed
+retry time. Signing out keeps your saved answers. If a page cannot connect, reopen
+the public application URL and try refresh or reconnect. If the problem continues,
+report the page, action, and displayed error to the team without sharing passwords.
+
+## 6. Admin workflows
+
+### Accounts
+
+Open **Accounts** to find existing users or create a student or teacher account.
+Creating accounts is optional for peer testing because demo accounts are already available.
+
+1. Select **Create account** and enter a display name (at most 100 characters).
+2. Enter a username of 3–50 letters, numbers, periods, underscores, or hyphens.
+3. Choose Student or Teacher, enter an initial password of 12–128 characters, and
+   submit the form. Share the password securely with the account holder.
+
+**Expected:** the message **Account created for [display name].** appears, using
+the name you entered. Find the entered username in Accounts and check its role.
+Additional Admin accounts cannot be created through this form.
+
+### Classes and membership
+
+1. Open **Classes**, select **Create class**, enter `Smoke Test Class` (or your unique
+   version), and submit
+   **Create class**.
+2. In the class membership panel, choose a teacher or student under **Assign an
+   account** and select **Assign**. Repeat for each member.
+3. To remove a member, select **Unassign** beside that account.
+
+**Expected:** **Smoke Test Class** appears in Classes. For the testing example,
+its membership panel lists only Teacher 1 (`teacher1`) and Student 01 (`student01`),
+with **1 teacher** and **1 student**. Check these counts before publication.
+
+Membership changes affect future publications. They do not change existing published
+student attempts or the number of students who must submit before a summary is available. Removing a teacher prevents
+further access to their quizzes until assignment is restored.
+
+![Admin class membership](images/admin-class-membership.png)
+
+_Figure 2. Admin class membership._
+
+### Quiz performance and AI summary
+
+Return here after students have submitted a published quiz.
+
+1. Open **Quiz performance**, filter by class if needed, and select a published quiz.
+2. Inspect submitted, in-progress, and not-started counts. Use **Refresh quiz
+   performance** to update them after students submit.
+3. Once every student in the frozen publication roster has submitted, select
+   **Generate summary**. Expand **Question breakdown** to inspect question and option counts.
+
+**Expected:** after `student01` submits the one-student quiz, Quiz performance shows
+**1 / 1 submitted**, **Ready for insights**, and an available **Generate summary**
+button. Before full completion, it shows **Awaiting submissions** and summary
+generation is unavailable. After successful generation, Average score, Average
+percentage, Score range, and Submitted roster appear separately from AI Overview,
+Strengths, and Areas to review. Submitted roster shows **1 / 1**; expand
+**Question breakdown** to find the three questions. Scores and AI wording may vary.
+
+Review AI observations critically. The product defines no pass mark or pass rate.
+Use **Retry summary** after failure or **Regenerate summary** after success. While
+a replacement summary is generating, or if it fails, the previous summary is not displayed.
+
+![Admin performance and AI summary](images/admin-performance-summary.png)
+
+_Figure 3. Admin performance and AI summary._
+
+## 7. Teacher workflows
+
+### Upload DOCX and create a draft
+
+Open **My classes** to see your assignments. Prepare a nonempty DOCX of teaching
+notes: paragraphs and table text are supported; images, equations, and external
+content are not extracted. Uploads must be no larger than 5 MiB, expand to no more
+than 20 MiB, and contain at most 12,000 extracted text characters.
+
+You can download [Photosynthesis_O_Level.docx](../test-docs/Photosynthesis_O_Level.docx)
+from the repository (use the file's download/raw control on GitHub), or save your own
+notes as DOCX. The production smoke test used a separate `smoke-test-notes.docx`;
+that file is not required. PDF and image-only notes are unsupported. If an upload
+is rejected, correct the document to meet these limits and upload it again.
+
+1. Select **Create quiz**, choose `Smoke Test Class`, select your DOCX, and select
+   **Upload notes**.
+2. After extraction succeeds, enter `Admin Summary Smoke Test` and choose **3**
+   questions, then select **Create draft**. Titles allow at most 150 characters;
+   quizzes support 1 to 10 questions (default 5).
+
+**Expected:** the upload shows your filename followed by **is ready** and an
+extracted-character count. After **Create draft**, the review page displays
+**Admin Summary Smoke Test** and a question count of 3, with no generated questions
+yet. Creating the draft does not call AI.
+
+### Generate, review, and regenerate
+
+1. Enter optional generation instructions of at most 1,000 characters and select
+   **Generate questions**.
+2. Review every generated question, all four options, its marked correct answer,
+   and explanation against the notes.
+3. If changes are needed, enter new instructions and select **Regenerate questions**,
+   then review the new content again.
+
+**Expected:** three numbered questions appear, each with options A to D, a marked
+correct answer, and an explanation. Check all three before reviewing. After
+regeneration, three questions remain; review their current content again and check
+the publication review checkbox again. Generated wording may repeat or change.
+Last valid questions remain visible during generation and after failure; generation
+and publication are disabled while work is running. You may leave and reopen the draft.
+Use **Retry generation** explicitly after failure. There is no manual question editor.
+
+### Publish
+
+Check the confirmation that you reviewed every question, correct answer, and
+explanation, then select **Publish quiz**. A new generation request or revision clears
+that confirmation, so review the current content again before publishing. Only the
+owning teacher, while still assigned to the class, can publish; at least one student
+must be assigned and generation must have finished. If publication is unavailable,
+check these requirements and use **Refresh quiz**; review again if the questions changed.
+
+**Expected:** for the one-student class, the page shows **Published to 1 student**
+and states that the questions and student roster are frozen. Published quizzes are
+read-only; AI cannot publish by itself. If a different roster was published, create
+a new quiz in the intended class; the existing publication cannot be changed.
+
+### Delete a draft
+
+On an unused draft, select **Delete draft**, then **Confirm deletion**. Do not delete
+another tester's work. Published quizzes and drafts with running generation cannot
+be deleted.
+
+**Expected:** the quiz list opens and the deleted draft's title is no longer listed.
+The draft and questions are permanently removed; uploaded notes are also removed
+when no other quiz uses them. Use a separate unused draft to test deletion, so the
+main testing example remains available.
+
+## 8. Student workflows
+
+### Start or resume a quiz
+
+Open **My quizzes**, find **Admin Summary Smoke Test** in **Smoke Test Class**,
+and select **Start** for a new
+attempt or **Resume** to continue. Use **Refresh quizzes** if a newly published quiz
+is missing. Check your signed-in account and ask the teacher to confirm publication.
+You must have been assigned when the quiz was published; being assigned afterward
+does not add you to that quiz. Published assignments remain available even after
+you leave the class.
+
+**Expected:** the quiz opens with three questions and four options per question.
+On **Resume**, previously saved options remain selected. Correct answers and
+explanations remain hidden until your own submission.
+
+### AI hints
+
+Enter an optional prompt of at most 500 characters and select **Ask for a hint**.
+For example: “Give me a conceptual hint without revealing the correct option.”
+The application checks the hint before showing it; rejected or unverifiable content
+is withheld. Hint controls are disabled while the application checks or generates a hint.
+
+**Expected:** a successful request displays hint text beneath the question. If the
+request fails, **Retry hint** is available; rejected content is not displayed.
+**Ask for a hint** reopens the current hint when one exists; **Another hint** requests
+a new one. The previous hint is not displayed while a replacement is being generated
+or if that request fails. If you reach the hint limit, follow the message shown.
+
+In the verified production test, one hint was withheld with `AI_INVALID_OUTPUT`;
+an explicit retry succeeded with conceptual guidance that did not explicitly name
+the correct protocol or option. The exact rejection cause was not established.
+Review hints critically; hint failures do not prevent answering or submitting.
+
+![Student quiz and AI hint](images/student-quiz-hint.png)
+
+_Figure 4. Student quiz and AI hint._
+
+### Save answers
+
+Select one option per question and wait for **Saved**. Each choice saves immediately;
+that question is disabled while saving. You may change choices before submission.
+If **Save failed** appears, select **Retry save** or explicitly change the choice.
+
+**Expected:** **Saved** appears for each answered question. Refresh or reopen the
+attempt and check that the same options remain selected. A failed save keeps the
+choice visible but does not mean it was saved; resolve failed saves before submitting.
+
+### Submit and review results
+
+After every question is answered and saved, select **Submit quiz**. Submission waits
+for pending saves. If the response is uncertain, editing pauses while the application
+checks whether submission succeeded; use **Check submission** if that check fails.
+
+**Expected:** the results page shows **Submitted**, a score out of 3 for the testing
+example, a percentage, and each question's selected answer, correct answer, and
+explanation. Answers can no longer be changed; the score depends on your choices.
+Each correct answer earns one point; grading does not use AI. Submitted attempts
+cannot be edited or retaken. Return through **View results** to read them again.
+
+## 9. AI security and product rules
+
+- **Teacher approval:** AI produces draft questions. The owning teacher must review
+  the current questions, answer keys, and explanations and explicitly publish them.
+  Teachers remain responsible for correctness.
+- **Hint protection:** hints are checked before display; invalid content can be withheld.
+  AI can still misjudge relevance or answer implications, so treat hints critically.
+- **Frozen publication:** publication fixes quiz content and a nonempty student roster.
+  Later membership changes do not alter existing attempts or the number of students
+  who must submit before a summary is available.
+- **Immutable submission:** each roster student has one resumable attempt and must
+  answer every question. Submission locks the attempt; only then does that student
+  receive correct answers and explanations.
+- **Summary eligibility:** every student in the frozen roster must submit. Metrics are
+  computed by the backend; AI observations are advisory. One submission is a small
+  evidence base, and no pass mark or pass rate is defined.
+- **Role access:** each account has one role. Admins manage accounts/membership;
+  teachers manage their own quizzes while assigned, and students access their assignments.
+- **AI failures:** retries are explicit. Ordinary answer saving, submission, and
+  publication of an already reviewed draft remain available during AI outages.
+
+For local setup and technical information, see the [Developer Guide](DeveloperGuide.md).
