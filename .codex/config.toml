@@ -1,4 +1,8 @@
 # Explicit role registration for CLI compatibility.
+[agents.task_implementer]
+description = "Implement one approved QuizIt task."
+config_file = "agents/task_implementer.toml"
+
 [agents.code_quality_reviewer]
 description = "Code-quality specialist."
 config_file = "agents/code_quality_reviewer.toml"
