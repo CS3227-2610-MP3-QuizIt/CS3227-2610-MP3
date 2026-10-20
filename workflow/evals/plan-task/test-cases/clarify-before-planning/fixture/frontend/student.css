@@ -1,0 +1,2 @@
+.quiz-grid { display: grid; gap: 20px; }
+.quiz-card { padding: 24px; background: #eaf1eb; color: #153d35; }
