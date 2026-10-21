@@ -1,5 +1,6 @@
 import asyncio
 import hashlib
+import json
 from typing import Any
 
 import pytest
@@ -9,8 +10,58 @@ from quiz_backend.db import all_rows, one
 from .conftest import API, PASSWORD, Course, Harness, assert_error, assert_no_answers
 
 
+async def management_state(harness: Harness) -> dict[str, list[dict[str, Any]]]:
+    async with harness.app.state.db.read() as conn:
+        return {
+            table: await all_rows(conn, f"SELECT * FROM {table} ORDER BY rowid")
+            for table in ("users", "classes", "class_memberships")
+        }
+
+
+@pytest.mark.parametrize("actor", ["anonymous", "teacher", "student"])
+async def test_admin_management_missing_role_denials(course: Course, actor: str) -> None:
+    harness = course.harness
+    client = {
+        "anonymous": harness.client(),
+        "teacher": course.teacher,
+        "student": course.students[0],
+    }[actor]
+    membership = f"/classes/{course.class_id}/members/{course.student_ids[0]}"
+    requests: list[tuple[str, str, dict[str, Any] | None]] = [
+        (
+            "POST",
+            "/users",
+            {
+                "username": "unauthorized",
+                "display_name": "New user",
+                "password": PASSWORD,
+                "role": "student",
+            },
+        ),
+        ("POST", "/classes", {"name": "Unauthorized class"}),
+        ("GET", f"/classes/{course.class_id}/members", None),
+        ("DELETE", membership, None),
+    ]
+    # Teacher/student GET /users and membership PUT are already tested below.
+    if actor == "anonymous":
+        requests.extend([("GET", "/users", None), ("PUT", membership, None)])
+    before = await management_state(harness)
+    for method, path, body in requests:
+        response = await client.request(method, f"{API}{path}", json=body)
+        assert_error(
+            response,
+            401 if actor == "anonymous" else 403,
+            "AUTH_REQUIRED" if actor == "anonymous" else "FORBIDDEN_ROLE",
+        )
+        assert await management_state(harness) == before
+
+
 async def test_complete_workflow_frozen_roster_and_anonymous_summary(course: Course) -> None:
     harness = course.harness
+    private_names = ["PRIVATE_DISPLAY_ONE", "PRIVATE_DISPLAY_TWO"]
+    async with harness.app.state.db.write() as conn:
+        for student_id, name in zip(course.student_ids, private_names, strict=True):
+            await conn.execute("UPDATE users SET display_name=? WHERE id=?", (name, student_id))
     quiz = await course.published()
     quiz_id = quiz["id"]
     publication = await course.teacher.post(
@@ -48,8 +99,75 @@ async def test_complete_workflow_frozen_roster_and_anonymous_summary(course: Cou
         assert sum(item["option_counts"].values()) == 2
     summary_payload = harness.gateway.calls[-1]
     assert summary_payload["model"] == "summary-model"
-    for private in ["student-one", "student-two", "student_id", "attempt_id", "password_hash"]:
-        assert private not in str(summary_payload)
+    source = json.loads(summary_payload["input"])
+    assert set(source) == {"metrics"}
+    assert source["metrics"] == metrics
+    metric_fields = {
+        "assigned_count",
+        "submitted_count",
+        "question_count",
+        "average_score",
+        "min_score",
+        "max_score",
+        "average_score_percent",
+        "questions",
+    }
+    assert set(metrics) == metric_fields
+    question_fields = {
+        "id",
+        "position",
+        "question",
+        "options",
+        "correct_option",
+        "correct_count",
+        "incorrect_count",
+        "correct_percent",
+        "option_counts",
+    }
+    for question in metrics["questions"]:
+        assert set(question) == question_fields
+        assert set(question["options"]) == set("ABCD")
+        assert set(question["option_counts"]) == set("ABCD")
+    assert set(state["result"]) == {"quiz_id", "metrics", "summary", "ai_request_id", "created_at"}
+    assert set(state["result"]["summary"]) == {"overview", "strengths", "areas_to_review"}
+    assert set(completion.json()) == {
+        "quiz_id",
+        "assigned_count",
+        "submitted_count",
+        "not_started_count",
+        "in_progress_count",
+        "summary_eligible",
+        "has_summary",
+    }
+    historical = await course.admin.get(f"{API}/ai/tasks/{state['task_id']}")
+    assert historical.status_code == 200
+    assert historical.json() == state
+    assert response.headers["cache-control"] == historical.headers["cache-control"] == "no-store"
+    assert set(state) == {
+        "target_id",
+        "feature",
+        "quiz_id",
+        "attempt_id",
+        "question_id",
+        "task_id",
+        "version",
+        "status",
+        "result",
+        "error",
+    }
+    assert state["attempt_id"] is None and state["question_id"] is None
+    exposed = json.dumps([summary_payload, completion.json(), state, historical.json()])
+    for private in [
+        *private_names,
+        "student-one",
+        "student-two",
+        "student_id",
+        "selected_option",
+        "password_hash",
+        "token_hash",
+        PASSWORD,
+    ]:
+        assert private not in exposed
     ensured = await harness.ai_post(course.admin, f"/quizzes/{quiz_id}/summary")
     assert ensured.status_code == 200
     assert ensured.json()["task_id"] == state["task_id"]
@@ -146,11 +264,13 @@ async def test_account_uniqueness_roles_and_membership_idempotency(course: Cours
     assert_error(response, 409, "USERNAME_EXISTS")
     for client in [course.teacher, *course.students]:
         assert_error(await client.get(f"{API}/users"), 403, "FORBIDDEN_ROLE")
+        before = await management_state(course.harness)
         assert_error(
             await client.put(f"{API}/classes/{course.class_id}/members/{course.teacher_id}"),
             403,
             "FORBIDDEN_ROLE",
         )
+        assert await management_state(course.harness) == before
     assigned = await course.admin.put(
         f"{API}/classes/{course.class_id}/members/{course.teacher_id}"
     )
@@ -177,7 +297,9 @@ async def test_account_uniqueness_roles_and_membership_idempotency(course: Cours
 )
 async def test_account_input_rejection(harness: Harness, payload: dict[str, Any]) -> None:
     admin = await harness.login()
+    before = await management_state(harness)
     assert_error(await admin.post(f"{API}/users", json=payload), 422, "VALIDATION_ERROR")
+    assert await management_state(harness) == before
 
 
 async def test_drafts_hidden_and_answer_keys_only_after_submission(course: Course) -> None:
