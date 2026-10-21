@@ -1,6 +1,6 @@
 ---
 name: implement
-description: Run a QuizIt change through task planning, implementation, review and bounded corrections. Use for end-to-end delivery; use implement-task for only the coding stage.
+description: Run a QuizIt change through task planning, implementation, review, bounded corrections, a human-approved log and commits. Use for end-to-end delivery; use implement-task for only the coding stage.
 ---
 
 # Implement
@@ -8,6 +8,9 @@ description: Run a QuizIt change through task planning, implementation, review a
 Complete one selected task per run; leave other tasks queued. Keep planning
 approval, implementation and acceptance distinct. Propose commits after accepted
 review; wait for the commit skill's approvals.
+Both execution paths finish with **logging, then commit**. Retain material user
+decisions, dispatches and compact stage returns for that final summary; do not
+reconstruct unavailable child conversations.
 
 Do NOT explore and read unnecessary files.
 

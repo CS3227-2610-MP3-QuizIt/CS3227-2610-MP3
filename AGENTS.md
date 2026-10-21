@@ -19,6 +19,13 @@ Implement from the specification and its acceptance criteria. When requirements 
 
 The assignment requires a custom spec-driven process and basic multi-agent software engineering evidence. Keep workflow artifacts under `workflow/` where practical and verified summaries of development prompts/interactions under `logs/`. Do not use an SDD toolkit. Record reused material in the developer guide's acknowledgements.
 
+Use `.agents/skills/logging/SKILL.md` for development interaction summaries, not
+application runtime logging. `implement` calls it after accepted review and before
+the commit stage. Preserve the selected owner's attribution and obtain approval
+of the generated summary before writing it. Delegated work is logged from compact
+worker returns with executor/evidence attribution; parent artifact-access limits
+still apply. Summary approval and commit approval are separate gates.
+
 ## Repository layout and stack
 
 - `frontend/`: React 19, TypeScript, Tailwind CSS, and Vite; role screens live under `frontend/src/`.

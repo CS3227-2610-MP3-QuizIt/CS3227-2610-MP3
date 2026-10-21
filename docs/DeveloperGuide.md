@@ -355,6 +355,12 @@ public submission repository/master-branch maintenance remain outside this backe
 
 Workflow files describe the custom process (`workflow/backend-implementation.md`),
 observed checks (`workflow/backend-validation.md`), and specialist review/handoffs.
+The custom `implement` workflow runs planning, implementation, review/corrections,
+then the [logging skill](../.agents/skills/logging/SKILL.md) before approved commits.
+The parent records visible user decisions and compact worker/reviewer returns,
+attributing checks to their actual executor without reopening restricted child
+artifacts. The user approves the summary before it is written; the commit stage
+groups that log with its matching outcome under separate commit approvals.
 The [security coverage map](../workflow/security/security-matrix.md) records selected
 authorization rules, application-AI threats, coding-agent threats, controls and
 test links. It distinguishes source inspection, historical runs and planned checks.
