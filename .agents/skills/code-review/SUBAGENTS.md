@@ -46,7 +46,10 @@ run directory, returned artifact paths, fixed target, and report path under
 `workflow/reviews/`. Its profile binds `AGGREGATOR.md` and the return contract.
 
 Do not read or summarize the child artifacts in the main agent. Return only the
-aggregator's report path and verdict.
+aggregator's report path, verdict, finding count and `logging_summary` unchanged.
+Retain that compact return for the caller's later logging stage. Request missing
+material summary fields from the aggregator before closing it; do not open
+reports or child artifacts to fill gaps yourself.
 
 ## 3. Completion
 

@@ -20,4 +20,16 @@ verdict:
 
 Include the required follow-up, documentation, rerun, human-review, and agent
 handoff sections from the shared report format. Return only the report path,
-verdict, and finding count.
+verdict, finding count and a compact `logging_summary` for the parent:
+
+- Fixed reviewed target, completed/blocked axes and material finding IDs with
+  severity and brief required follow-up.
+- Checks actually reported by review children: executor, directory, exact
+  command/method, result, evidence pointer and mocked/source/browser/live scope.
+  Distinguish child-reported checks from anything the aggregator did itself;
+  do not turn implementation evidence into a reviewer rerun.
+- Remaining manual checks, missing evidence and independence/isolation limits.
+
+Derive this summary only from permitted artifacts. Keep it concise and cite
+their paths; report missing fields rather than infer them. It supports logging,
+not a second parent review or access to hidden child conversations.
