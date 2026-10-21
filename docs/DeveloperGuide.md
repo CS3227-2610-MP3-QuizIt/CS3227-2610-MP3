@@ -381,3 +381,7 @@ CORS middleware implementation for credentialed origin reflection,
 [Python asyncio task lifetime/cancellation](https://docs.python.org/3.14/library/asyncio-task.html).
 Codex specialist agents contributed implementation, acceptance tests, integration, and
 review as recorded in workflow/logs. No MP2 application source was reused.
+The development logging skill is adapted from the team's MP2 `logging` skill,
+preserving human content approval and evidence/limitation rules while updating
+project paths and adding compact delegated-work summaries. This is workflow
+guidance reuse, separate from application-source reuse.
