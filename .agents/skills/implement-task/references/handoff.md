@@ -15,5 +15,20 @@ Record:
 - Unverified criteria, manual checks, limitations and exact decisions/blockers.
 
 Return only status, task/brief path, handoff path, baseline/final target,
-changed paths, check summary and unresolved questions/blockers. The caller can
-route these fields without reading the implementation record or source.
+changed paths, check summary, unresolved questions/blockers and the following
+compact `logging_summary`. The caller must be able to log the work without
+reading the implementation record, source or child conversation.
+
+`logging_summary` contains:
+
+- Outcome and material implementation choices; actual skills used, not merely
+  recommended skills or configured profile names.
+- Each material check: executor, working directory, exact command or manual
+  method, exit/result, evidence pointer and scope (mocked/source/browser/live).
+  Include failed attempts and successful reruns; group repetitive checks.
+- On correction runs, finding IDs addressed, what changed and unresolved IDs.
+- Remaining unverified criteria, manual checks, decisions and environment limits.
+
+Use short factual bullets; link detailed evidence rather than reproducing it.
+Report only work actually performed. A returned summary is worker-reported
+evidence; it does not make the parent its executor or prove human acceptance.
