@@ -25,6 +25,7 @@ describe("teacher workspace session and notifications", () => {
   beforeEach(() => {
     sources = [];
     calls = [];
+    document.title = "Workspace title";
     vi.stubGlobal("EventSource", FakeSource);
     window.location.hash = "/teacher/quiz/1";
     vi.spyOn(api, "me").mockResolvedValue({
@@ -52,6 +53,10 @@ describe("teacher workspace session and notifications", () => {
     expect(
       screen.getByRole("navigation", { name: "Teacher navigation" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "QuizIt teacher home" }),
+    ).toHaveAttribute("href", "#/teacher/classes");
+    expect(screen.getByText("QuizIt")).toBeInTheDocument();
     expect(users).not.toHaveBeenCalled();
     expect(calls.indexOf("subscribe")).toBeLessThan(calls.indexOf("read"));
     expect(sources[0].url).toBe("/api/v1/ai/events");
@@ -107,10 +112,12 @@ describe("teacher workspace session and notifications", () => {
     );
   });
   it("closes SSE and discards teacher state when the session expires", async () => {
+    const user = userEvent.setup();
     render(<App />);
     await screen.findByText("Question in revision 1?");
     act(() => window.dispatchEvent(new Event(SESSION_LOST)));
     await screen.findByRole("button", { name: "Sign in" });
+    expect(document.title).toBe("Sign in · QuizIt");
     expect(sources[0].close).toHaveBeenCalledOnce();
     expect(
       screen.queryByText("Question in revision 1?"),
@@ -118,6 +125,20 @@ describe("teacher workspace session and notifications", () => {
     const reads = vi.mocked(api.generation).mock.calls.length;
     act(() => window.dispatchEvent(new Event("online")));
     expect(api.generation).toHaveBeenCalledTimes(reads);
+
+    vi.spyOn(api, "login").mockResolvedValue({
+      user: {
+        id: 2,
+        username: "teacher",
+        display_name: "Demo Teacher",
+        role: "teacher",
+      },
+    });
+    await user.type(screen.getByLabelText("Username"), "teacher");
+    await user.type(screen.getByLabelText("Password"), "password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await screen.findByText("Question in revision 1?");
+    expect(document.title).toBe("Workspace title");
   });
   it("survives StrictMode effect cleanup with a fresh usable store", async () => {
     const { unmount } = render(

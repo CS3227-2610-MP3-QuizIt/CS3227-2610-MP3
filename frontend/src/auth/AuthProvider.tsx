@@ -7,13 +7,23 @@ import {
   useState,
 } from "react";
 import type { ReactNode } from "react";
-import { api, ApiError, errorMessage, SESSION_LOST } from "../api/client";
+import {
+  advanceSessionGeneration,
+  api,
+  ApiError,
+  errorMessage,
+  LoginFlowError,
+  SESSION_LOST,
+} from "../api/client";
 import type { User } from "../api/types";
 
 interface Auth {
   user: User | null;
   loading: boolean;
   error: string;
+  sessionEnded: boolean;
+  uncertainSignIn: boolean;
+  checkSession: () => Promise<"signed-in" | "signed-out" | "failed">;
   refresh: () => void;
   signIn: (username: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -23,20 +33,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [sessionEnded, setSessionEnded] = useState(false);
+  const [uncertainSignIn, setUncertainSignIn] = useState(false);
   const epoch = useRef(0);
-  const loseSession = useCallback(() => {
-    epoch.current++;
-    setUser(null);
-    setLoading(false);
-    setError("");
-  }, []);
+  const userRef = useRef<User | null>(null);
+  const deliberateLogout = useRef(false);
+  const setCurrentUser = (identity: User | null) => {
+    userRef.current = identity;
+    setUser(identity);
+  };
+  const loseSession = useCallback(
+    (rawEvent: Event = new Event(SESSION_LOST)) => {
+      const event = rawEvent as CustomEvent<string>;
+      if (deliberateLogout.current) return;
+      if (
+        event?.detail === "SESSION_EXPIRED" ||
+        (event?.detail === "AUTH_REQUIRED" && userRef.current)
+      )
+        setSessionEnded(true);
+      advanceSessionGeneration();
+      epoch.current++;
+      setCurrentUser(null);
+      setLoading(false);
+      setError("");
+    },
+    [],
+  );
   const refresh = useCallback(async () => {
     const current = ++epoch.current;
     try {
       const identity = await api.me();
       if (current === epoch.current) {
-        setUser(identity);
+        setCurrentUser(identity);
         setError("");
+        setSessionEnded(false);
       }
     } catch (error) {
       if (
@@ -46,6 +76,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setError(errorMessage(error));
     } finally {
       if (current === epoch.current) setLoading(false);
+    }
+  }, []);
+  const checkSession = useCallback(async () => {
+    const current = ++epoch.current;
+    try {
+      const identity = await api.me(true);
+      if (current !== epoch.current) return "failed";
+      setCurrentUser(identity);
+      setError("");
+      setUncertainSignIn(false);
+      setSessionEnded(false);
+      setLoading(false);
+      return "signed-in";
+    } catch (caught) {
+      if (current !== epoch.current) return "failed";
+      setLoading(false);
+      setError("");
+      if (caught instanceof ApiError && caught.status === 401) {
+        setUncertainSignIn(false);
+        return "signed-out";
+      }
+      return "failed";
     }
   }, []);
   useEffect(() => {
@@ -71,20 +123,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user?.id, refresh]);
   async function signIn(username: string, password: string) {
-    ++epoch.current;
-    await api.login(username, password);
+    advanceSessionGeneration();
+    const current = ++epoch.current;
+    try {
+      await api.login(username, password);
+    } catch (error) {
+      if (current !== epoch.current)
+        throw new LoginFlowError("identity", error);
+      if (
+        !(error instanceof ApiError) ||
+        error.code === "NETWORK_ERROR" ||
+        error.code === "REQUEST_TIMEOUT"
+      )
+        setUncertainSignIn(true);
+      throw new LoginFlowError("login", error);
+    }
     // Fetch identity after login rather than trusting routing hints or browser storage.
-    const identity = await api.me();
+    let identity: User;
+    try {
+      identity = await api.me(true);
+    } catch (error) {
+      if (current === epoch.current) setUncertainSignIn(true);
+      throw new LoginFlowError("identity", error);
+    }
+    if (current !== epoch.current)
+      throw new LoginFlowError(
+        "identity",
+        new Error("Sign-in was superseded."),
+      );
     setError("");
-    setUser(identity);
+    setUncertainSignIn(false);
+    setSessionEnded(false);
+    setCurrentUser(identity);
   }
   async function signOut() {
-    await api.logout();
+    const current = ++epoch.current;
+    deliberateLogout.current = true;
+    advanceSessionGeneration();
+    try {
+      await api.logout();
+    } finally {
+      deliberateLogout.current = false;
+    }
+    if (current !== epoch.current) return;
+    setSessionEnded(false);
+    setUncertainSignIn(false);
     loseSession();
     window.location.hash = "/login";
   }
   return (
-    <Context value={{ user, loading, error, refresh, signIn, signOut }}>
+    <Context
+      value={{
+        user,
+        loading,
+        error,
+        sessionEnded,
+        uncertainSignIn,
+        checkSession,
+        refresh,
+        signIn,
+        signOut,
+      }}
+    >
       {children}
     </Context>
   );

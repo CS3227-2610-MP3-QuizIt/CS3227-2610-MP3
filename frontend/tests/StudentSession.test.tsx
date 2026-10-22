@@ -31,6 +31,7 @@ describe("student session and SSE", () => {
   beforeEach(() => {
     sources = [];
     calls = [];
+    document.title = "Workspace title";
     vi.stubGlobal("EventSource", FakeSource);
     window.location.hash = "/student/attempt/1";
     vi.spyOn(api, "me").mockResolvedValue({
@@ -54,6 +55,10 @@ describe("student session and SSE", () => {
     expect(
       screen.getByRole("navigation", { name: "Student navigation" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "QuizIt student home" }),
+    ).toHaveAttribute("href", "#/student/quizzes");
+    expect(screen.getByText("QuizIt")).toBeInTheDocument();
     expect(calls.indexOf("subscribe")).toBeLessThan(calls.indexOf("read"));
     expect(sources[0].options.withCredentials).toBe(true);
     expect(sources[0].url).toBe("/api/v1/ai/events");
@@ -93,6 +98,22 @@ describe("student session and SSE", () => {
       );
     }
   });
+  it("shows known loss when a protected request requires authentication for a confirmed user", async () => {
+    render(<App />);
+    await screen.findByText("Question 1?");
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(SESSION_LOST, { detail: "AUTH_REQUIRED" }),
+      );
+    });
+    expect(
+      await screen.findByText(
+        "Your session has ended. Sign in again to continue.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+  });
+
   it("cleans session state on expiry and suppresses late reads in a later session", async () => {
     const late = deferred<HintState>();
     vi.mocked(api.hint).mockReturnValue(late.promise);
@@ -101,6 +122,7 @@ describe("student session and SSE", () => {
     const signal = vi.mocked(api.hint).mock.calls[0][2]!;
     act(() => window.dispatchEvent(new Event(SESSION_LOST)));
     await screen.findByRole("button", { name: "Sign in" });
+    expect(document.title).toBe("Sign in · QuizIt");
     expect(sources[0].close).toHaveBeenCalledOnce();
     expect(signal.aborted).toBe(true);
     const count = vi.mocked(api.hint).mock.calls.length;
@@ -130,6 +152,7 @@ describe("student session and SSE", () => {
     await user.type(screen.getByLabelText("Password"), "test-password");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
     await screen.findByText("New Student");
+    expect(document.title).toBe("Workspace title");
     await screen.findByText("Question 1?");
     expect(sources).toHaveLength(2);
     await act(async () => late.resolve(hintState(2, "success")));
@@ -142,8 +165,30 @@ describe("student session and SSE", () => {
     await screen.findByText("Question 1?");
     await user.click(screen.getByRole("button", { name: "Sign out" }));
     await screen.findByRole("button", { name: "Sign in" });
+    expect(document.title).toBe("Sign in · QuizIt");
     expect(api.logout).toHaveBeenCalledOnce();
     expect(sources[0].close).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByText("Your session has ended. Sign in again to continue."),
+    ).not.toBeInTheDocument();
+  });
+  it("keeps deliberate logout quiet when a session-loss event races a failed logout", async () => {
+    vi.mocked(api.logout).mockImplementationOnce(async () => {
+      window.dispatchEvent(
+        new CustomEvent(SESSION_LOST, { detail: "SESSION_EXPIRED" }),
+      );
+      throw new Error("Logout unavailable");
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("Question 1?");
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(await screen.findByText("Logout unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Question 1?")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Your session has ended. Sign in again to continue."),
+    ).not.toBeInTheDocument();
+    expect(sources[0].close).not.toHaveBeenCalled();
   });
   it("creates a fresh usable store after StrictMode cleanup", async () => {
     const view = render(

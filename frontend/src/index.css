@@ -422,7 +422,7 @@
     letter-spacing: 0.5px;
     color: #b0c1a6;
   }
-  .login-story h1 {
+  .login-story-title {
     font-family: Georgia, "Times New Roman", serif;
     font-weight: 400;
     font-size: clamp(43px, 4.3vw, 67px);
@@ -430,11 +430,11 @@
     letter-spacing: -2px;
     margin: 22px 0;
   }
-  .login-story h1 span {
+  .login-story-title span {
     color: #cedca6;
     font-style: italic;
   }
-  .login-story-body > p {
+  .login-story-body > p:not(.login-story-title) {
     color: #b8c8b9;
     max-width: 335px;
     font-size: 14px;
@@ -517,9 +517,11 @@
     width: 13px;
     height: 13px;
   }
-  .login-form-wrap h2 {
+  .login-form-wrap h1 {
     font-size: 33px;
+    font-weight: 600;
     letter-spacing: -1px;
+    line-height: 1.4;
     margin-bottom: 8px;
   }
   .form-stack {
@@ -530,6 +532,13 @@
   }
   .form-stack input {
     padding: 13px 14px;
+  }
+  .field-error {
+    display: block;
+    margin-top: 6px;
+    color: #853e32;
+    font-size: 11px;
+    line-height: 1.45;
   }
   .password-field {
     position: relative;
@@ -556,7 +565,7 @@
     margin-top: 28px;
     text-align: center;
     font-size: 11px;
-    color: #788271;
+    color: #66755f;
     line-height: 1.9;
   }
   .secure-note {
@@ -1732,7 +1741,7 @@
   .workspace-footer > span {
     display: none;
   }
-  .login-story h1 {
+  .login-story-title {
     font-size: 45px;
   }
   .login-form-section {

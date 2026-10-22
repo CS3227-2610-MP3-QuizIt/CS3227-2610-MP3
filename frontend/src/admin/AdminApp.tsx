@@ -71,7 +71,7 @@ export function AdminApp() {
         <a
           className="brand-link"
           href="#/admin/overview"
-          aria-label="Classroom overview"
+          aria-label="QuizIt overview"
         >
           <Brand />
         </a>

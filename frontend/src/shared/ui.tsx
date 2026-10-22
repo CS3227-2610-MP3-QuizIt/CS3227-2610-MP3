@@ -103,7 +103,7 @@ export function Brand({ light = false }: { light?: boolean }) {
         <Icon name="book" />
       </span>
       <span>
-        classroom<span className="brand-dot">.</span>
+        QuizIt<span className="brand-dot">.</span>
       </span>
     </div>
   );
