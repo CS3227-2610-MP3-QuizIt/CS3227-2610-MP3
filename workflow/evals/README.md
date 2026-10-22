@@ -32,13 +32,24 @@ mkdir -p workflow
 npx degit junhao4/codex-skill-evals workflow/evals
 ```
 
-Then verify it from the same project root:
+Then run `setup` from the same project root to enable automatic per-project
+Codex session usage tracking and verify the installation:
 
 ```bash
-python3 workflow/evals/eval.py list
+python3 workflow/evals/eval.py setup
 ```
 
-`list` makes no model calls. If it runs, the harness is installed correctly.
+`setup` makes no model calls. It:
+
+1. adds `notify = ["python3", "workflow/evals/eval.py", "usage", "--quiet"]` to
+   `.codex/config.toml` (creating it or preserving existing settings);
+2. backfills past Codex sessions for this project into `workflow/evals/_usage/`
+   (`report.html`, `report.md`, and `summary.json`), excluding synthetic
+   `eval.py run` trial workspaces and other repositories; and
+3. lists any discovered skill evaluations.
+
+If you only want to check discovered evaluations without setting up the
+per-project usage report, run `python3 workflow/evals/eval.py list`.
 
 **Install notes**
 
@@ -90,6 +101,7 @@ Create the skill and a matching evaluation directory:
 workflow/evals/
     ├── eval.py             # command-line entry point
     ├── _lib/               # internal harness implementation
+    ├── _usage/             # local session usage dashboard and cache
     └── <skill-name>/
         ├── test-cases/
         ├── runs/              # generated automatically after eval is run
@@ -124,8 +136,22 @@ keep this README focused on getting started:
 - [Authoring test cases](docs/authoring.md) — fixtures, prompts, graders
   (`check.py` and `expected.md`), subagent/orchestrator skills, supporting
   skills, and multi-turn interactions.
-- [Running evaluations](docs/running.md) — the `list`, `check`, `run`, and
+- [Running evaluations](docs/running.md) — the `setup`, `usage`, `list`, `check`, `run`, and
   `compare` commands, run flags, cost, and how the semantic jury decides
   pass/fail.
 - [Evaluation outputs](docs/outputs.md) — reference for every file written
-  under `runs/` and `comparisons/`.
+  under `runs/`, `comparisons/`, and `_usage/`.
+
+## MP3 installation provenance
+
+Updated from `junhao4/codex-skill-evals` revision `1bb3e98`. This project
+keeps the harness at `workflow/evals/` and skills at `.agents/skills/`.
+Preserve the project-specific agent-profile, trace, report-link, relocation
+and timing coverage when updating from upstream. Generated usage reports
+and caches stay local under `workflow/evals/_usage/`.
+
+Automatic usage refresh is configured in the project `.codex/config.toml`;
+start a new Codex session after this branch is integrated to load it. To
+backfill or refresh manually, run `python3 workflow/evals/eval.py usage`
+from the MP3 repository root. Reports can contain prompt and command text;
+`workflow/evals/_usage/` is ignored and should remain local.
