@@ -121,6 +121,7 @@ describe("student workspace", () => {
     expect(
       screen.getByRole("link", { name: "View results: Practice 3" }),
     ).toBeInTheDocument();
+    expect(screen.getByLabelText("Score 0 / 2")).toBeInTheDocument();
     await user.selectOptions(screen.getByLabelText("Class"), "11");
     await user.clear(screen.getByLabelText("Find a quiz"));
     await user.type(screen.getByLabelText("Find a quiz"), " practice 3 ");
@@ -185,6 +186,34 @@ describe("student workspace", () => {
       "aria-selected",
       "true",
     );
+  });
+  it("keeps submitted scores private to submitted cards and renders unavailable values clearly", async () => {
+    vi.spyOn(api, "studentQuizzes").mockResolvedValue({
+      items: [
+        { ...assignment("not_started", 1), score: 9 },
+        { ...assignment("submitted", 2), score: null, question_count: 1 },
+      ],
+    });
+    render(<QuizList />);
+    await screen.findByRole("link", { name: "Start: Practice 1" });
+    expect(screen.queryByText("9")).not.toBeInTheDocument();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: /Submitted/ }));
+    expect(screen.getByLabelText("Score unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Unavailable")).toHaveClass(
+      "student-score-unavailable",
+    );
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent?.includes("1 question") === true,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "View results: Practice 2" }),
+    ).toHaveClass("button-secondary");
   });
   it("supports quiz list loading, errors, refresh and empty state", async () => {
     vi.spyOn(api, "studentQuizzes")

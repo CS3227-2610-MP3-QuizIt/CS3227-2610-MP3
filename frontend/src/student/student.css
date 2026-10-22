@@ -187,6 +187,45 @@
   .student-filter-empty .text-button {
     margin: 12px 5px 0;
   }
+  .student-quiz-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: auto;
+    padding-top: 16px;
+    border-top: 1px solid #e5e9df;
+  }
+  .student-quiz-footer .button {
+    margin-top: 16px;
+  }
+  .student-card-score {
+    display: grid;
+    grid-template-columns: auto auto;
+    align-items: baseline;
+    gap: 4px;
+    justify-items: end;
+    text-align: right;
+  }
+  .student-card-score > span {
+    grid-column: 1 / -1;
+    color: #748076;
+    font-size: 11px;
+  }
+  .student-card-score strong {
+    color: #243b34;
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1;
+  }
+  .student-card-score small {
+    color: #748076;
+    font-size: 15px;
+  }
+  .student-score-unavailable {
+    color: #748076;
+    font-size: 12px;
+  }
   .student-back {
     display: inline-block;
     margin-bottom: 20px;
@@ -364,6 +403,12 @@
     }
     .student-reset {
       min-width: 88px;
+    }
+    .student-quiz-footer {
+      align-items: end;
+    }
+    .student-quiz-footer .button {
+      padding: 11px 12px;
     }
   }
 }

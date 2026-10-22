@@ -281,6 +281,7 @@ function QuizCard({ quiz }: { quiz: StudentQuizItem }) {
   const submitted = quiz.attempt_status === "submitted";
   const inProgress = quiz.attempt_status === "in_progress";
   const action = submitted ? "View results" : inProgress ? "Resume" : "Start";
+  const score = quiz.score;
   return (
     <article className="panel student-quiz-card">
       <span
@@ -293,13 +294,39 @@ function QuizCard({ quiz }: { quiz: StudentQuizItem }) {
         {quiz.class_name} · {quiz.question_count}{" "}
         {quiz.question_count === 1 ? "question" : "questions"}
       </p>
-      <a
-        className={`button ${submitted ? "button-secondary" : "button-primary"}`}
-        href={`#/student/${submitted ? "results" : "attempt"}/${quiz.id}`}
-        aria-label={`${action}: ${quiz.title}`}
-      >
-        {action}
-      </a>
+      {submitted ? (
+        <div className="student-quiz-footer">
+          <a
+            className="button button-secondary"
+            href={`#/student/results/${quiz.id}`}
+            aria-label={`${action}: ${quiz.title}`}
+          >
+            {action}
+          </a>
+          <div
+            className="student-card-score"
+            aria-label={`Score ${score == null ? "unavailable" : `${score} / ${quiz.question_count}`}`}
+          >
+            <span>Score</span>
+            {score == null ? (
+              <span className="student-score-unavailable">Unavailable</span>
+            ) : (
+              <>
+                <strong>{score}</strong>
+                <small>/ {quiz.question_count}</small>
+              </>
+            )}
+          </div>
+        </div>
+      ) : (
+        <a
+          className="button button-primary"
+          href={`#/student/attempt/${quiz.id}`}
+          aria-label={`${action}: ${quiz.title}`}
+        >
+          {action}
+        </a>
+      )}
     </article>
   );
 }
