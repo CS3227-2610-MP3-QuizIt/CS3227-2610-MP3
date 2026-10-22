@@ -65,6 +65,7 @@ describe("student session and SSE", () => {
       screen.getByRole("link", { name: "QuizIt student home" }),
     ).toHaveAttribute("href", "#/student/quizzes");
     expect(screen.getByText("QuizIt")).toBeInTheDocument();
+    await waitFor(() => expect(calls).toContain("read"));
     expect(calls.indexOf("subscribe")).toBeLessThan(calls.indexOf("read"));
     expect(sources[0].options.withCredentials).toBe(true);
     expect(sources[0].url).toBe("/api/v1/ai/events");
