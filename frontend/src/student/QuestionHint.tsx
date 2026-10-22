@@ -1,6 +1,68 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import type { SafeError } from "../api/types";
 import { Notice } from "../shared/ui";
 import { hintKey, HintStore } from "./HintStore";
+
+function retryWait(seconds: unknown): number | null {
+  return typeof seconds === "number" && Number.isFinite(seconds) && seconds > 0
+    ? Math.ceil(seconds)
+    : null;
+}
+
+function appendRetry(message: string, seconds: number | null): string {
+  return seconds != null
+    ? `${message} Try again in ${seconds} seconds.`
+    : message;
+}
+
+function formatHintFailure(error: SafeError | null | undefined): string {
+  const code = typeof error?.code === "string" ? error.code : "";
+  const details =
+    error?.details &&
+    typeof error.details === "object" &&
+    !Array.isArray(error.details)
+      ? error.details
+      : null;
+  const stage = typeof details?.stage === "string" ? details.stage : null;
+  const reason = typeof details?.reason === "string" ? details.reason : null;
+  const retryAfter = retryWait(error?.retry_after_seconds);
+
+  if (code === "AI_INVALID_OUTPUT") {
+    if (stage === "hint_verification" && reason === "hint_reveals_answer") {
+      return "This hint could reveal the answer, so we couldn’t show it. Try again, or change your prompt first.";
+    }
+    if (stage === "hint_verification" && reason === "hint_irrelevant") {
+      return "This hint wasn’t relevant enough to the question, so we couldn’t show it. Try again, or make your prompt more specific.";
+    }
+    return appendRetry(
+      "We couldn’t generate a usable hint for this question. Try again, or adjust your prompt.",
+      retryAfter,
+    );
+  }
+  if (code === "AI_TIMEOUT") {
+    return appendRetry(
+      "Taking too long to generate a hint. Try again when you’re ready.",
+      retryAfter,
+    );
+  }
+  if (code === "AI_REQUEST_INTERRUPTED") {
+    return appendRetry(
+      "The hint request was interrupted before it finished. Try again when you’re ready.",
+      retryAfter,
+    );
+  }
+  if (code === "AI_CONFIGURATION_ERROR") {
+    return "Hints aren’t available right now due to a service configuration issue.";
+  }
+  if (code === "AI_PROVIDER_LIMIT" || code === "AI_APP_RATE_LIMIT") {
+    return retryAfter != null
+      ? `The AI hint service is busy right now. Please try again in ${retryAfter} seconds.`
+      : "The AI hint service is busy right now. Please try again shortly.";
+  }
+  return retryAfter != null
+    ? `Hints are temporarily unavailable. Please try again in ${retryAfter} seconds.`
+    : "Hints are temporarily unavailable. Please try again.";
+}
 
 export function QuestionHint({
   attemptId,
@@ -50,13 +112,7 @@ export function QuestionHint({
         </p>
       ) : null}
       {state?.status === "failed" ? (
-        <Notice>
-          {state.error?.code}:{" "}
-          {state.error?.message ?? "The hint could not be generated."}
-          {state.error?.retry_after_seconds != null
-            ? ` Try again in ${state.error.retry_after_seconds} seconds.`
-            : ""}
-        </Notice>
+        <Notice>{formatHintFailure(state.error)}</Notice>
       ) : null}
       {target.readError ? (
         <Notice>
@@ -105,7 +161,7 @@ export function QuestionHint({
           {state?.status === "success"
             ? "Another hint"
             : state?.status === "failed"
-              ? "Retry hint"
+              ? "Try again"
               : "Ask for a hint"}
         </button>
       )}
