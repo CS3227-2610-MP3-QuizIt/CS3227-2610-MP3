@@ -533,6 +533,13 @@
   .form-stack input {
     padding: 13px 14px;
   }
+  .field-error {
+    display: block;
+    margin-top: 6px;
+    color: #853e32;
+    font-size: 11px;
+    line-height: 1.45;
+  }
   .password-field {
     position: relative;
   }

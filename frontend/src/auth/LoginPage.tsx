@@ -1,8 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError, errorMessage } from "../api/client";
 import { Brand, Icon, Notice } from "../shared/ui";
 import { useAuth } from "./AuthProvider";
+
+type Errors = { username?: string; password?: string };
+const usernamePattern = /^[A-Za-z0-9_.-]+$/;
 
 export function LoginPage() {
   const { signIn, error: connectionError, refresh } = useAuth();
@@ -11,6 +14,9 @@ export function LoginPage() {
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [errors, setErrors] = useState<Errors>({});
+  const usernameRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
     const previousTitle = document.title;
     document.title = "Sign in · QuizIt";
@@ -18,9 +24,31 @@ export function LoginPage() {
       document.title = previousTitle;
     };
   }, []);
+  function validate(): Errors {
+    const normalized = username.trim();
+    const next: Errors = {};
+    if (!normalized) next.username = "Enter your username.";
+    else if (normalized.length < 3)
+      next.username = "Enter at least 3 characters for your username.";
+    else if (normalized.length > 50)
+      next.username = "Enter no more than 50 characters for your username.";
+    else if (!usernamePattern.test(normalized))
+      next.username =
+        "Use only letters, numbers, underscores, dots, or hyphens in your username.";
+    if (!password) next.password = "Enter your password.";
+    else if (password.length > 128)
+      next.password = "Enter no more than 128 characters for your password.";
+    return next;
+  }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
+    const next = validate();
+    setErrors(next);
+    if (next.username || next.password) {
+      (next.username ? usernameRef : passwordRef).current?.focus();
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -86,34 +114,44 @@ export function LoginPage() {
               </button>
             </Notice>
           ) : null}
-          <form onSubmit={submit} className="form-stack">
+          <form onSubmit={submit} className="form-stack" noValidate>
             <label>
               Username
               <input
+                ref={usernameRef}
                 name="username"
                 autoComplete="username"
-                required
-                minLength={3}
-                maxLength={50}
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
                 disabled={busy}
+                aria-invalid={!!errors.username}
+                aria-describedby={
+                  errors.username ? "username-error" : undefined
+                }
               />
+              {errors.username ? (
+                <small className="field-error" id="username-error">
+                  {errors.username}
+                </small>
+              ) : null}
             </label>
             <label>
               Password
               <div className="password-field">
                 <input
+                  ref={passwordRef}
                   name="password"
                   type={visible ? "text" : "password"}
                   autoComplete="current-password"
-                  required
-                  maxLength={128}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
                   disabled={busy}
+                  aria-invalid={!!errors.password}
+                  aria-describedby={
+                    errors.password ? "password-error" : undefined
+                  }
                 />
                 <button
                   type="button"
@@ -125,6 +163,11 @@ export function LoginPage() {
                   {visible ? "Hide" : "Show"}
                 </button>
               </div>
+              {errors.password ? (
+                <small className="field-error" id="password-error">
+                  {errors.password}
+                </small>
+              ) : null}
             </label>
             {error ? <Notice>{error}</Notice> : null}
             <button
