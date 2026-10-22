@@ -90,7 +90,7 @@ describe("student workspace", () => {
         </>
       );
     }
-    render(
+    const firstSession = render(
       <AuthProvider>
         <AuthHarness />
       </AuthProvider>,
@@ -109,6 +109,24 @@ describe("student workspace", () => {
     );
     await screen.findByText("Student B");
 
+    expect(screen.getByRole("tab", { name: /To do/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByLabelText("Class")).toHaveValue("all");
+    expect(screen.getByLabelText("Find a quiz")).toHaveValue("");
+
+    await user.click(screen.getByRole("tab", { name: /Submitted/ }));
+    await user.selectOptions(screen.getByLabelText("Class"), "22");
+    await user.type(screen.getByLabelText("Find a quiz"), "reload query");
+    firstSession.unmount();
+    vi.mocked(api.me).mockResolvedValue(accountB);
+    render(
+      <AuthProvider>
+        <StudentApp />
+      </AuthProvider>,
+    );
+    await screen.findByText("Student B");
     expect(screen.getByRole("tab", { name: /To do/ })).toHaveAttribute(
       "aria-selected",
       "true",
@@ -253,6 +271,43 @@ describe("student workspace", () => {
       "aria-selected",
       "true",
     );
+  });
+  it("ignores an older collection response after a newer refresh completes", async () => {
+    const staleResponse = deferred<{
+      items: ReturnType<typeof assignment>[];
+    }>();
+    const currentResponse = deferred<{
+      items: ReturnType<typeof assignment>[];
+    }>();
+    const request = vi
+      .spyOn(api, "studentQuizzes")
+      .mockReturnValueOnce(staleResponse.promise)
+      .mockReturnValueOnce(currentResponse.promise);
+    render(<QuizList />);
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    await act(async () =>
+      currentResponse.resolve({
+        items: [{ ...assignment("not_started", 2), title: "Current quiz" }],
+      }),
+    );
+    expect(
+      await screen.findByRole("link", { name: "Start: Current quiz" }),
+    ).toBeInTheDocument();
+
+    await act(async () =>
+      staleResponse.resolve({
+        items: [{ ...assignment("not_started", 1), title: "Stale quiz" }],
+      }),
+    );
+    expect(
+      screen.getByRole("link", { name: "Start: Current quiz" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Start: Stale quiz" }),
+    ).not.toBeInTheDocument();
   });
   it("keeps submitted scores private to submitted cards and renders unavailable values clearly", async () => {
     vi.spyOn(api, "studentQuizzes").mockResolvedValue({
