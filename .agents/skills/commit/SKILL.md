@@ -95,6 +95,8 @@ Show added/deleted line counts (`+N/-N`) for each planned commit, including untr
 
 Stage whole files when their changes belong together; for mixed files, stage only the relevant hunks when supported, then review the staged diff.
 
+Prefer noninteractive patch staging for mixed files when interactive staging requires approval for each response; preserve existing staged changes and review the resulting staged diff.
+
 ```bash
 git add -- path/to/file
 ```
