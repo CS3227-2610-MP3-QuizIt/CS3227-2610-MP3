@@ -103,3 +103,15 @@ All available timings count, including failed and needs-review trials. Missing
 timings are N/A, never zero. Older comparisons can read retained worker metrics
 when trial summaries lack timing; absent raw evidence remains N/A. No historical
 results are rewritten by this lookup.
+
+### Project usage reports (`workflow/evals/_usage/`)
+
+Running `python3 workflow/evals/eval.py setup` or `python3 workflow/evals/eval.py usage`
+writes per-project real-work usage files under `workflow/evals/_usage/`:
+
+| Output | Tracked in Git? | Meaning |
+|---|---:|---|
+| `_usage/report.html` | Ignored | Self-contained interactive HTML dashboard with KPI cards, project skill & subagent usage tables, model mix, daily token bars, and a filterable session log |
+| `_usage/report.md` | Ignored | Markdown summary of the same project-scoped session, skill, subagent, model, and daily metrics |
+| `_usage/summary.json` | Ignored | Machine-readable aggregate metrics and per-session records |
+| `_usage/cache.json` | Ignored | Incremental `(mtime_ns, size)` parse cache for `~/.codex/sessions/` rollouts |

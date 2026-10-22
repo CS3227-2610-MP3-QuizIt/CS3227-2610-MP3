@@ -119,6 +119,7 @@ describe("student session and SSE", () => {
     vi.mocked(api.hint).mockReturnValue(late.promise);
     render(<App />);
     await screen.findByText("Question 1?");
+    await waitFor(() => expect(api.hint).toHaveBeenCalled());
     const signal = vi.mocked(api.hint).mock.calls[0][2]!;
     act(() => window.dispatchEvent(new Event(SESSION_LOST)));
     await screen.findByRole("button", { name: "Sign in" });
