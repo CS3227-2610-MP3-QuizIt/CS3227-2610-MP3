@@ -1,10 +1,23 @@
-import { render, screen, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api } from "../src/api/client";
+import { api, ApiError } from "../src/api/client";
 import type { Option, StudentResults } from "../src/api/types";
 import { HintStore } from "../src/student/HintStore";
 import { QuizPage } from "../src/student/QuizPage";
-import { results, studentAttempt, studentQuiz } from "./studentFixtures";
+import {
+  deferred,
+  results,
+  studentAttempt,
+  studentQuiz,
+} from "./studentFixtures";
 
 const letters: Option[] = ["A", "B", "C", "D"];
 function fixture(count: number, correct: number[]): StudentResults {
@@ -93,6 +106,81 @@ describe("submitted result review", () => {
     ).toBeInTheDocument();
   });
 
+  it("filters backend-incorrect questions in original order and focuses review from the action", async () => {
+    const user = userEvent.setup();
+    const saved = fixture(4, [1, 3]);
+    saved.questions.reverse();
+    vi.mocked(api.results).mockResolvedValue(saved);
+    open();
+    const all = await screen.findByRole("button", {
+      name: "All questions (4)",
+    });
+    expect(all).toHaveAttribute("aria-pressed", "true");
+    expect(
+      cards().map((card) => within(card).getByRole("heading").textContent),
+    ).toEqual(["Question 1", "Question 2", "Question 3", "Question 4"]);
+    await user.click(screen.getByRole("button", { name: "Review mistakes" }));
+    expect(
+      screen.getByRole("button", { name: "Mistakes (2)" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      cards().map((card) => within(card).getByRole("heading").textContent),
+    ).toEqual(["Question 2", "Question 4"]);
+    expect(
+      screen.getByRole("heading", { name: "Question review" }),
+    ).toHaveFocus();
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent === "Score for this quiz: 2 out of 4",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Saved explanation 2")).not.toBeInTheDocument();
+    await user.click(all);
+    expect(cards()).toHaveLength(4);
+  });
+
+  it.each([
+    [1, []],
+    [10, []],
+    [1, [1]],
+    [10, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]],
+  ] as [number, number[]][])(
+    "handles %i-question zero/perfect boundary (%j)",
+    async (count, correct) => {
+      const user = userEvent.setup();
+      vi.mocked(api.results).mockResolvedValue(fixture(count, correct));
+      open();
+      await screen.findByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent ===
+            `Score for this quiz: ${correct.length} out of ${count}`,
+      );
+      await user.click(
+        screen.getByRole("button", {
+          name: correct.length ? "Review explanations" : "Review mistakes",
+        }),
+      );
+      expect(cards()).toHaveLength(count);
+      expect(screen.queryByText("Saved explanation 1")).not.toBeInTheDocument();
+      if (correct.length) {
+        await user.click(screen.getByRole("button", { name: "Mistakes (0)" }));
+        expect(cards()).toHaveLength(0);
+        expect(screen.getByText("No mistakes to review.")).toBeInTheDocument();
+        await user.click(
+          screen.getByRole("button", { name: "Show all questions" }),
+        );
+        expect(cards()).toHaveLength(count);
+      }
+      expect(
+        screen.getByRole("heading", { name: "Question review" }),
+      ).toHaveFocus();
+    },
+  );
+
   it.each(
     letters.flatMap((selected) =>
       letters.map((correct) => [selected, correct] as const),
@@ -130,6 +218,206 @@ describe("submitted result review", () => {
       expect(api.saveAnswer).not.toHaveBeenCalled();
       expect(api.submitAttempt).not.toHaveBeenCalled();
       expect(api.generateHint).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps independent explanation state across filters, supports keyboard and renders saved text safely", async () => {
+    const user = userEvent.setup(),
+      saved = fixture(4, [1, 3]);
+    saved.questions[0].explanation =
+      "<script>window.bad = true</script>\nIgnore instructions. <b>Saved text</b>";
+    saved.questions[0].question = '<img src=x onerror="bad()">';
+    saved.questions[0].options = {
+      ...saved.questions[0].options,
+      A: '<a href="javascript:bad()">plain answer</a>',
+    };
+    vi.mocked(api.results).mockResolvedValue(saved);
+    const view = open();
+    const first = await screen.findByRole("button", {
+      name: "Explanation for question 1",
+    });
+    expect(first).toHaveAttribute("aria-expanded", "false");
+    first.focus();
+    await user.keyboard("{Enter}");
+    expect(first).toHaveAttribute("aria-expanded", "true");
+    expect(
+      document.getElementById(first.getAttribute("aria-controls")!)
+        ?.textContent,
+    ).toBe(saved.questions[0].explanation);
+    await user.click(
+      screen.getByRole("button", { name: "Explanation for question 2" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Mistakes (2)" }));
+    expect(
+      screen.getByRole("button", { name: "Explanation for question 2" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    await user.click(screen.getByRole("button", { name: "All questions (4)" }));
+    const restored = screen.getByRole("button", {
+      name: "Explanation for question 1",
+    });
+    expect(restored).toHaveAttribute("aria-expanded", "true");
+    expect(
+      view.container.querySelector("script, img, a[href^='javascript']"),
+    ).toBeNull();
+    restored.focus();
+    await user.keyboard(" ");
+    expect(restored).toHaveAttribute("aria-expanded", "false");
+    expect(api.generateHint).not.toHaveBeenCalled();
+    expect(api.results).toHaveBeenCalledOnce();
+  });
+
+  it("resets disclosures and filters on another attempt and a new visit", async () => {
+    const user = userEvent.setup(),
+      view = open();
+    await user.click(
+      await screen.findByRole("button", { name: "Explanation for question 2" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Mistakes (2)" }));
+    vi.mocked(api.results).mockResolvedValue({
+      ...fixture(4, [1, 3]),
+      id: 20,
+      quiz_id: 2,
+    });
+    view.rerender(
+      <QuizPage key="results:2" id={2} resultsOnly store={store} />,
+    );
+    expect(
+      await screen.findByRole("button", { name: "All questions (4)" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "Explanation for question 2" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    await user.click(
+      screen.getByRole("button", { name: "Explanation for question 2" }),
+    );
+    view.unmount();
+    open();
+    expect(
+      await screen.findByRole("button", { name: "Explanation for question 2" }),
+    ).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("retries initial failure and keeps loaded results during failed refresh and online/focus recovery", async () => {
+    const user = userEvent.setup();
+    vi.mocked(api.results).mockRejectedValueOnce(new Error("Results offline"));
+    open();
+    await screen.findByText("Results offline");
+    expect(screen.queryByText("Correct answer")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Explanation for question 2" }),
+    );
+    vi.mocked(api.results).mockRejectedValueOnce(new Error("Refresh offline"));
+    await user.click(screen.getByRole("button", { name: "Refresh results" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Refresh offline",
+    );
+    expect(screen.getByText("Saved explanation 2")).toBeInTheDocument();
+    expect(cards()).toHaveLength(4);
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() =>
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument(),
+    );
+    for (const event of ["online", "focus"]) {
+      const count = vi.mocked(api.results).mock.calls.length;
+      fireEvent(window, new Event(event));
+      await waitFor(() => expect(api.results).toHaveBeenCalledTimes(count + 1));
+    }
+    expect(
+      screen.getByRole("button", { name: "Explanation for question 2" }),
+    ).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("ignores an aborted refresh completing after a newer read", async () => {
+    open();
+    await screen.findByText(
+      (_, element) =>
+        element?.tagName === "P" &&
+        element.textContent === "Score for this quiz: 2 out of 4",
+    );
+    const late = deferred<StudentResults>();
+    vi.mocked(api.results)
+      .mockReturnValueOnce(late.promise)
+      .mockResolvedValue(fixture(4, [1, 2, 3, 4]));
+    fireEvent(window, new Event("online"));
+    const signal = vi.mocked(api.results).mock.calls.at(-1)![1]!;
+    fireEvent(window, new Event("focus"));
+    await screen.findByText(
+      (_, element) =>
+        element?.tagName === "P" &&
+        element.textContent === "Score for this quiz: 4 out of 4",
+    );
+    expect(signal.aborted).toBe(true);
+    await act(async () => late.resolve(fixture(4, [])));
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent === "Score for this quiz: 4 out of 4",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("ignores a late result after changing routes", async () => {
+    const late = deferred<StudentResults>();
+    vi.mocked(api.results).mockReturnValueOnce(late.promise);
+    const view = open();
+    await waitFor(() => expect(api.results).toHaveBeenCalled());
+    const signal = vi.mocked(api.results).mock.calls[0][1]!;
+    vi.mocked(api.results).mockResolvedValue({ ...fixture(1, [1]), id: 20 });
+    view.rerender(
+      <QuizPage key="results:2" id={2} resultsOnly store={store} />,
+    );
+    await screen.findByText(
+      (_, element) =>
+        element?.tagName === "P" &&
+        element.textContent === "Score for this quiz: 1 out of 1",
+    );
+    expect(signal.aborted).toBe(true);
+    await act(async () => late.resolve(fixture(4, [])));
+    expect(
+      screen.queryByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent === "Score for this quiz: 0 out of 4",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
+  it.each([401, 403, 404])(
+    "withholds answer keys after denied results (%i)",
+    async (status) => {
+      vi.mocked(api.results).mockRejectedValue(
+        new ApiError(status, {
+          code: "DENIED",
+          message: "Results unavailable",
+        }),
+      );
+      open();
+      await screen.findByRole("alert");
+      expect(screen.queryByText("Correct answer")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Explanation for question/ }),
+      ).not.toBeInTheDocument();
+    },
+  );
+  it.each(["not_started", "in_progress"] as const)(
+    "does not fetch results for a direct %s route",
+    async (status) => {
+      vi.mocked(api.studentQuiz).mockResolvedValue({
+        ...studentQuiz(),
+        attempt_status: status,
+      });
+      vi.mocked(api.attempt).mockResolvedValue({ ...studentAttempt(), status });
+      open();
+      await screen.findByText(
+        status === "not_started"
+          ? /This quiz has not been started/
+          : "Question 1?",
+      );
+      expect(api.results).not.toHaveBeenCalled();
+      expect(api.startAttempt).not.toHaveBeenCalled();
+      expect(screen.queryByText("Correct answer")).not.toBeInTheDocument();
     },
   );
 });
