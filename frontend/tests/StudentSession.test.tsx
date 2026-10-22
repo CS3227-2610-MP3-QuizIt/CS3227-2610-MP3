@@ -13,10 +13,11 @@ import { api, SESSION_LOST } from "../src/api/client";
 import {
   deferred,
   hintState,
+  results,
   studentAttempt,
   studentQuiz,
 } from "./studentFixtures";
-import type { HintState } from "../src/api/types";
+import type { HintState, StudentResults } from "../src/api/types";
 
 describe("student session and SSE", () => {
   let sources: FakeSource[];
@@ -184,6 +185,99 @@ describe("student session and SSE", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Consider the concept.")).not.toBeInTheDocument();
     expect(sources[1].close).not.toHaveBeenCalled();
+  });
+  it("clears loaded answer keys and disclosures on session loss", async () => {
+    window.location.hash = "/student/results/1";
+    vi.mocked(api.studentQuiz).mockResolvedValue({
+      ...studentQuiz(),
+      attempt_status: "submitted",
+    });
+    vi.spyOn(api, "attempt").mockResolvedValue({
+      ...studentAttempt(),
+      status: "submitted",
+    });
+    vi.spyOn(api, "results").mockResolvedValue(results());
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(
+      await screen.findByRole("button", { name: "Explanation for question 1" }),
+    );
+    expect(screen.getByText("Explanation 1")).toBeInTheDocument();
+    act(() => window.dispatchEvent(new Event(SESSION_LOST)));
+    await screen.findByRole("button", { name: "Sign in" });
+    expect(screen.queryByText("Explanation 1")).not.toBeInTheDocument();
+    expect(screen.queryByText("Correct answer")).not.toBeInTheDocument();
+    expect(sources[0].close).toHaveBeenCalledOnce();
+  });
+  it("suppresses a late answer-key response in a later student session", async () => {
+    window.location.hash = "/student/results/1";
+    vi.mocked(api.studentQuiz).mockResolvedValue({
+      ...studentQuiz(),
+      attempt_status: "submitted",
+    });
+    vi.spyOn(api, "attempt").mockResolvedValue({
+      ...studentAttempt(),
+      status: "submitted",
+    });
+    const late = deferred<StudentResults>();
+    vi.spyOn(api, "results").mockReturnValueOnce(late.promise);
+    render(<App />);
+    await waitFor(() => expect(api.results).toHaveBeenCalledOnce());
+    const signal = vi.mocked(api.results).mock.calls[0][1]!;
+    act(() => window.dispatchEvent(new Event(SESSION_LOST)));
+    await screen.findByRole("button", { name: "Sign in" });
+    expect(signal.aborted).toBe(true);
+    const identity = {
+      id: 4,
+      username: "next-student",
+      display_name: "Next Student",
+      role: "student" as const,
+    };
+    vi.spyOn(api, "login").mockResolvedValue({ user: identity });
+    vi.mocked(api.me).mockResolvedValue(identity);
+    vi.mocked(api.studentQuiz).mockResolvedValue({
+      ...studentQuiz(),
+      attempt_id: 40,
+      attempt_status: "submitted",
+    });
+    vi.mocked(api.attempt).mockResolvedValue({
+      ...studentAttempt(40),
+      status: "submitted",
+    });
+    const next = results(40);
+    next.score = 2;
+    next.score_percent = 100;
+    next.questions = next.questions.map((question) => ({
+      ...question,
+      explanation: "New session saved explanation",
+    }));
+    vi.mocked(api.results).mockResolvedValue(next);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText("Username"), "next-student");
+    await user.type(screen.getByLabelText("Password"), "test-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await screen.findByText(
+      (_, element) =>
+        element?.tagName === "P" &&
+        element.textContent === "Score for this quiz: 2 out of 2",
+    );
+    await act(async () => late.resolve(results()));
+    expect(
+      screen.queryByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent === "Score for this quiz: 1 out of 2",
+      ),
+    ).not.toBeInTheDocument();
+    const disclosure = screen.getByRole("button", {
+      name: "Explanation for question 1",
+    });
+    expect(disclosure).toHaveAttribute("aria-expanded", "false");
+    await user.click(disclosure);
+    expect(
+      screen.getByText("New session saved explanation"),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Explanation 1")).not.toBeInTheDocument();
   });
   it("closes SSE on logout", async () => {
     const user = userEvent.setup();
