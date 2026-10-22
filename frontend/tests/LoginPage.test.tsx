@@ -1,7 +1,13 @@
 import { StrictMode } from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
 import { api, ApiError, SESSION_LOST } from "../src/api/client";
 
@@ -13,6 +19,7 @@ describe("login page", () => {
       new ApiError(401, { code: "UNAUTHENTICATED", message: "Sign in." }),
     );
   });
+  afterEach(() => vi.useRealTimers());
 
   it("shows the approved copy, a single primary heading, and login title", async () => {
     render(<App />);
@@ -428,6 +435,133 @@ describe("login page", () => {
     expect(screen.getByLabelText("Username")).toBeEnabled();
     expect(api.login).toHaveBeenCalledTimes(1);
   });
+
+  it("blocks form submission during a known login wait while keeping inputs editable", async () => {
+    const login = vi.spyOn(api, "login").mockRejectedValue(
+      new ApiError(429, {
+        code: "LOGIN_RATE_LIMIT",
+        message: "Wait",
+        retry_after_seconds: 30,
+      }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(await screen.findByLabelText("Username"), "student01");
+    await user.type(screen.getByLabelText("Password"), "pw");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+
+    expect(await screen.findByText("Try again in 30s.")).toHaveAttribute(
+      "aria-live",
+      "off",
+    );
+    expect(screen.getByLabelText("Username")).toBeEnabled();
+    expect(screen.getByLabelText("Password")).toBeEnabled();
+    const submitButton = screen.getByRole("button", { name: "Sign in" });
+    expect(submitButton).toBeDisabled();
+    fireEvent.submit(submitButton.closest("form")!);
+    expect(login).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not invent a wait for nonpositive retry timing", async () => {
+    vi.spyOn(api, "login").mockRejectedValue(
+      new ApiError(429, {
+        code: "LOGIN_RATE_LIMIT",
+        message: "Wait",
+        retry_after_seconds: 0,
+      }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(await screen.findByLabelText("Username"), "student01");
+    await user.type(screen.getByLabelText("Password"), "pw");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(
+      await screen.findByText(
+        "Too many sign-in attempts. Please wait before trying again.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+  });
+
+  it("expires a known retry wait without submitting and replaces it with a later server deadline", async () => {
+    const login = vi
+      .spyOn(api, "login")
+      .mockRejectedValueOnce(
+        new ApiError(429, {
+          code: "LOGIN_RATE_LIMIT",
+          message: "Wait",
+          retry_after_seconds: 2,
+        }),
+      )
+      .mockRejectedValueOnce(
+        new ApiError(429, {
+          code: "LOGIN_RATE_LIMIT",
+          message: "Wait",
+          retry_after_seconds: 5,
+        }),
+      );
+    render(<App />);
+    const username = await screen.findByLabelText("Username");
+    fireEvent.change(username, { target: { value: "student01" } });
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "pw" },
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-10-22T00:00:00Z"));
+    const form = username.closest("form")!;
+    await act(async () => {
+      fireEvent.submit(form);
+      await Promise.resolve();
+    });
+    expect(screen.getByText("Try again in 2s.")).toBeInTheDocument();
+
+    await act(async () => {
+      vi.setSystemTime(new Date("2026-10-22T00:00:03Z"));
+      vi.advanceTimersByTime(250);
+    });
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+    expect(login).toHaveBeenCalledOnce();
+
+    fireEvent.change(screen.getByLabelText("Password"), {
+      target: { value: "new-password" },
+    });
+    await act(async () => {
+      fireEvent.submit(form);
+      await Promise.resolve();
+    });
+    expect(screen.getByText("Try again in 5s.")).toBeInTheDocument();
+    await act(async () => {
+      vi.setSystemTime(new Date("2026-10-22T00:00:09Z"));
+      vi.advanceTimersByTime(250);
+    });
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+    expect(login).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, -1])(
+    "does not create a deadline for malformed retry timing %s",
+    async (retryAfter) => {
+      vi.spyOn(api, "login").mockRejectedValue(
+        new ApiError(429, {
+          code: "LOGIN_RATE_LIMIT",
+          message: "Wait",
+          retry_after_seconds: retryAfter,
+        }),
+      );
+      const user = userEvent.setup();
+      render(<App />);
+      await user.type(await screen.findByLabelText("Username"), "student01");
+      await user.type(screen.getByLabelText("Password"), "pw");
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      expect(
+        await screen.findByText(
+          "Too many sign-in attempts. Please wait before trying again.",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+      expect(screen.queryByText(/Try again in/)).not.toBeInTheDocument();
+    },
+  );
 
   it.each([
     [401, "AUTH_REQUIRED"],

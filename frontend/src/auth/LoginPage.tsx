@@ -22,6 +22,8 @@ export function LoginPage() {
   const [checking, setChecking] = useState(false);
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Errors>({});
+  const [waitUntil, setWaitUntil] = useState<number | null>(null);
+  const [secondsLeft, setSecondsLeft] = useState(0);
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
   const busyRef = useRef(false);
@@ -35,7 +37,19 @@ export function LoginPage() {
       document.title = previousTitle;
     };
   }, []);
+  useEffect(() => {
+    if (waitUntil === null) return;
+    const update = () => {
+      const remaining = Math.max(0, Math.ceil((waitUntil - Date.now()) / 1000));
+      setSecondsLeft(remaining);
+      if (remaining === 0) setWaitUntil(null);
+    };
+    update();
+    const timer = window.setInterval(update, 250);
+    return () => window.clearInterval(timer);
+  }, [waitUntil]);
   const recovery = uncertainSignIn;
+  const waiting = secondsLeft > 0;
   async function runCheck() {
     if (checkingRef.current || busyRef.current) return;
     checkingRef.current = true;
@@ -71,7 +85,7 @@ export function LoginPage() {
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busyRef.current || checkingRef.current) return;
+    if (busyRef.current || checkingRef.current || waiting) return;
     if (recovery) {
       await runCheck();
       return;
@@ -104,6 +118,9 @@ export function LoginPage() {
         setMessage(
           "Too many sign-in attempts. Please wait before trying again.",
         );
+        const seconds = error.retryAfter;
+        if (Number.isInteger(seconds) && seconds !== null && seconds > 0)
+          setWaitUntil(Date.now() + seconds * 1000);
       } else if (
         error instanceof ApiError &&
         error.status === 401 &&
@@ -140,7 +157,7 @@ export function LoginPage() {
       setBusy(false);
     }
   }
-  const displayedMessage = message;
+  const displayedMessage = waiting ? `Try again in ${secondsLeft}s.` : message;
   return (
     <main className="login-layout">
       <section className="login-story">
@@ -256,8 +273,15 @@ export function LoginPage() {
             </label>
             {displayedMessage ? (
               <div
-                className={`notice ${(sessionEnded && !message) ? "notice-info" : "notice-error"}`}
-                role={sessionEnded && !message ? "status" : "alert"}
+                className={`notice ${waiting || (sessionEnded && !message) ? "notice-info" : "notice-error"}`}
+                role={
+                  waiting
+                    ? undefined
+                    : sessionEnded && !message
+                      ? "status"
+                      : "alert"
+                }
+                aria-live={waiting ? "off" : undefined}
               >
                 {displayedMessage}
                 {recovery ||
@@ -280,7 +304,7 @@ export function LoginPage() {
             ) : null}
             <button
               className="button button-primary login-submit"
-              disabled={busy || checking}
+              disabled={busy || checking || waiting}
             >
               {checking
                 ? "Checking your session…"

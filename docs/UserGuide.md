@@ -17,6 +17,7 @@ and scores may differ from those recorded results.
 Open **https://cs3227-2610-mp3-1-hxlp.onrender.com** for all roles. The login page
 shows Username, Password, and **Sign in**. No local installation is required.
 You do not need a Render account. Open this public URL and sign in using a QuizIt demo account below.
+If a sign-in request times out or its result cannot be confirmed, use **Check session** before entering credentials again. A server sign-in limit may ask you to wait before another attempt.
 
 ![QuizIt login screen](images/login-screen.png)
 
@@ -46,8 +47,11 @@ confusing them with existing records, and use those names consistently.
 Demo accounts are seeded only when the database has no users. They are not recreated
 on every restart or deployment; existing passwords and memberships are retained.
 Contact the team/admin if initial credentials no longer work. There is no self-service
-registration or password reset. If sign-in fails, check your username and re-enter
-the password. Follow any displayed retry time; use **Reconnect** for a connection error.
+registration or password reset. If QuizIt rejects your username and password, check
+them and submit again. If the request times out or QuizIt cannot confirm the result,
+select **Check session** and follow the message before entering credentials again. A
+confirmed signed-out result restores the sign-in form; a failed check leaves **Check
+session** available. Follow any displayed retry time before trying again.
 
 ## 4. Complete testing example
 
