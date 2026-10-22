@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError, errorMessage } from "../api/client";
 import { Brand, Icon, Notice } from "../shared/ui";
@@ -11,6 +11,13 @@ export function LoginPage() {
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  useEffect(() => {
+    const previousTitle = document.title;
+    document.title = "Sign in · QuizIt";
+    return () => {
+      document.title = previousTitle;
+    };
+  }, []);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (busy) return;
@@ -37,28 +44,28 @@ export function LoginPage() {
       <section className="login-story">
         <Brand light />
         <div className="login-story-body">
-          <h1>
+          <p className="login-story-title">
             Good learning
             <br />
             starts with
             <br />
             <span>good questions.</span>
-          </h1>
+          </p>
           <p>
-            One place to bring your classes together, turn knowledge into
-            quizzes, and see learning take shape.
+            Turn class notes into quizzes, get hints when you need them, and
+            review your answers after submission.
           </p>
           <div className="learning-illustration" aria-hidden="true">
             <div className="illustration-card">
-              <span className="tiny-label">THE LEARNING CYCLE</span>
+              <span className="tiny-label">FROM NOTES TO FEEDBACK</span>
               <div className="cycle-step">
-                <span>01</span> Bring your class together <Icon name="users" />
+                <span>01</span> Notes to quizzes <Icon name="users" />
               </div>
               <div className="cycle-step">
-                <span>02</span> Make space for questions <Icon name="book" />
+                <span>02</span> Hints when you’re stuck <Icon name="book" />
               </div>
               <div className="cycle-step">
-                <span>03</span> Discover what comes next <Icon name="spark" />
+                <span>03</span> Review your answers <Icon name="spark" />
               </div>
             </div>
           </div>
@@ -69,7 +76,7 @@ export function LoginPage() {
           <Brand />
         </div>
         <div className="login-form-wrap">
-          <h2>Welcome back.</h2>
+          <h1>Welcome back.</h1>
           <p className="muted">Sign in to pick up where you left off.</p>
           {connectionError ? (
             <Notice>
@@ -129,9 +136,8 @@ export function LoginPage() {
             </button>
           </form>
           <p className="login-help">
-            Your account is provided by your administrator.
-            <br />
-            Need access? Contact your class administrator.
+            Need an account or help signing in? Contact your class
+            administrator.
           </p>
         </div>
       </section>
