@@ -71,8 +71,8 @@ same names throughout. Use a new one-student class: each seeded class has ten st
    Select **Generate questions**, review all questions, answers, and explanations,
    check the review confirmation, and **Publish quiz**. Check **Published to 1 student**.
 3. **Student:** sign out and sign in as `student01`. In **My quizzes**, find
-   `Admin Summary Smoke Test` and select **Start**. Select **Ask for a hint** for a
-   conceptual hint, using **Retry hint** if needed. Answer all three questions, wait
+   `Admin Summary Smoke Test` and select **Start**. Open **Need a hint?** and select **Ask for a hint** for a
+   conceptual hint, using **Try again** if needed. Answer all three questions, wait
    for **Saved**, select **Submit quiz**, then **Confirm submission**. Check the **Submitted** results page.
 4. **Admin:** sign out and sign in as `admin`. Open **Quiz performance**, select
    `Admin Summary Smoke Test`, and use **Refresh quiz performance**. Check
@@ -267,13 +267,15 @@ you leave or reload the attempt page and never block submission.
 
 ### AI hints
 
-Enter an optional prompt of at most 500 characters and select **Ask for a hint**.
-For example: “Give me a conceptual hint without revealing the correct option.”
+Open **Need a hint?** on a question, enter an optional prompt of at most 500 characters,
+and select **Ask for a hint**. For example: “Give me a conceptual hint without revealing the correct option.”
 The application checks the hint before showing it; rejected or unverifiable content
 is withheld. Hint controls are disabled while the application checks or generates a hint.
 
-**Expected:** a successful request displays hint text beneath the question. If the
-request fails, **Retry hint** is available; rejected content is not displayed.
+**Expected:** a successful request displays hint text beneath the question and updates the
+disclosure label to **Your hint**. If the request fails, a concise message explains why
+(such as when a hint could reveal the answer or was not relevant enough) and **Try again**
+is available with an editable prompt; rejected content and raw error codes are not displayed.
 **Ask for a hint** reopens the current hint when one exists; **Another hint** requests
 a new one. The previous hint is not displayed while a replacement is being generated
 or if that request fails. If you reach the hint limit, follow the message shown.
