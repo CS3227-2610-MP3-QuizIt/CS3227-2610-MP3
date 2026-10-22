@@ -63,6 +63,22 @@ export function AttemptNavigator({
           if (heading && heading.getBoundingClientRect().top <= offset)
             visible = question.id;
         }
+        // The final heading may never reach the tracking line when there is
+        // less than a viewport of content left below it.
+        const last = questions.at(-1);
+        const lastHeading = last
+          ? document.getElementById(questionHeadingId(attemptId, last.id))
+          : null;
+        if (
+          window.scrollY > 0 &&
+          Math.ceil(window.scrollY + window.innerHeight) >=
+            document.documentElement.scrollHeight - 2 &&
+          last &&
+          lastHeading &&
+          lastHeading.getBoundingClientRect().top < window.innerHeight
+        ) {
+          visible = last.id;
+        }
         setCurrent(visible);
       });
     };
@@ -88,9 +104,9 @@ export function AttemptNavigator({
     heading.focus({ preventScroll: true });
     heading.scrollIntoView({
       block: "start",
-      behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
-        ? "instant"
-        : "smooth",
+      // Instant jumps keep scroll tracking and the selected destination in
+      // agreement without flashing through intermediate question highlights.
+      behavior: "instant",
     });
     setCurrent(id);
   }
