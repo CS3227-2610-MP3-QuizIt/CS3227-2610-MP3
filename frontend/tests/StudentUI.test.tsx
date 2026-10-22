@@ -56,6 +56,7 @@ describe("student workspace", () => {
   });
   afterEach(() => {
     store.dispose();
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
   const open = () => render(<QuizPage id={1} store={store} />);
