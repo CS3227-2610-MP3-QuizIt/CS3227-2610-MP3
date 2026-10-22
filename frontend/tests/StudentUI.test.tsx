@@ -7,12 +7,14 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api, ApiError } from "../src/api/client";
+import { api, ApiError, SESSION_LOST } from "../src/api/client";
+import { AuthProvider, useAuth } from "../src/auth/AuthProvider";
 import type { SavedAnswer } from "../src/api/types";
 import { HintStore } from "../src/student/HintStore";
 import type { HintTransport } from "../src/student/HintStore";
 import { QuizList } from "../src/student/QuizList";
 import { QuizPage } from "../src/student/QuizPage";
+import { StudentApp } from "../src/student/StudentApp";
 import {
   assignment,
   deferred,
@@ -60,6 +62,89 @@ describe("student workspace", () => {
     vi.unstubAllGlobals();
   });
   const open = () => render(<QuizPage id={1} store={store} />);
+  it("resets quiz-list preferences after session loss and a different account signs in", async () => {
+    const user = userEvent.setup();
+    const accountA = {
+      id: 1,
+      username: "student-a",
+      display_name: "Student A",
+      role: "student" as const,
+    };
+    const accountB = {
+      id: 2,
+      username: "student-b",
+      display_name: "Student B",
+      role: "student" as const,
+    };
+    vi.spyOn(api, "me")
+      .mockResolvedValueOnce(accountA)
+      .mockResolvedValueOnce(accountB);
+    vi.spyOn(api, "login").mockResolvedValue(undefined);
+    vi.spyOn(api, "studentQuizzes").mockResolvedValue({
+      items: [
+        {
+          ...assignment("not_started", 1),
+          class_id: 11,
+          class_name: "Science",
+        },
+        { ...assignment("submitted", 2), class_id: 22, class_name: "History" },
+      ],
+    });
+    function AuthHarness() {
+      const auth = useAuth();
+      return (
+        <>
+          <button onClick={() => void auth.signIn("student-b", "password")}>
+            Sign in as Student B
+          </button>
+          <StudentApp />
+        </>
+      );
+    }
+    const firstSession = render(
+      <AuthProvider>
+        <AuthHarness />
+      </AuthProvider>,
+    );
+    await screen.findByText("Student A");
+    await user.click(screen.getByRole("tab", { name: /Submitted/ }));
+    await user.selectOptions(screen.getByLabelText("Class"), "22");
+    await user.type(screen.getByLabelText("Find a quiz"), "history query");
+
+    act(() => window.dispatchEvent(new Event(SESSION_LOST)));
+    await waitFor(() =>
+      expect(screen.queryByText("Student A")).not.toBeInTheDocument(),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Sign in as Student B" }),
+    );
+    await screen.findByText("Student B");
+
+    expect(screen.getByRole("tab", { name: /To do/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByLabelText("Class")).toHaveValue("all");
+    expect(screen.getByLabelText("Find a quiz")).toHaveValue("");
+
+    await user.click(screen.getByRole("tab", { name: /Submitted/ }));
+    await user.selectOptions(screen.getByLabelText("Class"), "22");
+    await user.type(screen.getByLabelText("Find a quiz"), "reload query");
+    firstSession.unmount();
+    vi.mocked(api.me).mockResolvedValue(accountB);
+    render(
+      <AuthProvider>
+        <StudentApp />
+      </AuthProvider>,
+    );
+    await screen.findByText("Student B");
+    expect(screen.getByRole("tab", { name: /To do/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByLabelText("Class")).toHaveValue("all");
+    expect(screen.getByLabelText("Find a quiz")).toHaveValue("");
+  });
   it("uses assigned quizzes directly and exposes Start, Resume, and View results", async () => {
     vi.spyOn(api, "studentQuizzes").mockResolvedValue({
       items: [
@@ -76,10 +161,217 @@ describe("student workspace", () => {
     expect(
       screen.getByRole("link", { name: "Resume: Practice 2" }),
     ).toHaveAttribute("href", "#/student/attempt/2");
+    await userEvent.setup().click(screen.getByRole("tab", { name: /All/ }));
     expect(
       screen.getByRole("link", { name: "View results: Practice 3" }),
     ).toHaveAttribute("href", "#/student/results/3");
     expect(classes).not.toHaveBeenCalled();
+  });
+  it("filters the complete collection by status, search, and class ID with in-progress items first", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "studentQuizzes").mockResolvedValue({
+      items: [
+        {
+          ...assignment("not_started", 1),
+          class_id: 11,
+          class_name: "Science",
+        },
+        {
+          ...assignment("in_progress", 2),
+          class_id: 22,
+          class_name: "Science",
+        },
+        {
+          ...assignment("submitted", 3),
+          class_id: 11,
+          class_name: "Science",
+          score: 0,
+        },
+        {
+          ...assignment("in_progress", 4),
+          class_id: 33,
+          class_name: "History",
+        },
+      ],
+    });
+    render(<QuizList />);
+    await screen.findByRole("link", { name: "Resume: Practice 2" });
+    expect(
+      screen
+        .getAllByRole("link", { name: /^(Start|Resume):/ })
+        .map((link) => link.textContent),
+    ).toEqual(["Resume", "Resume", "Start"]);
+    expect(screen.getByRole("tab", { name: /To do/ })).toHaveTextContent("3");
+    expect(screen.getByRole("tab", { name: /Submitted/ })).toHaveTextContent(
+      "1",
+    );
+    expect(screen.getByRole("tab", { name: /All/ })).toHaveTextContent("4");
+    expect(
+      screen.getByRole("option", { name: "Science (class 11)" }),
+    ).toHaveValue("11");
+    expect(
+      screen.getByRole("option", { name: "Science (class 22)" }),
+    ).toHaveValue("22");
+
+    await user.click(screen.getByRole("tab", { name: /Submitted/ }));
+    expect(
+      screen.getByRole("link", { name: "View results: Practice 3" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Score 0 / 2")).toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Class"), "11");
+    await user.clear(screen.getByLabelText("Find a quiz"));
+    await user.type(screen.getByLabelText("Find a quiz"), " practice 3 ");
+    expect(
+      screen.getByRole("link", { name: "View results: Practice 3" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /Practice 2/ }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+    expect(
+      screen.getByRole("link", { name: "View results: Practice 3" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Reset filters" }));
+    expect(screen.getByRole("tab", { name: /To do/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    await user.selectOptions(screen.getByLabelText("Class"), "22");
+    expect(
+      screen.getByRole("link", { name: "Resume: Practice 2" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Start: Practice 1" }),
+    ).not.toBeInTheDocument();
+  });
+  it("keeps tabs and unknown counts before success, and shows recoverable selected-empty states", async () => {
+    const user = userEvent.setup();
+    const response = deferred<{ items: ReturnType<typeof assignment>[] }>();
+    vi.spyOn(api, "studentQuizzes").mockReturnValue(response.promise);
+    render(<QuizList />);
+    expect(screen.getByRole("tab", { name: /All/ })).toHaveTextContent("—");
+    expect(screen.getByRole("tab", { name: /To do/ })).toBeInTheDocument();
+    await act(async () =>
+      response.resolve({ items: [assignment("submitted")] }),
+    );
+    await user.click(screen.getByRole("tab", { name: /To do/ }));
+    expect(screen.getByText("No to do quizzes")).toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: /All/ })).toHaveTextContent("1");
+  });
+  it("preserves loaded cards after a failed refresh and resets a class removed by a successful refresh", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "studentQuizzes")
+      .mockResolvedValueOnce({ items: [assignment("not_started", 1)] })
+      .mockRejectedValueOnce(new Error("Refresh offline"))
+      .mockResolvedValueOnce({
+        items: [{ ...assignment("not_started", 1), class_id: 2 }],
+      });
+    render(<QuizList />);
+    await screen.findByRole("link", { name: "Start: Practice 1" });
+    await user.selectOptions(screen.getByLabelText("Class"), "1");
+    await user.click(screen.getByRole("button", { name: "Refresh quizzes" }));
+    await screen.findByText("Refresh offline");
+    expect(
+      screen.getByRole("link", { name: "Start: Practice 1" }),
+    ).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Try again" }));
+    await waitFor(() =>
+      expect(screen.getByLabelText("Class")).toHaveValue("all"),
+    );
+    expect(screen.getByRole("tab", { name: /To do/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+  it("ignores an older collection response after a newer refresh completes", async () => {
+    const staleResponse = deferred<{
+      items: ReturnType<typeof assignment>[];
+    }>();
+    const currentResponse = deferred<{
+      items: ReturnType<typeof assignment>[];
+    }>();
+    const request = vi
+      .spyOn(api, "studentQuizzes")
+      .mockReturnValueOnce(staleResponse.promise)
+      .mockReturnValueOnce(currentResponse.promise);
+    render(<QuizList />);
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+
+    act(() => window.dispatchEvent(new Event("focus")));
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    await act(async () =>
+      currentResponse.resolve({
+        items: [{ ...assignment("not_started", 2), title: "Current quiz" }],
+      }),
+    );
+    expect(
+      await screen.findByRole("link", { name: "Start: Current quiz" }),
+    ).toBeInTheDocument();
+
+    await act(async () =>
+      staleResponse.resolve({
+        items: [{ ...assignment("not_started", 1), title: "Stale quiz" }],
+      }),
+    );
+    expect(
+      screen.getByRole("link", { name: "Start: Current quiz" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Start: Stale quiz" }),
+    ).not.toBeInTheDocument();
+  });
+  it("keeps submitted scores private to submitted cards and renders unavailable values clearly", async () => {
+    vi.spyOn(api, "studentQuizzes").mockResolvedValue({
+      items: [
+        { ...assignment("not_started", 1), score: 9 },
+        { ...assignment("submitted", 2), score: null, question_count: 1 },
+      ],
+    });
+    render(<QuizList />);
+    await screen.findByRole("link", { name: "Start: Practice 1" });
+    expect(screen.queryByText("9")).not.toBeInTheDocument();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("tab", { name: /Submitted/ }));
+    expect(screen.getByLabelText("Score unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Unavailable")).toHaveClass(
+      "student-score-unavailable",
+    );
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "P" &&
+          element.textContent?.includes("1 question") === true,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "View results: Practice 2" }),
+    ).toHaveClass("button-secondary");
+  });
+  it("moves status-tab focus and selection with arrow, Home, and End keys", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "studentQuizzes").mockResolvedValue({
+      items: [assignment("not_started")],
+    });
+    render(<QuizList />);
+    await screen.findByRole("link", { name: "Start: Practice 1" });
+
+    const todo = screen.getByRole("tab", { name: /To do/ });
+    const submitted = screen.getByRole("tab", { name: /Submitted/ });
+    const all = screen.getByRole("tab", { name: /All/ });
+    todo.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(submitted).toHaveFocus();
+    expect(submitted).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{End}");
+    expect(all).toHaveFocus();
+    expect(all).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{Home}");
+    expect(todo).toHaveFocus();
+    expect(todo).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{ArrowLeft}");
+    expect(all).toHaveFocus();
+    expect(all).toHaveAttribute("aria-selected", "true");
   });
   it("supports quiz list loading, errors, refresh and empty state", async () => {
     vi.spyOn(api, "studentQuizzes")

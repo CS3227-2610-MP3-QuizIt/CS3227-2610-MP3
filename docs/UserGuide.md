@@ -102,6 +102,14 @@ quiz** for a selected quiz; students use **Refresh quizzes** for their list. Sea
 and filters help locate records: Admin Accounts supports search/role filters, and
 Teacher **My quizzes** supports search, class, and status filters.
 
+In Student **My quizzes**, use **To do**, **Submitted**, and **All** to switch
+between assigned quiz states; the tabs also support Left/Right, Home, and End
+keyboard navigation. Search by quiz title or class and choose a class
+to narrow the list; the tab counts reflect the search and class selection.
+Submitted cards show the score recorded for that quiz. Your tab, search, and
+class selections stay available while you move between the list, an attempt,
+and results during the signed-in session.
+
 Refresh or reopen a page to check your progress. AI generation may continue after
 you leave the page. If it fails, use the offered retry control; it does not retry
 automatically. If you are unsure whether a request went through, use **Repeat previous

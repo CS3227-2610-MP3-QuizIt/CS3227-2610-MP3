@@ -1,10 +1,15 @@
 import { useState, useSyncExternalStore } from "react";
 import { errorMessage } from "../api/client";
 import { useAuth } from "../auth/AuthProvider";
+import type { User } from "../api/types";
 import { Brand, EmptyState, Icon, Notice } from "../shared/ui";
 import { useAIEvents } from "../shared/useAIEvents";
 import { HintStore } from "./HintStore";
 import { QuizList } from "./QuizList";
+import {
+  defaultQuizListPreferences,
+  type QuizListPreferences,
+} from "./quizListPreferences";
 import { QuizPage } from "./QuizPage";
 import "./student.css";
 const subscribeRoute = (listener: () => void) => {
@@ -15,6 +20,17 @@ const routeSnapshot = () => window.location.hash;
 const createStore = () => new HintStore();
 export function StudentApp() {
   const { user, signOut } = useAuth();
+  if (!user) return null;
+  return <StudentWorkspace key={user.id} user={user} signOut={signOut} />;
+}
+
+function StudentWorkspace({
+  user,
+  signOut,
+}: {
+  user: User;
+  signOut: () => Promise<void>;
+}) {
   const store = useAIEvents(createStore);
   const hash = useSyncExternalStore(subscribeRoute, routeSnapshot);
   const parts = hash.replace(/^#/, "").split("/");
@@ -22,7 +38,8 @@ export function StudentApp() {
   const id = Number(parts[3]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  if (!user) return null;
+  const [quizListPreferences, setQuizListPreferences] =
+    useState<QuizListPreferences>(defaultQuizListPreferences);
   return (
     <div className="app-shell student-workspace">
       <a
@@ -75,7 +92,7 @@ export function StudentApp() {
             </div>
           </div>
           <button
-            className="icon-button"
+            className="icon-button student-signout"
             disabled={busy}
             aria-label={busy ? "Signing out" : "Sign out"}
             onClick={async () => {
@@ -111,7 +128,10 @@ export function StudentApp() {
         <main id="main-content" tabIndex={-1} className="main-content">
           {error ? <Notice>{error}</Notice> : null}
           {page === "quizzes" ? (
-            <QuizList />
+            <QuizList
+              preferences={quizListPreferences}
+              onPreferencesChange={setQuizListPreferences}
+            />
           ) : (page === "attempt" || page === "results") &&
             Number.isSafeInteger(id) &&
             id > 0 ? (
