@@ -215,6 +215,31 @@ describe("student workspace", () => {
       screen.getByRole("link", { name: "View results: Practice 2" }),
     ).toHaveClass("button-secondary");
   });
+  it("moves status-tab focus and selection with arrow, Home, and End keys", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(api, "studentQuizzes").mockResolvedValue({
+      items: [assignment("not_started")],
+    });
+    render(<QuizList />);
+    await screen.findByRole("link", { name: "Start: Practice 1" });
+
+    const todo = screen.getByRole("tab", { name: /To do/ });
+    const submitted = screen.getByRole("tab", { name: /Submitted/ });
+    const all = screen.getByRole("tab", { name: /All/ });
+    todo.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(submitted).toHaveFocus();
+    expect(submitted).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{End}");
+    expect(all).toHaveFocus();
+    expect(all).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{Home}");
+    expect(todo).toHaveFocus();
+    expect(todo).toHaveAttribute("aria-selected", "true");
+    await user.keyboard("{ArrowLeft}");
+    expect(all).toHaveFocus();
+    expect(all).toHaveAttribute("aria-selected", "true");
+  });
   it("supports quiz list loading, errors, refresh and empty state", async () => {
     vi.spyOn(api, "studentQuizzes")
       .mockRejectedValueOnce(new Error("List offline"))

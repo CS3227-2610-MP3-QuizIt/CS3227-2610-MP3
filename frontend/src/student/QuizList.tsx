@@ -25,6 +25,7 @@ export function QuizList({
   const [localPreferences, setLocalPreferences] = useState(preferences);
   const selection = onPreferencesChange ? preferences : localPreferences;
   const selectionRef = useRef(selection);
+  const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const update = useCallback(
     (next: QuizListPreferences) => {
       selectionRef.current = next;
@@ -143,14 +144,39 @@ export function QuizList({
           role="tablist"
           aria-label="Quiz status"
         >
-          {tabs.map((tab) => (
+          {tabs.map((tab, index) => (
             <button
               className={`student-collection-tab ${selection.tab === tab.id ? "selected" : ""}`}
               key={tab.id}
+              ref={(element) => {
+                tabRefs.current[index] = element;
+              }}
+              id={`quiz-status-${tab.id}`}
               role="tab"
               aria-selected={selection.tab === tab.id}
+              tabIndex={selection.tab === tab.id ? 0 : -1}
               aria-controls="student-quiz-results"
               onClick={() => update({ ...selection, tab: tab.id })}
+              onKeyDown={(event) => {
+                const currentIndex = tabs.findIndex(
+                  (item) => item.id === tab.id,
+                );
+                const nextIndex =
+                  event.key === "ArrowRight"
+                    ? (currentIndex + 1) % tabs.length
+                    : event.key === "ArrowLeft"
+                      ? (currentIndex - 1 + tabs.length) % tabs.length
+                      : event.key === "Home"
+                        ? 0
+                        : event.key === "End"
+                          ? tabs.length - 1
+                          : null;
+                if (nextIndex !== null) {
+                  event.preventDefault();
+                  update({ ...selection, tab: tabs[nextIndex].id });
+                  tabRefs.current[nextIndex]?.focus();
+                }
+              }}
             >
               {tab.label}
               <span className="student-count">{counts[tab.id] ?? "—"}</span>
@@ -231,6 +257,7 @@ export function QuizList({
       <div
         id="student-quiz-results"
         role="tabpanel"
+        aria-labelledby={`quiz-status-${selection.tab}`}
       >
         {resource.data?.items.length === 0 ? (
           <EmptyState title="No quizzes yet" icon="book">
