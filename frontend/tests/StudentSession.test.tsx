@@ -98,6 +98,22 @@ describe("student session and SSE", () => {
       );
     }
   });
+  it("shows known loss when a protected request requires authentication for a confirmed user", async () => {
+    render(<App />);
+    await screen.findByText("Question 1?");
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent(SESSION_LOST, { detail: "AUTH_REQUIRED" }),
+      );
+    });
+    expect(
+      await screen.findByText(
+        "Your session has ended. Sign in again to continue.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeInTheDocument();
+  });
+
   it("cleans session state on expiry and suppresses late reads in a later session", async () => {
     const late = deferred<HintState>();
     vi.mocked(api.hint).mockReturnValue(late.promise);
@@ -152,6 +168,27 @@ describe("student session and SSE", () => {
     expect(document.title).toBe("Sign in · QuizIt");
     expect(api.logout).toHaveBeenCalledOnce();
     expect(sources[0].close).toHaveBeenCalledOnce();
+    expect(
+      screen.queryByText("Your session has ended. Sign in again to continue."),
+    ).not.toBeInTheDocument();
+  });
+  it("keeps deliberate logout quiet when a session-loss event races a failed logout", async () => {
+    vi.mocked(api.logout).mockImplementationOnce(async () => {
+      window.dispatchEvent(
+        new CustomEvent(SESSION_LOST, { detail: "SESSION_EXPIRED" }),
+      );
+      throw new Error("Logout unavailable");
+    });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("Question 1?");
+    await user.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(await screen.findByText("Logout unavailable")).toBeInTheDocument();
+    expect(screen.getByText("Question 1?")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Your session has ended. Sign in again to continue."),
+    ).not.toBeInTheDocument();
+    expect(sources[0].close).not.toHaveBeenCalled();
   });
   it("creates a fresh usable store after StrictMode cleanup", async () => {
     const view = render(

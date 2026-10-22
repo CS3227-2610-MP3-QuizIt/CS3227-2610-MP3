@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import { ApiError, errorMessage } from "../api/client";
+import { ApiError, LoginFlowError } from "../api/client";
 import { Brand, Icon, Notice } from "../shared/ui";
 import { useAuth } from "./AuthProvider";
 
@@ -8,15 +8,26 @@ type Errors = { username?: string; password?: string };
 const usernamePattern = /^[A-Za-z0-9_.-]+$/;
 
 export function LoginPage() {
-  const { signIn, error: connectionError, refresh } = useAuth();
+  const {
+    signIn,
+    error: connectionError,
+    sessionEnded,
+    uncertainSignIn,
+    checkSession,
+  } = useAuth();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [message, setMessage] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const usernameRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
+  const busyRef = useRef(false);
+  const checkingRef = useRef(false);
+  const uncertainRef = useRef(uncertainSignIn);
+  uncertainRef.current = uncertainSignIn;
   useEffect(() => {
     const previousTitle = document.title;
     document.title = "Sign in · QuizIt";
@@ -24,6 +35,24 @@ export function LoginPage() {
       document.title = previousTitle;
     };
   }, []);
+  const recovery = uncertainSignIn;
+  async function runCheck() {
+    if (checkingRef.current || busyRef.current) return;
+    checkingRef.current = true;
+    setChecking(true);
+    setMessage("Checking your session…");
+    const outcome = await checkSession();
+    checkingRef.current = false;
+    setChecking(false);
+    if (outcome === "signed-in") return;
+    setMessage(
+      outcome === "failed"
+        ? "Unable to check your session. Check your connection and try again."
+        : sessionEnded
+          ? "Your session has ended. Sign in again to continue."
+          : "You’re signed out. Sign in to continue.",
+    );
+  }
   function validate(): Errors {
     const normalized = username.trim();
     const next: Errors = {};
@@ -42,31 +71,76 @@ export function LoginPage() {
   }
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (busy) return;
+    if (busyRef.current || checkingRef.current) return;
+    if (recovery) {
+      await runCheck();
+      return;
+    }
     const next = validate();
     setErrors(next);
+    setMessage("");
     if (next.username || next.password) {
       (next.username ? usernameRef : passwordRef).current?.focus();
       return;
     }
+    busyRef.current = true;
     setBusy(true);
-    setError("");
     try {
       await signIn(username.trim(), password);
-    } catch (error) {
+    } catch (caught) {
       setPassword("");
-      setError(
+      const flow = caught instanceof LoginFlowError ? caught : null;
+      const error = flow
+        ? (caught as Error & { cause?: unknown }).cause
+        : caught;
+      if (flow?.stage === "identity") {
+        setMessage(
+          "We couldn’t confirm your sign-in. Check your session before entering your details again.",
+        );
+      } else if (
         error instanceof ApiError &&
-          (error.status === 401 || error.status === 422)
-          ? "Unable to sign in. Check your username and password."
-          : error instanceof ApiError && error.code === "LOGIN_RATE_LIMIT"
-            ? `Too many sign-in attempts. Please try again${error.retryAfter != null ? ` in ${error.retryAfter} seconds` : " later"}.`
-            : errorMessage(error),
-      );
+        error.code === "LOGIN_RATE_LIMIT"
+      ) {
+        setMessage(
+          "Too many sign-in attempts. Please wait before trying again.",
+        );
+      } else if (
+        error instanceof ApiError &&
+        error.status === 401 &&
+        error.code === "INVALID_CREDENTIALS"
+      ) {
+        setMessage("Unable to sign in. Check your username and password.");
+        window.setTimeout(() => passwordRef.current?.focus(), 0);
+      } else if (
+        error instanceof ApiError &&
+        error.code === "REQUEST_TIMEOUT"
+      ) {
+        setMessage(
+          "The sign-in request timed out. Check your session before trying to sign in again.",
+        );
+      } else if (uncertainRef.current) {
+        setMessage(
+          "We couldn’t confirm your sign-in. Check your session before entering your details again.",
+        );
+      } else if (error instanceof ApiError && error.code === "NETWORK_ERROR") {
+        setMessage(
+          "We couldn’t confirm your sign-in. Check your session before entering your details again.",
+        );
+      } else if (error instanceof ApiError && error.status >= 500) {
+        setMessage(
+          "QuizIt is unavailable right now. Please try again shortly.",
+        );
+      } else if (error instanceof ApiError && error.status === 0) {
+        setMessage(
+          "Unable to reach QuizIt. Check your connection and try again.",
+        );
+      } else setMessage("Unable to sign in. Please try again.");
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
+  const displayedMessage = message;
   return (
     <main className="login-layout">
       <section className="login-story">
@@ -108,10 +182,20 @@ export function LoginPage() {
           <p className="muted">Sign in to pick up where you left off.</p>
           {connectionError ? (
             <Notice>
-              {connectionError}{" "}
-              <button className="text-button" onClick={refresh}>
-                Reconnect
+              Unable to check your session. Check your connection and try again.{" "}
+              <button
+                type="button"
+                className="text-button"
+                onClick={runCheck}
+                disabled={checking}
+              >
+                {checking ? "Please wait." : "Check session"}
               </button>
+            </Notice>
+          ) : null}
+          {sessionEnded && !recovery && !message ? (
+            <Notice kind="info">
+              Your session has ended. Sign in again to continue.
             </Notice>
           ) : null}
           <form onSubmit={submit} className="form-stack" noValidate>
@@ -124,7 +208,7 @@ export function LoginPage() {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter your username"
-                disabled={busy}
+                disabled={busy || checking || recovery}
                 aria-invalid={!!errors.username}
                 aria-describedby={
                   errors.username ? "username-error" : undefined
@@ -147,7 +231,7 @@ export function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  disabled={busy}
+                  disabled={busy || checking || recovery}
                   aria-invalid={!!errors.password}
                   aria-describedby={
                     errors.password ? "password-error" : undefined
@@ -160,6 +244,7 @@ export function LoginPage() {
                   aria-pressed={visible}
                   onClick={() => setVisible(!visible)}
                 >
+                  {" "}
                   {visible ? "Hide" : "Show"}
                 </button>
               </div>
@@ -169,12 +254,41 @@ export function LoginPage() {
                 </small>
               ) : null}
             </label>
-            {error ? <Notice>{error}</Notice> : null}
+            {displayedMessage ? (
+              <div
+                className={`notice ${(sessionEnded && !message) ? "notice-info" : "notice-error"}`}
+                role={sessionEnded && !message ? "status" : "alert"}
+              >
+                {displayedMessage}
+                {recovery ||
+                message.startsWith("The sign-in request timed out") ||
+                message.startsWith("We couldn’t confirm") ||
+                message.startsWith("Unable to check your session") ? (
+                  <>
+                    {" "}
+                    <button
+                      type="button"
+                      className="text-button"
+                      onClick={runCheck}
+                      disabled={checking}
+                    >
+                      {checking ? "Please wait." : "Check session"}
+                    </button>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
             <button
               className="button button-primary login-submit"
-              disabled={busy}
+              disabled={busy || checking}
             >
-              {busy ? "Signing in…" : "Sign in"}
+              {checking
+                ? "Checking your session…"
+                : busy
+                  ? "Signing in…"
+                  : recovery
+                    ? "Check session"
+                    : "Sign in"}
               <Icon name="arrow" />
             </button>
           </form>

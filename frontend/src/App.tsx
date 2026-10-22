@@ -11,7 +11,7 @@ function Screens() {
     return (
       <main className="session-loading">
         <Brand />
-        <Loading>Opening your classroom…</Loading>
+        <Loading>Checking your session…</Loading>
       </main>
     );
   if (!auth.user) return <LoginPage />;

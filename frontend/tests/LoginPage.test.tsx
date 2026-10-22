@@ -1,9 +1,9 @@
 import { StrictMode } from "react";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
-import { api, ApiError } from "../src/api/client";
+import { api, ApiError, SESSION_LOST } from "../src/api/client";
 
 describe("login page", () => {
   beforeEach(() => {
@@ -50,7 +50,7 @@ describe("login page", () => {
 
   it("keeps the login title after a failed sign-in and restores the prior title on unmount", async () => {
     vi.spyOn(api, "login").mockRejectedValue(
-      new ApiError(401, { code: "BAD_CREDENTIALS", message: "Invalid." }),
+      new ApiError(401, { code: "INVALID_CREDENTIALS", message: "Invalid." }),
     );
     const user = userEvent.setup();
     const view = render(<App />);
@@ -145,6 +145,71 @@ describe("login page", () => {
       );
     },
   );
+
+  it("submits valid credentials on Enter and ignores duplicate activation while pending", async () => {
+    let resolveLogin!: (value: {
+      user: {
+        id: number;
+        username: string;
+        display_name: string;
+        role: "student";
+      };
+    }) => void;
+    const loginResult = new Promise<{
+      user: {
+        id: number;
+        username: string;
+        display_name: string;
+        role: "student";
+      };
+    }>((resolve) => (resolveLogin = resolve));
+    const login = vi.spyOn(api, "login").mockReturnValue(loginResult);
+    vi.spyOn(api, "me")
+      .mockRejectedValueOnce(
+        new ApiError(401, { code: "AUTH_REQUIRED", message: "Signed out" }),
+      )
+      .mockResolvedValue({
+        id: 1,
+        username: "student",
+        display_name: "Student",
+        role: "student",
+      });
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(await screen.findByLabelText("Username"), "student");
+    const password = screen.getByLabelText("Password");
+    await user.type(password, "password");
+    await user.keyboard("{Enter}");
+    await waitFor(() => expect(login).toHaveBeenCalledOnce());
+    expect(screen.getByRole("button", { name: "Signing in…" })).toBeDisabled();
+    fireEvent.submit(password.closest("form")!);
+    expect(login).toHaveBeenCalledOnce();
+    resolveLogin({
+      user: {
+        id: 1,
+        username: "student",
+        display_name: "Student",
+        role: "student",
+      },
+    });
+    expect(
+      await screen.findByRole("heading", { name: "My quizzes" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps Show/Hide password state accessible and does not change the value", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const password = await screen.findByLabelText("Password");
+    await user.type(password, "secret");
+    await user.click(screen.getByRole("button", { name: "Show password" }));
+    expect(screen.getByLabelText("Password")).toHaveAttribute("type", "text");
+    expect(
+      screen.getByRole("button", { name: "Hide password" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText("Password")).toHaveValue("secret");
+  });
+
   it("accepts a 50-character username and preserves a one-space login password", async () => {
     const login = vi.spyOn(api, "login").mockResolvedValue({
       user: {
@@ -193,6 +258,24 @@ describe("login page", () => {
       expect(login).not.toHaveBeenCalled();
     },
   );
+
+  it("classifies only the approved invalid credential code and clears the password", async () => {
+    vi.spyOn(api, "login").mockRejectedValue(
+      new ApiError(401, { code: "INVALID_CREDENTIALS", message: "Invalid." }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(await screen.findByLabelText("Username"), "student01");
+    const password = screen.getByLabelText("Password");
+    await user.type(password, "short");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Unable to sign in. Check your username and password.",
+    );
+    expect(password).toHaveValue("");
+    await waitFor(() => expect(password).toHaveFocus());
+  });
+
   it("rejects a 129-character password and leaves focus on Password", async () => {
     const login = vi.spyOn(api, "login");
     const user = userEvent.setup();
@@ -208,5 +291,337 @@ describe("login page", () => {
     ).toBeInTheDocument();
     expect(password).toHaveFocus();
     expect(login).not.toHaveBeenCalled();
+  });
+
+  it("requires an explicit session check after an uncertain login", async () => {
+    vi.spyOn(api, "login").mockRejectedValue(
+      new ApiError(0, { code: "NETWORK_ERROR", message: "Network" }),
+    );
+    vi.spyOn(api, "me").mockRejectedValueOnce(
+      new ApiError(401, { code: "UNAUTHENTICATED", message: "Signed out" }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(await screen.findByLabelText("Username"), "student01");
+    await user.type(screen.getByLabelText("Password"), "pw");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(
+      await screen.findByText(/We couldn’t confirm your sign-in/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Check session" }),
+    ).toHaveLength(2);
+  });
+
+  it("uses timeout wording only when the client retains timeout evidence", async () => {
+    vi.spyOn(api, "login").mockRejectedValue(
+      new ApiError(0, { code: "REQUEST_TIMEOUT", message: "Timed out." }),
+    );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(await screen.findByLabelText("Username"), "student01");
+    await user.type(screen.getByLabelText("Password"), "pw");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(
+      await screen.findByText(/The sign-in request timed out/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Check session" }),
+    ).toHaveLength(2);
+  });
+
+  it("restores credentials after a confirmed signed-out check without replaying login", async () => {
+    const login = vi
+      .spyOn(api, "login")
+      .mockRejectedValueOnce(
+        new ApiError(0, { code: "NETWORK_ERROR", message: "Lost response" }),
+      )
+      .mockResolvedValueOnce({
+        user: {
+          id: 1,
+          username: "student01",
+          display_name: "Student",
+          role: "student",
+        },
+      });
+    vi.spyOn(api, "me")
+      .mockRejectedValueOnce(
+        new ApiError(401, { code: "AUTH_REQUIRED", message: "Signed out" }),
+      )
+      .mockRejectedValueOnce(
+        new ApiError(401, { code: "AUTH_REQUIRED", message: "Signed out" }),
+      )
+      .mockResolvedValue({
+        id: 1,
+        username: "student01",
+        display_name: "Student",
+        role: "student",
+      });
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(await screen.findByLabelText("Username"), "student01");
+    await user.type(screen.getByLabelText("Password"), "pw");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Check session" }))[0],
+    );
+
+    expect(
+      await screen.findByText("You’re signed out. Sign in to continue."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Username")).toBeEnabled();
+    expect(screen.getByLabelText("Password")).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+    expect(login).toHaveBeenCalledTimes(1);
+
+    await user.type(screen.getByLabelText("Password"), "new-password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(
+      await screen.findByRole("heading", { name: "My quizzes" }),
+    ).toBeInTheDocument();
+    expect(login).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps recovery available after a non-401 session-check failure", async () => {
+    vi.spyOn(api, "login").mockRejectedValue(
+      new ApiError(0, { code: "NETWORK_ERROR", message: "Lost response" }),
+    );
+    vi.spyOn(api, "me")
+      .mockRejectedValueOnce(
+        new ApiError(401, { code: "AUTH_REQUIRED", message: "Signed out" }),
+      )
+      .mockRejectedValueOnce(
+        new ApiError(503, {
+          code: "SERVICE_UNAVAILABLE",
+          message: "Unavailable",
+        }),
+      );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(await screen.findByLabelText("Username"), "student01");
+    await user.type(screen.getByLabelText("Password"), "pw");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Check session" }))[0],
+    );
+
+    expect(
+      await screen.findByText(
+        "Unable to check your session. Check your connection and try again.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Username")).toBeDisabled();
+    expect(screen.getByLabelText("Password")).toBeDisabled();
+    expect(
+      screen
+        .getAllByRole("button", { name: "Check session" })
+        .every((button) => !button.hasAttribute("disabled")),
+    ).toBe(true);
+    expect(api.login).toHaveBeenCalledTimes(1);
+
+    await user.click(
+      screen.getAllByRole("button", { name: "Check session" })[0],
+    );
+    expect(
+      await screen.findByText("You’re signed out. Sign in to continue."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Username")).toBeEnabled();
+    expect(api.login).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    [401, "AUTH_REQUIRED"],
+    [503, "SERVICE_UNAVAILABLE"],
+    [0, "NETWORK_ERROR"],
+  ])(
+    "treats post-login identity failure %s/%s as uncertain, never bad credentials",
+    async (status, code) => {
+      vi.spyOn(api, "login").mockResolvedValue({
+        user: {
+          id: 1,
+          username: "student01",
+          display_name: "Student",
+          role: "student",
+        },
+      });
+      vi.spyOn(api, "me")
+        .mockRejectedValueOnce(
+          new ApiError(401, { code: "AUTH_REQUIRED", message: "Signed out" }),
+        )
+        .mockRejectedValueOnce(
+          new ApiError(status, { code, message: "Identity unavailable" }),
+        );
+      const user = userEvent.setup();
+      render(<App />);
+      await user.type(await screen.findByLabelText("Username"), "student01");
+      await user.type(screen.getByLabelText("Password"), "pw");
+      await user.click(screen.getByRole("button", { name: "Sign in" }));
+      expect(
+        await screen.findByText(/We couldn’t confirm your sign-in/),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(/Check your username and password/),
+      ).not.toBeInTheDocument();
+      expect(api.login).toHaveBeenCalledOnce();
+      expect(
+        screen.getAllByRole("button", { name: "Check session" }),
+      ).toHaveLength(2);
+    },
+  );
+
+  it("does not poll a failed session check and replaces its message only after an explicit retry", async () => {
+    vi.spyOn(api, "login").mockRejectedValue(
+      new ApiError(0, { code: "NETWORK_ERROR", message: "Lost response" }),
+    );
+    const me = vi
+      .spyOn(api, "me")
+      .mockRejectedValueOnce(
+        new ApiError(401, { code: "AUTH_REQUIRED", message: "Signed out" }),
+      )
+      .mockRejectedValueOnce(
+        new ApiError(503, {
+          code: "SERVICE_UNAVAILABLE",
+          message: "Unavailable",
+        }),
+      )
+      .mockRejectedValueOnce(
+        new ApiError(401, { code: "AUTH_REQUIRED", message: "Signed out" }),
+      );
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(await screen.findByLabelText("Username"), "student01");
+    await user.type(screen.getByLabelText("Password"), "pw");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Check session" }))[0],
+    );
+    expect(
+      await screen.findByText(
+        "Unable to check your session. Check your connection and try again.",
+      ),
+    ).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(me).toHaveBeenCalledTimes(2);
+
+    await user.click(
+      screen.getAllByRole("button", { name: "Check session" })[0],
+    );
+    expect(
+      await screen.findByText("You’re signed out. Sign in to continue."),
+    ).toBeInTheDocument();
+    expect(me).toHaveBeenCalledTimes(3);
+    expect(api.login).toHaveBeenCalledOnce();
+  });
+
+  it("does not let a late identity response restore a session after session loss", async () => {
+    let resolveIdentity!: (identity: {
+      id: number;
+      username: string;
+      display_name: string;
+      role: "student";
+    }) => void;
+    const identity = new Promise<{
+      id: number;
+      username: string;
+      display_name: string;
+      role: "student";
+    }>((resolve) => (resolveIdentity = resolve));
+    vi.spyOn(api, "login").mockResolvedValue({
+      user: {
+        id: 1,
+        username: "student01",
+        display_name: "Student",
+        role: "student",
+      },
+    });
+    const me = vi
+      .spyOn(api, "me")
+      .mockRejectedValueOnce(
+        new ApiError(401, { code: "AUTH_REQUIRED", message: "Signed out" }),
+      )
+      .mockReturnValueOnce(identity);
+    const user = userEvent.setup();
+    render(<App />);
+    await user.type(await screen.findByLabelText("Username"), "student01");
+    await user.type(screen.getByLabelText("Password"), "password");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await waitFor(() => expect(me).toHaveBeenCalledTimes(2));
+
+    window.dispatchEvent(
+      new CustomEvent(SESSION_LOST, { detail: "SESSION_EXPIRED" }),
+    );
+    expect(
+      await screen.findByText(
+        "Your session has ended. Sign in again to continue.",
+      ),
+    ).toBeInTheDocument();
+    resolveIdentity({
+      id: 1,
+      username: "student01",
+      display_name: "Student",
+      role: "student",
+    });
+    expect(
+      await screen.findByRole("heading", { name: "Welcome back." }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "My quizzes" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps a known session-ended reason through uncertain recovery and signed-out confirmation", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByLabelText("Username");
+    window.dispatchEvent(
+      new CustomEvent(SESSION_LOST, { detail: "SESSION_EXPIRED" }),
+    );
+    expect(
+      await screen.findByText(
+        "Your session has ended. Sign in again to continue.",
+      ),
+    ).toBeInTheDocument();
+
+    vi.spyOn(api, "login").mockRejectedValue(
+      new ApiError(0, { code: "NETWORK_ERROR", message: "Lost" }),
+    );
+    vi.spyOn(api, "me")
+      .mockRejectedValueOnce(
+        new ApiError(401, { code: "AUTH_REQUIRED", message: "Signed out" }),
+      )
+      .mockRejectedValueOnce(
+        new ApiError(401, {
+          code: "AUTH_REQUIRED",
+          message: "Still signed out",
+        }),
+      );
+    await user.type(screen.getByLabelText("Username"), "student01");
+    await user.type(screen.getByLabelText("Password"), "pw");
+    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    expect(
+      await screen.findByText(/We couldn’t confirm your sign-in/),
+    ).toBeInTheDocument();
+    await user.click(
+      (await screen.findAllByRole("button", { name: "Check session" }))[0],
+    );
+    expect(
+      await screen.findByText(
+        "Your session has ended. Sign in again to continue.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText("You’re signed out. Sign in to continue."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not label a fresh signed-out visit as a session-ended visit", async () => {
+    render(<App />);
+    await screen.findByRole("button", { name: "Sign in" });
+    expect(
+      screen.queryByText("Your session has ended. Sign in again to continue."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("You’re signed out. Sign in to continue."),
+    ).not.toBeInTheDocument();
   });
 });

@@ -12,6 +12,8 @@ export function useAIEvents<T extends EventStore>(create: () => T) {
   const [store, setStore] = useState<T | null>(null);
   useEffect(() => {
     const current = create();
+    let active = true;
+    const sessionCheck = new AbortController();
     // Polling and initial reads also work where EventSource is unavailable.
     const source =
       typeof EventSource === "undefined"
@@ -20,18 +22,21 @@ export function useAIEvents<T extends EventStore>(create: () => T) {
     source?.addEventListener("ai_state_changed", (event) => {
       try {
         const metadata: unknown = JSON.parse((event as MessageEvent).data);
-        if (metadata && typeof metadata === "object")
+        if (active && metadata && typeof metadata === "object")
           current.notify(metadata as AIChange);
       } catch {
         /* Invalid notifications never update authoritative state. */
       }
     });
-    const recover = () => current.refreshAll();
+    const recover = () => {
+      if (active) current.refreshAll();
+    };
     if (source) {
       source.onopen = recover;
       source.onerror = () => {
+        if (!active) return;
         recover();
-        void api.me().catch(() => undefined);
+        void api.me(false, sessionCheck.signal).catch(() => undefined);
       };
     }
     window.addEventListener("focus", recover);
@@ -41,6 +46,8 @@ export function useAIEvents<T extends EventStore>(create: () => T) {
     // oxlint-disable-next-line react/set-state-in-effect
     setStore(current);
     return () => {
+      active = false;
+      sessionCheck.abort();
       source?.close();
       current.dispose();
       window.removeEventListener("focus", recover);
