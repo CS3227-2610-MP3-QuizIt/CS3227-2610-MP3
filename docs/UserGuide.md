@@ -317,10 +317,14 @@ hints remain locked until the application confirms the attempt's state.
 date. **Submission details** lists the fraction, percentage, correct/incorrect counts,
 date and finality reminder on the right, or above the review on a narrow screen.
 
-Each question shows the saved answer, correct answer and explanation. Answers
-cannot be changed after submission. Each correct answer earns one point;
-grading does not use AI. Submitted attempts cannot be edited or retaken.
-Return through **View results** to read them again.
+Each read-only question shows its point value, correctness, **Your answer**
+and **Correct answer** labels. A picked correct answer has both labels.
+Select **Explanation** (or focus it and press Enter/Space) to read the saved
+explanation. Explanations start closed and toggle independently during this
+visit. Opening one does not generate AI content. Answers cannot be changed;
+each correct answer earns one point and grading does not use AI. Submitted
+attempts cannot be edited or retaken. Return through **View results** to read
+them again.
 
 ## 9. AI security and product rules
 

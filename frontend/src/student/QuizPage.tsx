@@ -419,7 +419,11 @@ function ResultReview({
   refreshing: boolean;
   onRefresh: () => void;
 }) {
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
   const reviewHeading = useRef<HTMLHeadingElement>(null);
+  const questions = [...result.questions].sort(
+    (a, b) => a.position - b.position,
+  );
   const submittedDate = formatDate(result.submitted_at);
   const reviewId = `result-review-${result.id}`;
 
@@ -494,42 +498,89 @@ function ResultReview({
           </p>
         </div>
         <section aria-labelledby={reviewId}>
-          <h2 id={reviewId} ref={reviewHeading} tabIndex={-1}>
-            Question review
-          </h2>
-          {[...result.questions]
-            .sort((a, b) => a.position - b.position)
-            .map((question) => (
-              <article className="panel student-question" key={question.id}>
-                <h2>
-                  {question.position}. {question.question}
-                </h2>
-                <span
-                  className={`badge ${question.is_correct ? "badge-success" : "badge-pending"}`}
-                >
-                  {question.is_correct ? "Correct" : "Incorrect"}
-                </span>
-                <ul className="student-result-options">
-                  {options.map((option) => (
-                    <li key={option}>
-                      <strong>{option}.</strong> {question.options[option]}{" "}
-                      {option === question.selected_option ? (
-                        <span className="badge">Your answer</span>
-                      ) : null}{" "}
-                      {option === question.correct_option ? (
-                        <span className="badge badge-success">
-                          Correct answer
-                        </span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-                <div className="student-explanation">
-                  <h3>Explanation</h3>
-                  <p>{question.explanation}</p>
+          <header className="result-review-header">
+            <h2 id={reviewId} ref={reviewHeading} tabIndex={-1}>
+              Question review
+            </h2>
+          </header>
+          {questions.map((question) => {
+            const explanationId = `${reviewId}-explanation-${question.id}`;
+            const isExpanded = expanded.has(question.id);
+            return (
+              <article className="result-question" key={question.id}>
+                <header className="result-question-header">
+                  <h3>Question {question.position}</h3>
+                  <div
+                    className={`result-outcome ${question.is_correct ? "correct" : "incorrect"}`}
+                  >
+                    <span>
+                      <span aria-hidden="true">
+                        {question.is_correct ? "✓" : "✕"}
+                      </span>{" "}
+                      <span>
+                        {question.is_correct ? "Correct" : "Incorrect"}
+                      </span>
+                    </span>
+                    <span className="result-points">
+                      {question.is_correct ? "1/1 point" : "0/1 point"}
+                    </span>
+                  </div>
+                </header>
+                <div className="result-question-body">
+                  <p className="result-stem">{question.question}</p>
+                  <ul className="student-result-options">
+                    {options.map((option) => {
+                      const selected = option === question.selected_option;
+                      const correct = option === question.correct_option;
+                      return (
+                        <li
+                          className={`${selected ? "picked" : ""} ${correct ? "correct" : ""}`}
+                          key={option}
+                        >
+                          <span className="student-option-letter">
+                            {option}
+                          </span>
+                          <span className="result-option-text">
+                            {question.options[option]}
+                          </span>
+                          <span className="result-answer-labels">
+                            {selected ? <span>Your answer</span> : null}
+                            {correct ? (
+                              <span className="result-correct-label">
+                                Correct answer
+                              </span>
+                            ) : null}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+                <div className="result-explanation">
+                  <button
+                    type="button"
+                    aria-label={`Explanation for question ${question.position}`}
+                    aria-expanded={isExpanded}
+                    aria-controls={explanationId}
+                    onClick={() =>
+                      setExpanded((previous) => {
+                        const next = new Set(previous);
+                        if (next.has(question.id)) next.delete(question.id);
+                        else next.add(question.id);
+                        return next;
+                      })
+                    }
+                  >
+                    <span>Explanation</span>
+                    <span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
+                  </button>
+                  <div id={explanationId} hidden={!isExpanded}>
+                    {isExpanded ? <p>{question.explanation}</p> : null}
+                  </div>
                 </div>
               </article>
-            ))}
+            );
+          })}
         </section>
       </div>
     </div>

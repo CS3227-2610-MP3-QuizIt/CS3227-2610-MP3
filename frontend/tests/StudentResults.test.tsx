@@ -1,11 +1,12 @@
 import { render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { api } from "../src/api/client";
-import type { StudentResults } from "../src/api/types";
+import type { Option, StudentResults } from "../src/api/types";
 import { HintStore } from "../src/student/HintStore";
 import { QuizPage } from "../src/student/QuizPage";
 import { results, studentAttempt, studentQuiz } from "./studentFixtures";
 
+const letters: Option[] = ["A", "B", "C", "D"];
 function fixture(count: number, correct: number[]): StudentResults {
   return {
     ...results(),
@@ -50,6 +51,11 @@ describe("submitted result review", () => {
     vi.restoreAllMocks();
   });
   const open = () => render(<QuizPage id={1} resultsOnly store={store} />);
+  const cards = () =>
+    within(
+      screen.getByRole("region", { name: "Question review" }),
+    ).queryAllByRole("article");
+
   it("shows backend score, percentage, counts and actual submitted date", async () => {
     const saved = fixture(4, [1, 3]);
     saved.score_percent = 49.875;
@@ -86,4 +92,44 @@ describe("submitted result review", () => {
       within(details).getByText(/final.*cannot be changed/i),
     ).toBeInTheDocument();
   });
+
+  it.each(
+    letters.flatMap((selected) =>
+      letters.map((correct) => [selected, correct] as const),
+    ),
+  )(
+    "labels saved choice %s and correct answer %s without editing",
+    async (selected, correct) => {
+      const saved = fixture(1, selected === correct ? [1] : []);
+      saved.questions[0].selected_option = selected;
+      saved.questions[0].correct_option = correct;
+      vi.mocked(api.results).mockResolvedValue(saved);
+      open();
+      await screen.findByRole("heading", { name: "Question review" });
+      const card = cards()[0],
+        rows = within(card).getAllByRole("listitem");
+      expect(rows).toHaveLength(4);
+      expect(
+        within(rows[letters.indexOf(selected)]).getByText("Your answer"),
+      ).toBeInTheDocument();
+      expect(
+        within(rows[letters.indexOf(correct)]).getByText("Correct answer"),
+      ).toBeInTheDocument();
+      expect(
+        within(card).getByText(selected === correct ? "Correct" : "Incorrect"),
+      ).toBeInTheDocument();
+      expect(
+        within(card).getByText(
+          selected === correct ? "1/1 point" : "0/1 point",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("radio")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /submit|save answer/i }),
+      ).not.toBeInTheDocument();
+      expect(api.saveAnswer).not.toHaveBeenCalled();
+      expect(api.submitAttempt).not.toHaveBeenCalled();
+      expect(api.generateHint).not.toHaveBeenCalled();
+    },
+  );
 });
