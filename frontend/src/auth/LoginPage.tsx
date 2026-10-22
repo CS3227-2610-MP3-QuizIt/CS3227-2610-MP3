@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { ApiError, LoginFlowError } from "../api/client";
-import { Brand, Icon, Notice } from "../shared/ui";
+import { Brand, Icon } from "../shared/ui";
 import { useAuth } from "./AuthProvider";
 
 type Errors = { username?: string; password?: string };
@@ -157,7 +157,17 @@ export function LoginPage() {
       setBusy(false);
     }
   }
-  const displayedMessage = waiting ? `Try again in ${secondsLeft}s.` : message;
+  const sessionEndedMessage =
+    sessionEnded && !recovery && !message && !connectionError;
+  const displayedMessage = waiting
+    ? `Try again in ${secondsLeft}s.`
+    : message ||
+      (connectionError
+        ? "Unable to check your session. Check your connection and try again."
+        : sessionEndedMessage
+          ? "Your session has ended. Sign in again to continue."
+          : "");
+  const checkingMessage = checking && message === "Checking your session…";
   return (
     <main className="login-layout">
       <section className="login-story">
@@ -197,24 +207,6 @@ export function LoginPage() {
         <div className="login-form-wrap">
           <h1>Welcome back.</h1>
           <p className="muted">Sign in to pick up where you left off.</p>
-          {connectionError ? (
-            <Notice>
-              Unable to check your session. Check your connection and try again.{" "}
-              <button
-                type="button"
-                className="text-button"
-                onClick={runCheck}
-                disabled={checking}
-              >
-                {checking ? "Please wait." : "Check session"}
-              </button>
-            </Notice>
-          ) : null}
-          {sessionEnded && !recovery && !message ? (
-            <Notice kind="info">
-              Your session has ended. Sign in again to continue.
-            </Notice>
-          ) : null}
           <form onSubmit={submit} className="form-stack" noValidate>
             <label>
               Username
@@ -273,21 +265,23 @@ export function LoginPage() {
             </label>
             {displayedMessage ? (
               <div
-                className={`notice ${waiting || (sessionEnded && !message) ? "notice-info" : "notice-error"}`}
+                className={`notice ${waiting || sessionEndedMessage || checkingMessage ? "notice-info" : "notice-error"}`}
                 role={
                   waiting
                     ? undefined
-                    : sessionEnded && !message
+                    : sessionEndedMessage || checkingMessage
                       ? "status"
                       : "alert"
                 }
                 aria-live={waiting ? "off" : undefined}
               >
                 {displayedMessage}
-                {recovery ||
-                message.startsWith("The sign-in request timed out") ||
-                message.startsWith("We couldn’t confirm") ||
-                message.startsWith("Unable to check your session") ? (
+                {!checking &&
+                (recovery ||
+                  !!connectionError ||
+                  message.startsWith("The sign-in request timed out") ||
+                  message.startsWith("We couldn’t confirm") ||
+                  message.startsWith("Unable to check your session")) ? (
                   <>
                     {" "}
                     <button
@@ -296,7 +290,7 @@ export function LoginPage() {
                       onClick={runCheck}
                       disabled={checking}
                     >
-                      {checking ? "Please wait." : "Check session"}
+                      Check session
                     </button>
                   </>
                 ) : null}

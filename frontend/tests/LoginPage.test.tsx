@@ -55,6 +55,84 @@ describe("login page", () => {
     );
   });
 
+  it("keeps the initial session-check failure in the form feedback slot", async () => {
+    vi.spyOn(api, "me").mockRejectedValue(
+      new ApiError(503, {
+        code: "SERVICE_UNAVAILABLE",
+        message: "Unavailable",
+      }),
+    );
+    render(<App />);
+
+    const feedback = await screen.findByRole("alert");
+    const password = screen.getByLabelText("Password");
+    const form = password.closest("form")!;
+    const submit = screen.getByRole("button", { name: "Sign in" });
+    expect(form).toContainElement(feedback);
+    expect(
+      password.compareDocumentPosition(feedback) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      feedback.compareDocumentPosition(submit) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(feedback).toHaveTextContent(
+      "Unable to check your session. Check your connection and try again.",
+    );
+    expect(form.querySelectorAll(".notice")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Check session" })).toBeVisible();
+  });
+
+  it("replaces the session feedback in place while checking and after a failed retry", async () => {
+    let rejectRetry!: (error: Error) => void;
+    const me = vi
+      .spyOn(api, "me")
+      .mockRejectedValueOnce(
+        new ApiError(503, {
+          code: "SERVICE_UNAVAILABLE",
+          message: "Unavailable",
+        }),
+      )
+      .mockImplementationOnce(
+        () => new Promise((_, reject) => (rejectRetry = reject)),
+      );
+    const user = userEvent.setup();
+    render(<App />);
+
+    const firstFeedback = await screen.findByRole("alert");
+    const form = screen.getByLabelText("Password").closest("form")!;
+    expect(form).toContainElement(firstFeedback);
+    await user.click(screen.getByRole("button", { name: "Check session" }));
+
+    const checkingFeedback = await screen.findByText("Checking your session…", {
+      selector: ".notice",
+    });
+    expect(form).toContainElement(checkingFeedback);
+    expect(checkingFeedback).toBe(firstFeedback);
+    expect(form.querySelectorAll(".notice")).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Check session" }),
+    ).not.toBeInTheDocument();
+
+    await act(async () => {
+      rejectRetry(
+        new ApiError(503, {
+          code: "SERVICE_UNAVAILABLE",
+          message: "Unavailable",
+        }),
+      );
+    });
+    const failedFeedback = await screen.findByRole("alert");
+    expect(form).toContainElement(failedFeedback);
+    expect(failedFeedback).toBe(firstFeedback);
+    expect(failedFeedback).toHaveTextContent(
+      "Unable to check your session. Check your connection and try again.",
+    );
+    expect(form.querySelectorAll(".notice")).toHaveLength(1);
+    expect(me).toHaveBeenCalledTimes(2);
+  });
+
   it("keeps the login title after a failed sign-in and restores the prior title on unmount", async () => {
     vi.spyOn(api, "login").mockRejectedValue(
       new ApiError(401, { code: "INVALID_CREDENTIALS", message: "Invalid." }),
