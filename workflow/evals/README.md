@@ -149,3 +149,9 @@ keeps the harness at `workflow/evals/` and skills at `.agents/skills/`.
 Preserve the project-specific agent-profile, trace, report-link, relocation
 and timing coverage when updating from upstream. Generated usage reports
 and caches stay local under `workflow/evals/_usage/`.
+
+Automatic usage refresh is configured in the project `.codex/config.toml`;
+start a new Codex session after this branch is integrated to load it. To
+backfill or refresh manually, run `python3 workflow/evals/eval.py usage`
+from the MP3 repository root. Reports can contain prompt and command text;
+`workflow/evals/_usage/` is ignored and should remain local.

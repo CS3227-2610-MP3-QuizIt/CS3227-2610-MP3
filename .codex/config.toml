@@ -1,3 +1,5 @@
+notify = ["python3", "workflow/evals/eval.py", "usage", "--quiet"]
+
 # Explicit role registration for CLI compatibility.
 [agents.task_implementer]
 description = "Implement one approved QuizIt task."
