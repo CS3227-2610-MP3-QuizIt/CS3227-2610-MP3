@@ -27,6 +27,13 @@ describe("student workspace", () => {
   const read = vi.fn<HintTransport["read"]>();
   const generate = vi.fn<HintTransport["generate"]>();
   beforeEach(() => {
+    HTMLDialogElement.prototype.showModal = function () {
+      this.open = true;
+    };
+    HTMLDialogElement.prototype.close = function () {
+      this.open = false;
+    };
+    Element.prototype.scrollIntoView = vi.fn();
     read.mockReset();
     generate.mockReset();
     read.mockImplementation(async (key) => {
@@ -47,7 +54,10 @@ describe("student workspace", () => {
     vi.spyOn(api, "submitAttempt").mockResolvedValue(results());
     vi.spyOn(api, "results").mockResolvedValue(results());
   });
-  afterEach(() => store.dispose());
+  afterEach(() => {
+    store.dispose();
+    vi.unstubAllGlobals();
+  });
   const open = () => render(<QuizPage id={1} store={store} />);
   it("uses assigned quizzes directly and exposes Start, Resume, and View results", async () => {
     vi.spyOn(api, "studentQuizzes").mockResolvedValue({
@@ -89,20 +99,27 @@ describe("student workspace", () => {
     expect(api.startAttempt).toHaveBeenCalledWith(1, expect.any(AbortSignal));
     expect(api.results).not.toHaveBeenCalled();
     expect(screen.queryByText("Explanation 1")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Submit quiz" })).toBeDisabled();
+    expect(
+      screen.getAllByRole("button", { name: "Submit quiz" })[0],
+    ).toBeDisabled();
   });
   it("preserves a failed selection and explicitly retries it without submitting", async () => {
     const user = userEvent.setup();
     vi.mocked(api.saveAnswer).mockRejectedValueOnce(new Error("Save offline"));
     open();
     await user.click(await screen.findByRole("radio", { name: "A Alpha 2" }));
-    await screen.findByText("Save failed");
+    await screen.findAllByText("Save failed");
     expect(screen.getByRole("radio", { name: "A Alpha 2" })).toBeChecked();
-    await user.click(screen.getByRole("button", { name: "Submit quiz" }));
-    await screen.findByText("Retry failed answer saves before submitting.");
+    await user.click(screen.getAllByRole("button", { name: "Submit quiz" })[0]);
+    expect(
+      screen.getAllByText(/Retry failed answer saves before submitting/),
+    ).toHaveLength(2);
     expect(api.submitAttempt).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Retry save" }));
     await waitFor(() => expect(screen.getAllByText("Saved")).toHaveLength(2));
+    expect(
+      screen.queryByText(/Retry failed answer saves before submitting/),
+    ).not.toBeInTheDocument();
     expect(api.saveAnswer).toHaveBeenLastCalledWith(
       10,
       2,
@@ -110,7 +127,7 @@ describe("student workspace", () => {
       expect.any(AbortSignal),
     );
   });
-  it("freezes only the saving question, waits for saves on submit, then shows immutable authoritative results", async () => {
+  it("blocks submission while saving, then confirms once and shows authoritative results", async () => {
     const user = userEvent.setup();
     const save = deferred<SavedAnswer>();
     vi.mocked(api.saveAnswer).mockReturnValue(save.promise);
@@ -119,11 +136,18 @@ describe("student workspace", () => {
     expect(screen.getByRole("radio", { name: "A Alpha 2" })).toBeDisabled();
     expect(screen.getByRole("radio", { name: "A Alpha 1" })).toBeEnabled();
     expect(api.results).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("button", { name: "Submit quiz" }));
-    expect(screen.getByRole("radio", { name: "A Alpha 1" })).toBeDisabled();
+    await user.click(screen.getAllByRole("button", { name: "Submit quiz" })[0]);
+    expect(screen.getByRole("radio", { name: "A Alpha 1" })).toBeEnabled();
+    expect(
+      screen.getAllByRole("button", { name: "Submit quiz" })[0],
+    ).toBeDisabled();
     expect(api.submitAttempt).not.toHaveBeenCalled();
     await act(async () =>
       save.resolve({ question_id: 2, selected_option: "B", updated_at: "now" }),
+    );
+    await user.click(screen.getAllByRole("button", { name: "Submit quiz" })[0]);
+    await user.click(
+      screen.getByRole("button", { name: "Confirm submission" }),
     );
     await screen.findByText("50.00%");
     expect(api.submitAttempt).toHaveBeenCalledOnce();
@@ -168,7 +192,10 @@ describe("student workspace", () => {
     const confirmation = deferred<ReturnType<typeof studentAttempt>>();
     vi.mocked(api.attempt).mockReturnValue(confirmation.promise);
     open();
-    fireEvent.click(await screen.findByRole("button", { name: "Submit quiz" }));
+    fireEvent.click(
+      (await screen.findAllByRole("button", { name: "Submit quiz" }))[0],
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Confirm submission" }));
     await waitFor(() => expect(api.attempt).toHaveBeenCalledOnce());
     expect(screen.getByRole("radio", { name: "A Alpha 1" })).toBeDisabled();
     expect(api.results).not.toHaveBeenCalled();
@@ -193,7 +220,10 @@ describe("student workspace", () => {
       .mockRejectedValueOnce(new Error("Read offline"))
       .mockResolvedValue(studentAttempt());
     open();
-    fireEvent.click(await screen.findByRole("button", { name: "Submit quiz" }));
+    fireEvent.click(
+      (await screen.findAllByRole("button", { name: "Submit quiz" }))[0],
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Confirm submission" }));
     await screen.findByText(/Unable to confirm submission/);
     expect(screen.getByRole("radio", { name: "A Alpha 1" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Check submission" }));
@@ -217,7 +247,10 @@ describe("student workspace", () => {
       "Preparing your hint… The active request keeps its original prompt.",
     );
     await user.click(screen.getByRole("radio", { name: "B Beta 2" }));
-    await user.click(screen.getByRole("button", { name: "Submit quiz" }));
+    await user.click(screen.getAllByRole("button", { name: "Submit quiz" })[0]);
+    await user.click(
+      screen.getByRole("button", { name: "Confirm submission" }),
+    );
     await screen.findByText("50.00%");
   });
   it("stops submission when a pending save fails and preserves the selection", async () => {
@@ -229,9 +262,11 @@ describe("student workspace", () => {
     );
     open();
     fireEvent.click(await screen.findByRole("radio", { name: "A Alpha 2" }));
-    fireEvent.click(screen.getByRole("button", { name: "Submit quiz" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Submit quiz" })[0]);
     await act(async () => reject(new Error("Pending save failed")));
-    await screen.findByText("Retry failed answer saves before submitting.");
+    expect(
+      screen.getAllByText(/Retry failed answer saves before submitting/),
+    ).toHaveLength(2);
     expect(screen.getByRole("radio", { name: "A Alpha 2" })).toBeChecked();
     expect(screen.getByRole("radio", { name: "B Beta 2" })).toBeEnabled();
     expect(api.submitAttempt).not.toHaveBeenCalled();
@@ -243,9 +278,213 @@ describe("student workspace", () => {
     await screen.findAllByText("Hints offline");
     fireEvent.click(screen.getByRole("radio", { name: "B Beta 2" }));
     await waitFor(() => expect(screen.getAllByText("Saved")).toHaveLength(2));
-    fireEvent.click(screen.getByRole("button", { name: "Submit quiz" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Submit quiz" })[0]);
+    fireEvent.click(screen.getByRole("button", { name: "Confirm submission" }));
     await screen.findByText("50.00%");
     expect(generate).not.toHaveBeenCalled();
+  });
+  it("navigates without requests or losing prompts and keeps review marks only until remount", async () => {
+    const user = userEvent.setup();
+    const view = open();
+    await screen.findByText("Question 1?");
+    await user.type(screen.getAllByRole("textbox")[0], "A conceptual clue");
+    await user.click(
+      screen.getAllByRole("button", { name: "Mark for review" })[0],
+    );
+    await user.click(screen.getByRole("button", { name: "Next unanswered" }));
+    expect(
+      screen.getByRole("heading", { name: "Question 2", exact: true }),
+    ).toHaveFocus();
+    await user.click(screen.getByRole("button", { name: "Review marked" }));
+    expect(
+      screen.getByRole("heading", { name: "Question 1", exact: true }),
+    ).toHaveFocus();
+    expect(screen.getAllByRole("textbox")[0]).toHaveValue("A conceptual clue");
+    expect(
+      screen.getByRole("button", {
+        name: /Question 1, Saved, Marked for review/,
+      }),
+    ).toHaveAttribute("aria-current", "step");
+    expect(api.saveAnswer).not.toHaveBeenCalled();
+    expect(generate).not.toHaveBeenCalled();
+    view.unmount();
+    open();
+    await screen.findByText("Question 1?");
+    expect(
+      screen.getByRole("button", { name: "Review marked" }),
+    ).toBeDisabled();
+  });
+  it("shares saved readiness and confirmation, cancels with focus and guards changed readiness", async () => {
+    const user = userEvent.setup();
+    open();
+    await user.click(await screen.findByRole("radio", { name: "A Alpha 2" }));
+    await waitFor(() =>
+      screen
+        .getAllByRole("button", { name: "Submit quiz" })
+        .forEach((button) => expect(button).toBeEnabled()),
+    );
+    await user.click(
+      screen.getAllByRole("button", { name: "Mark for review" })[1],
+    );
+    const invoke = screen.getAllByRole("button", { name: "Submit quiz" })[1];
+    await user.click(invoke);
+    expect(api.submitAttempt).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toHaveTextContent(
+      "Marked for review: Question 2",
+    );
+    await user.click(screen.getByRole("button", { name: "Keep reviewing" }));
+    expect(invoke).toHaveFocus();
+    await user.click(screen.getAllByRole("button", { name: "Submit quiz" })[0]);
+    const save = deferred<SavedAnswer>();
+    vi.mocked(api.saveAnswer).mockReturnValue(save.promise);
+    fireEvent.click(screen.getByRole("radio", { name: "A Alpha 1" }));
+    expect(
+      screen.getByRole("button", { name: "Confirm submission" }),
+    ).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Confirm submission" }));
+    expect(api.submitAttempt).not.toHaveBeenCalled();
+    await act(async () =>
+      save.resolve({ question_id: 1, selected_option: "A", updated_at: "now" }),
+    );
+    const post = deferred<ReturnType<typeof results>>();
+    vi.mocked(api.submitAttempt).mockReturnValue(post.promise);
+    const confirm = screen.getByRole("button", { name: "Confirm submission" });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    expect(api.submitAttempt).toHaveBeenCalledOnce();
+    await act(async () => post.resolve(results()));
+    await screen.findByText("50.00%");
+  });
+  it("wraps navigation across ten mixed states, tracks manual scrolling and respects reduced motion", async () => {
+    const quiz = studentQuiz();
+    quiz.questions = Array.from({ length: 10 }, (_, index) => ({
+      ...quiz.questions[0],
+      id: index + 1,
+      position: index + 1,
+      question: `Question ${index + 1}?`,
+    }));
+    quiz.question_count = 10;
+    vi.mocked(api.studentQuiz).mockResolvedValue(quiz);
+    const save = deferred<SavedAnswer>();
+    vi.mocked(api.saveAnswer).mockImplementation(async (_, id, option) => {
+      if (id === 2) return save.promise;
+      if (id === 3) throw new Error("Offline");
+      return { question_id: id, selected_option: option, updated_at: "now" };
+    });
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn(() => ({ matches: true })),
+    );
+    let top = 100;
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: HTMLElement) {
+        const id = Number(this.id.split("-").at(-1));
+        return {
+          top: this.tagName === "H2" ? top + (id - 1) * 500 : 0,
+          height: 100,
+        } as DOMRect;
+      },
+    );
+    open();
+    await screen.findByText("Question 10?");
+    fireEvent.click(screen.getAllByRole("radio")[4]);
+    fireEvent.click(screen.getAllByRole("radio")[8]);
+    await screen.findAllByText("Save failed");
+    expect(
+      screen.getByRole("button", { name: "Question 1, Saved" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Question 2, Saving" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Question 3, Save failed" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("3 of 10 answered")).toBeInTheDocument();
+    expect(
+      screen.getAllByText(/7 unanswered.*1 saving.*1 failed/),
+    ).toHaveLength(2);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Question 10, Unanswered" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Next unanswered" }));
+    expect(
+      screen.getByRole("heading", { name: "Question 4", exact: true }),
+    ).toHaveFocus();
+    expect(Element.prototype.scrollIntoView).toHaveBeenLastCalledWith({
+      block: "start",
+      behavior: "instant",
+    });
+    top = -2000;
+    fireEvent.scroll(window);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Question 5, Unanswered" }),
+      ).toHaveAttribute("aria-current", "step"),
+    );
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Mark for review" })[1],
+    );
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Mark for review" })[6],
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Review marked" }));
+    expect(
+      screen.getByRole("heading", { name: "Question 8", exact: true }),
+    ).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "Review marked" }));
+    expect(
+      screen.getByRole("heading", { name: "Question 2", exact: true }),
+    ).toHaveFocus();
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "⚑ Unmark review" })[0],
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Review marked" }));
+    expect(
+      screen.getByRole("heading", { name: "Question 8", exact: true }),
+    ).toHaveFocus();
+    await act(async () =>
+      save.resolve({ question_id: 2, selected_option: "A", updated_at: "now" }),
+    );
+    expect(
+      screen.getByRole("button", {
+        name: /Question 8, Unanswered, Marked for review/,
+      }),
+    ).toBeInTheDocument();
+    expect(api.saveAnswer).toHaveBeenCalledTimes(2);
+    expect(generate).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+  it("keeps a single question accessible with native keyboard selection and Escape cancellation", async () => {
+    const quiz = studentQuiz();
+    quiz.questions = [quiz.questions[0]];
+    quiz.question_count = 1;
+    vi.mocked(api.studentQuiz).mockResolvedValue(quiz);
+    const user = userEvent.setup();
+    open();
+    const radio = await screen.findByRole("radio", { name: "B Beta 1" });
+    expect(
+      screen.getByRole("group", { name: "Question 1?" }),
+    ).toBeInTheDocument();
+    radio.focus();
+    await user.keyboard("{ArrowRight}");
+    await waitFor(() =>
+      expect(screen.getByRole("radio", { name: "C Gamma 1" })).toBeChecked(),
+    );
+    expect(
+      screen.getByRole("button", { name: "Next unanswered" }),
+    ).toBeDisabled();
+    const submit = screen.getAllByRole("button", { name: "Submit quiz" })[0];
+    await user.click(submit);
+    expect(
+      screen.getByRole("button", { name: "Keep reviewing" }),
+    ).toHaveFocus();
+    fireEvent(
+      screen.getByRole("dialog"),
+      new Event("cancel", { bubbles: true, cancelable: true }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(submit).toHaveFocus();
+    expect(api.submitAttempt).not.toHaveBeenCalled();
   });
   it("does not let a late answer save update another quiz", async () => {
     const late = deferred<SavedAnswer>();

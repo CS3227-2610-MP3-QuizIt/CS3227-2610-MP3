@@ -1,5 +1,11 @@
 import { StrictMode } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
@@ -120,6 +126,10 @@ describe("student session and SSE", () => {
     render(<App />);
     await screen.findByText("Question 1?");
     await waitFor(() => expect(api.hint).toHaveBeenCalled());
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Mark for review" })[0],
+    );
+    expect(screen.getByRole("button", { name: "Review marked" })).toBeEnabled();
     const signal = vi.mocked(api.hint).mock.calls[0][2]!;
     act(() => window.dispatchEvent(new Event(SESSION_LOST)));
     await screen.findByRole("button", { name: "Sign in" });
@@ -155,6 +165,12 @@ describe("student session and SSE", () => {
     await screen.findByText("New Student");
     expect(document.title).toBe("Workspace title");
     await screen.findByText("Question 1?");
+    expect(
+      screen.getByRole("button", { name: "Review marked" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "⚑ Unmark review" }),
+    ).not.toBeInTheDocument();
     expect(sources).toHaveLength(2);
     await act(async () => late.resolve(hintState(2, "success")));
     expect(screen.queryByText("Consider the concept.")).not.toBeInTheDocument();
