@@ -7,12 +7,14 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { api, ApiError } from "../src/api/client";
+import { api, ApiError, SESSION_LOST } from "../src/api/client";
+import { AuthProvider, useAuth } from "../src/auth/AuthProvider";
 import type { SavedAnswer } from "../src/api/types";
 import { HintStore } from "../src/student/HintStore";
 import type { HintTransport } from "../src/student/HintStore";
 import { QuizList } from "../src/student/QuizList";
 import { QuizPage } from "../src/student/QuizPage";
+import { StudentApp } from "../src/student/StudentApp";
 import {
   assignment,
   deferred,
@@ -49,6 +51,71 @@ describe("student workspace", () => {
   });
   afterEach(() => store.dispose());
   const open = () => render(<QuizPage id={1} store={store} />);
+  it("resets quiz-list preferences after session loss and a different account signs in", async () => {
+    const user = userEvent.setup();
+    const accountA = {
+      id: 1,
+      username: "student-a",
+      display_name: "Student A",
+      role: "student" as const,
+    };
+    const accountB = {
+      id: 2,
+      username: "student-b",
+      display_name: "Student B",
+      role: "student" as const,
+    };
+    vi.spyOn(api, "me")
+      .mockResolvedValueOnce(accountA)
+      .mockResolvedValueOnce(accountB);
+    vi.spyOn(api, "login").mockResolvedValue(undefined);
+    vi.spyOn(api, "studentQuizzes").mockResolvedValue({
+      items: [
+        {
+          ...assignment("not_started", 1),
+          class_id: 11,
+          class_name: "Science",
+        },
+        { ...assignment("submitted", 2), class_id: 22, class_name: "History" },
+      ],
+    });
+    function AuthHarness() {
+      const auth = useAuth();
+      return (
+        <>
+          <button onClick={() => void auth.signIn("student-b", "password")}>
+            Sign in as Student B
+          </button>
+          <StudentApp />
+        </>
+      );
+    }
+    render(
+      <AuthProvider>
+        <AuthHarness />
+      </AuthProvider>,
+    );
+    await screen.findByText("Student A");
+    await user.click(screen.getByRole("tab", { name: /Submitted/ }));
+    await user.selectOptions(screen.getByLabelText("Class"), "22");
+    await user.type(screen.getByLabelText("Find a quiz"), "history query");
+
+    act(() => window.dispatchEvent(new Event(SESSION_LOST)));
+    await waitFor(() =>
+      expect(screen.queryByText("Student A")).not.toBeInTheDocument(),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Sign in as Student B" }),
+    );
+    await screen.findByText("Student B");
+
+    expect(screen.getByRole("tab", { name: /To do/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByLabelText("Class")).toHaveValue("all");
+    expect(screen.getByLabelText("Find a quiz")).toHaveValue("");
+  });
   it("uses assigned quizzes directly and exposes Start, Resume, and View results", async () => {
     vi.spyOn(api, "studentQuizzes").mockResolvedValue({
       items: [
