@@ -62,7 +62,7 @@ export function TeacherApp() {
         <a
           className="brand-link"
           href="#/teacher/classes"
-          aria-label="Classroom teacher home"
+          aria-label="QuizIt teacher home"
         >
           <Brand />
         </a>

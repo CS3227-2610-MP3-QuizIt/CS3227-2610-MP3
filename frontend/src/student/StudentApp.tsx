@@ -39,7 +39,7 @@ export function StudentApp() {
         <a
           className="brand-link"
           href="#/student/quizzes"
-          aria-label="Classroom student home"
+          aria-label="QuizIt student home"
         >
           <Brand />
         </a>

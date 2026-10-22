@@ -31,6 +31,7 @@ describe("student session and SSE", () => {
   beforeEach(() => {
     sources = [];
     calls = [];
+    document.title = "Workspace title";
     vi.stubGlobal("EventSource", FakeSource);
     window.location.hash = "/student/attempt/1";
     vi.spyOn(api, "me").mockResolvedValue({
@@ -54,6 +55,10 @@ describe("student session and SSE", () => {
     expect(
       screen.getByRole("navigation", { name: "Student navigation" }),
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "QuizIt student home" }),
+    ).toHaveAttribute("href", "#/student/quizzes");
+    expect(screen.getByText("QuizIt")).toBeInTheDocument();
     expect(calls.indexOf("subscribe")).toBeLessThan(calls.indexOf("read"));
     expect(sources[0].options.withCredentials).toBe(true);
     expect(sources[0].url).toBe("/api/v1/ai/events");
@@ -101,6 +106,7 @@ describe("student session and SSE", () => {
     const signal = vi.mocked(api.hint).mock.calls[0][2]!;
     act(() => window.dispatchEvent(new Event(SESSION_LOST)));
     await screen.findByRole("button", { name: "Sign in" });
+    expect(document.title).toBe("Sign in · QuizIt");
     expect(sources[0].close).toHaveBeenCalledOnce();
     expect(signal.aborted).toBe(true);
     const count = vi.mocked(api.hint).mock.calls.length;
@@ -130,6 +136,7 @@ describe("student session and SSE", () => {
     await user.type(screen.getByLabelText("Password"), "test-password");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
     await screen.findByText("New Student");
+    expect(document.title).toBe("Workspace title");
     await screen.findByText("Question 1?");
     expect(sources).toHaveLength(2);
     await act(async () => late.resolve(hintState(2, "success")));
@@ -142,6 +149,7 @@ describe("student session and SSE", () => {
     await screen.findByText("Question 1?");
     await user.click(screen.getByRole("button", { name: "Sign out" }));
     await screen.findByRole("button", { name: "Sign in" });
+    expect(document.title).toBe("Sign in · QuizIt");
     expect(api.logout).toHaveBeenCalledOnce();
     expect(sources[0].close).toHaveBeenCalledOnce();
   });
