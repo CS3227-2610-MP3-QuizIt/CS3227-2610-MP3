@@ -14,13 +14,178 @@
   }
   .student-quiz-card {
     padding: 24px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
   }
   .student-quiz-card h2 {
     font-size: 18px;
     margin: 18px 0 8px;
   }
   .student-quiz-card .button {
-    margin-top: 24px;
+    margin-top: auto;
+    min-height: 44px;
+    align-self: flex-start;
+    width: auto;
+    max-width: 100%;
+    white-space: normal;
+  }
+  .student-refresh {
+    min-height: 44px;
+  }
+  .student-signout {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .student-collection {
+    margin-bottom: 20px;
+  }
+  .student-collection-tabs {
+    display: flex;
+    gap: 24px;
+    padding: 0 24px;
+    border-bottom: 1px solid #e5e9df;
+  }
+  .student-collection-tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 52px;
+    padding: 0 2px;
+    color: #68766b;
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    font: inherit;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .student-collection-tab.selected {
+    color: #153d35;
+    border-bottom-color: #336d56;
+    font-weight: 600;
+  }
+  .student-count {
+    min-width: 22px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #f1f3ee;
+    color: #778178;
+    font-size: 11px;
+    text-align: center;
+    font-weight: 400;
+  }
+  .student-collection-controls {
+    display: flex;
+    align-items: end;
+    gap: 14px;
+    padding: 20px 24px 22px;
+  }
+  .student-search-control,
+  .student-class-control {
+    display: grid;
+    gap: 7px;
+  }
+  .student-search-control {
+    flex: 1;
+    min-width: 160px;
+  }
+  .student-class-control {
+    width: min(240px, 30%);
+    min-width: 150px;
+  }
+  .student-collection-controls label {
+    color: #536258;
+    font-size: 12px;
+    font-weight: 550;
+  }
+  .student-search-field {
+    position: relative;
+    display: flex;
+  }
+  .student-search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    transform: translateY(-50%);
+    stroke: #748076;
+    stroke-width: 1.6;
+    pointer-events: none;
+  }
+  .student-search-field input,
+  .student-class-control select {
+    width: 100%;
+    height: 44px;
+    min-width: 0;
+    padding: 0 12px 0 40px;
+    border: 1px solid #d5ded5;
+    border-radius: 7px;
+    background: #fff;
+    color: #243b34;
+    font: inherit;
+    font-size: 13px;
+  }
+  .student-search-field input:focus,
+  .student-class-control select:focus {
+    outline: 3px solid #dce9de;
+    border-color: #336d56;
+  }
+  .student-class-select {
+    position: relative;
+  }
+  .student-class-control select {
+    appearance: none;
+    padding: 0 36px 0 12px;
+  }
+  .student-class-chevron {
+    position: absolute;
+    top: 50%;
+    right: 12px;
+    width: 16px;
+    height: 16px;
+    transform: translateY(-50%);
+    stroke: #68766b;
+    stroke-width: 1.7;
+    pointer-events: none;
+  }
+  .student-search-field input::-webkit-search-cancel-button {
+    appearance: none;
+  }
+  .student-search-field input:has(+ .student-search-clear) {
+    padding-right: 40px;
+  }
+  .student-search-clear {
+    position: absolute;
+    right: 4px;
+    top: 4px;
+    width: 34px;
+    height: 34px;
+    color: #617453;
+    border: 0;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .student-reset {
+    min-height: 44px;
+    white-space: nowrap;
+  }
+  .student-filter-empty {
+    padding: 26px 12px;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  .student-filter-empty h2 {
+    margin-bottom: 8px;
+    font-size: 15px;
+  }
+  .student-filter-empty .muted {
+    font-size: 13px;
+  }
+  .student-filter-empty .text-button {
+    margin: 12px 5px 0;
   }
   .student-back {
     display: inline-block;
@@ -180,6 +345,25 @@
     }
     .student-submit .button {
       width: 100%;
+    }
+    .student-collection-tabs {
+      gap: 18px;
+      padding: 0 16px;
+    }
+    .student-collection-controls {
+      flex-wrap: wrap;
+      padding: 16px;
+    }
+    .student-search-control {
+      flex-basis: 100%;
+    }
+    .student-class-control {
+      flex: 1;
+      width: auto;
+      min-width: 0;
+    }
+    .student-reset {
+      min-width: 88px;
     }
   }
 }
