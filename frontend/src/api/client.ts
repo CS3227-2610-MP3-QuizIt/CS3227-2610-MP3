@@ -26,6 +26,23 @@ import type {
 } from "./types";
 
 export const SESSION_LOST = "classroom:session-lost";
+let sessionGeneration = 0;
+export function advanceSessionGeneration() {
+  sessionGeneration++;
+}
+export class LoginFlowError extends Error {
+  stage: "login" | "identity";
+  constructor(stage: "login" | "identity", cause: unknown) {
+    super(
+      cause instanceof Error
+        ? cause.message
+        : "Sign-in could not be confirmed.",
+    );
+    this.name = "LoginFlowError";
+    this.stage = stage;
+    this.cause = cause;
+  }
+}
 export class ApiError extends Error {
   status: number;
   code: string;
@@ -43,6 +60,7 @@ async function request<T>(
   options: RequestInit = {},
   publicRequest = false,
 ): Promise<T> {
+  const requestGeneration = sessionGeneration;
   let response: Response;
   try {
     response = await fetch(`/api/v1${path}`, {
@@ -61,6 +79,11 @@ async function request<T>(
     });
   } catch (error) {
     if (options.signal?.aborted) throw error;
+    if (error instanceof DOMException && error.name === "TimeoutError")
+      throw new ApiError(0, {
+        code: "REQUEST_TIMEOUT",
+        message: "The request timed out.",
+      });
     throw new ApiError(0, {
       code: "NETWORK_ERROR",
       message:
@@ -71,8 +94,15 @@ async function request<T>(
     const body = (await response.json().catch(() => null)) as {
       error?: SafeError;
     } | null;
-    if (response.status === 401 && !publicRequest)
-      window.dispatchEvent(new Event(SESSION_LOST));
+    if (
+      response.status === 401 &&
+      !publicRequest &&
+      !options.signal?.aborted &&
+      requestGeneration === sessionGeneration
+    )
+      window.dispatchEvent(
+        new CustomEvent(SESSION_LOST, { detail: body?.error?.code }),
+      );
     throw new ApiError(
       response.status,
       body?.error ?? {
@@ -90,7 +120,8 @@ const json = (method: string, body: unknown): RequestInit => ({
   body: JSON.stringify(body),
 });
 export const api = {
-  me: () => request<User>("/auth/me"),
+  me: (suppressSessionLost = false, signal?: AbortSignal) =>
+    request<User>("/auth/me", { signal }, suppressSessionLost),
   login: (username: string, password: string) =>
     request<{ user: User }>(
       "/auth/login",
