@@ -1,0 +1,17 @@
+
+> frontend@0.0.0 test
+> vitest run --reporter=dot
+
+
+ RUN  v5.0.3 /private/tmp/mp3-quiz-results/frontend
+
+·······························································································································································································
+
+ Test Files  15 passed (15)
+      Tests  191 passed (191)
+   Start at  23:16:39
+   Duration  4.41s (tests 54%, environment 33%, transform 6%, setup 5%, import 2%)
+
+Environment  jsdom was created 15 times · 7.95s total, 33% of tracked time
+             create it once per worker with pool: 'vmThreads' (keeps per-file isolation) or isolate: false (shares it across files)
+             learn more: https://vitest.dev/guide/improving-performance#test-environments
