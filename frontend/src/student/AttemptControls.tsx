@@ -2,6 +2,22 @@ import { useEffect, useRef, useState } from "react";
 import { questionHeadingId } from "./attemptState";
 import type { Answer, Questions, answerReadiness } from "./attemptState";
 
+function ReviewFlag() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="14"
+      height="14"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      aria-hidden="true"
+    >
+      <path d="M5 21V4m0 0c5-5 9 5 14 0v10c-5 5-9-5-14 0" />
+    </svg>
+  );
+}
+
 const saveLabels = { saving: "Saving", saved: "Saved", failed: "Save failed" };
 
 export function AttemptNavigator({
@@ -112,9 +128,23 @@ export function AttemptNavigator({
               <span className="attempt-number-badge" aria-hidden="true">
                 {question.position}
               </span>
-              <span className="attempt-number-title" aria-hidden="true">
-                Question {question.position}
+              <span className="attempt-number-description" aria-hidden="true">
+                <span className="attempt-number-title">
+                  Question {question.position}
+                </span>
+                <span className="attempt-state-label">
+                  {status ? label : "Unanswered"}
+                </span>
               </span>
+              {marked.has(question.id) ? (
+                <span
+                  className="attempt-nav-flag"
+                  aria-hidden="true"
+                  title="Marked for review"
+                >
+                  <ReviewFlag />
+                </span>
+              ) : null}
               <span className="attempt-number-state" aria-hidden="true">
                 {status === "saved"
                   ? "✓"
@@ -122,16 +152,8 @@ export function AttemptNavigator({
                     ? "◷"
                     : status === "failed"
                       ? "!"
-                      : "○"}
-                <span className="attempt-state-label">
-                  {status !== "saved" ? label : ""}
-                </span>
+                      : ""}
               </span>
-              {marked.has(question.id) ? (
-                <span aria-hidden="true" title="Marked for review">
-                  ⚑
-                </span>
-              ) : null}
             </button>
           );
         })}

@@ -117,7 +117,7 @@ describe("student workspace", () => {
     ).toHaveLength(2);
     expect(api.submitAttempt).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Retry save" }));
-    await waitFor(() => expect(screen.getAllByText("Saved")).toHaveLength(2));
+    await waitFor(() => expect(screen.getAllByText("Saved")).toHaveLength(4));
     expect(
       screen.queryByText(/Retry failed answer saves before submitting/),
     ).not.toBeInTheDocument();

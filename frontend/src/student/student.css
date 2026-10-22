@@ -257,11 +257,12 @@
   .attempt-number {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     width: 100%;
-    padding: 8px;
+    min-height: 46px;
+    padding: 6px 10px;
     border: 1px solid #dce3d7;
-    border-radius: 4px;
+    border-radius: 6px;
     background: white;
     color: #30483c;
     text-align: left;
@@ -269,26 +270,81 @@
     font: inherit;
     font-size: 12px;
   }
+  .attempt-number:hover {
+    background: #f7f9f4;
+  }
   .attempt-number[aria-current="step"] {
     outline: 2px solid #336d56;
     outline-offset: -2px;
     background: #f0f5e9;
   }
   .attempt-number-badge {
-    font-weight: 700;
-    min-width: 16px;
+    display: grid;
+    place-items: center;
+    width: 27px;
+    height: 27px;
+    flex: 0 0 27px;
+    border: 1px solid #d5ded5;
+    border-radius: 5px;
+    background: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    color: #243b34;
+  }
+  .attempt-number.saved .attempt-number-badge {
+    background: #e8f2e5;
+    border-color: #c1d6b8;
+    color: #315a30;
+  }
+  .attempt-number.failed .attempt-number-badge {
+    border-color: #cfae7e;
+    background: #fcf1dd;
+    color: #9d3025;
+  }
+  .attempt-number.saving .attempt-number-badge {
+    background: #fdf8eb;
+    border-color: #e5d3a5;
+    color: #705116;
+  }
+  .attempt-number-description {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+  .attempt-number-title {
+    font-size: 12px;
+    font-weight: 500;
+    color: #243b34;
+  }
+  .attempt-state-label {
+    font-size: 11px;
+    color: #69776e;
+  }
+  .attempt-nav-flag {
+    display: flex;
+    align-items: center;
+    color: #526e54;
+    margin-left: auto;
   }
   .attempt-number-state {
+    font-size: 13px;
+    font-weight: 600;
+    color: #526e54;
+  }
+  .attempt-nav-flag + .attempt-number-state {
+    margin-left: 4px;
+  }
+  .attempt-number:not(:has(.attempt-nav-flag)) .attempt-number-state {
     margin-left: auto;
-    display: flex;
-    gap: 4px;
   }
-  .attempt-number.failed {
+  .attempt-number.failed .attempt-number-state {
     color: #9d3025;
-    border-color: #b95140;
   }
-  .attempt-number.saving {
+  .attempt-number.saving .attempt-number-state {
     color: #705116;
+  }
+  .attempt-number.saved .attempt-number-state {
+    color: #315a30;
   }
   .attempt-navigation-actions {
     display: flex;
