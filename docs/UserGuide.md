@@ -312,11 +312,15 @@ If the response is uncertain, editing pauses while the application checks whethe
 submission succeeded; use **Check submission** if that check fails. Editing and new
 hints remain locked until the application confirms the attempt's state.
 
-**Expected:** the results page shows **Submitted**, a score out of 3 for the testing
-example, a percentage, and each question's selected answer, correct answer, and
-explanation. Answers can no longer be changed; the score depends on your choices.
-Each correct answer earns one point; grading does not use AI. Submitted attempts
-cannot be edited or retaken. Return through **View results** to read them again.
+**Expected:** the results page shows **Submitted**, the question count and a compact
+**Score for this quiz** line (out of 3 for the testing example) with the submitted
+date. **Submission details** lists the fraction, percentage, correct/incorrect counts,
+date and finality reminder on the right, or above the review on a narrow screen.
+
+Each question shows the saved answer, correct answer and explanation. Answers
+cannot be changed after submission. Each correct answer earns one point;
+grading does not use AI. Submitted attempts cannot be edited or retaken.
+Return through **View results** to read them again.
 
 ## 9. AI security and product rules
 

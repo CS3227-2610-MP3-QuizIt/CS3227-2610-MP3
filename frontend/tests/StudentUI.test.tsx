@@ -154,7 +154,7 @@ describe("student workspace", () => {
     expect(api.submitAttempt).toHaveBeenCalledOnce();
     expect(api.results).toHaveBeenCalledWith(10, expect.any(AbortSignal));
     expect(screen.getByText("Explanation 1")).toBeInTheDocument();
-    expect(screen.getByText("Incorrect")).toBeInTheDocument();
+    expect(screen.getAllByText("Incorrect")).toHaveLength(2);
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Submit quiz" }),

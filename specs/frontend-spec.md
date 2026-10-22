@@ -90,7 +90,7 @@ The draft review screen also offers Delete draft with explicit confirmation: del
    The original bottom submit panel and desktop navigator share readiness: every required answer must be selected and confirmed saved. Missing choices, saving and failed saves block opening/final confirmation with current-state explanations; successful save retry updates readiness. Hint activity/failure does not block submission. Mobile uses bottom readiness without a floating submit bar. Opening confirmation sends no request. The shared modal states that all answers are saved and submission is final, optionally lists marked questions, offers Keep reviewing and Confirm submission, and restores focus to the invoking control on cancel/Escape. Final activation rechecks readiness and posts once despite repeated activation or either entry point. The backend independently verifies all required answers exist.
    A failed or unknown submission outcome locks editing, fresh hints and further submission until an authoritative attempt read confirms submitted or in-progress. Failed reconciliation retains Check submission; closing a modal or a failed POST never unlocks the attempt.
 8. The backend grades against the immutable answer key, persists score and submission time in one transaction, and locks the attempt.
-9. The student sees their score and can read correct answers and explanations. The quiz completion count now includes that submission.
+9. After their own confirmed submission, show a compact main-column `Score for this quiz: X out of Y` with the submitted date beneath it. Repeat the saved score fraction, percentage (existing two-decimal formatter) and date in the right submission-details rail. Place Submitted and question count together beneath the quiz title, left aligned; retain the existing back link. The right submission-details rail contains correct count (`score`), incorrect count (`total_questions - score`), the submitted date and a concise finality reminder. Score/date repetition between main summary and rail is intentional; do not add a detached top-right metadata/action cluster. Dates use `Intl.DateTimeFormat("en", {dateStyle: "medium"})` in the browser timezone. Keep Refresh results as a secondary rail action. The desktop rail stays visible while reviewing, with scrolling if needed; narrow layouts place it above the review. Do not use a large filled score banner.
 
 ### Request a class performance summary
 
@@ -109,7 +109,7 @@ The draft review screen also offers Delete draft with explicit confirmation: del
 | Login | Username and password, sign in, generic authentication error. |
 | Student quiz list | Assigned quiz title, class, state, and Start, Resume, or View results. |
 | Student attempt | Scrolling framed questions with four radio options and save states, review marks, responsive question navigator, per question hint control, shared saved-answer readiness and confirmed Submit. |
-| Student results | Score and per question answer and explanation. |
+| Student results | Compact score/date and responsive submission details, with saved answer review. |
 | Teacher classes and quizzes | Assigned classes, own drafts and published quizzes, and Create quiz. |
 | Teacher upload and draft | DOCX upload, title and count, generation prompt, all generated questions with keys and explanations, reprompt, Publish, and confirmed deletion of idle drafts. |
 | Admin accounts | Student and teacher list and account creation form. |
@@ -139,3 +139,7 @@ Acceptance checks:
 - Nginx variables remain intact during template substitution; `nginx -t` succeeds.
 - HTTPS proxy configuration enables SNI and verifies certificates using the CA bundle.
 - The generated resolver uses the container's nameservers rather than a hardcoded Docker DNS address.
+
+## Student results acceptance checks
+
+- For zero, partial and perfect scores across 1–10 questions, use saved score/percentage/time, derive correct and incorrect counts as specified, and verify actual date formatter output near a date boundary. Keep details reachable on desktop, narrow screens and at 200% zoom.

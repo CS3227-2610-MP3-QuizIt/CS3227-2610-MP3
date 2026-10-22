@@ -6,7 +6,13 @@ import type {
   StudentQuiz,
   StudentResults,
 } from "../api/types";
-import { Loading, Notice, PageHeading, percent } from "../shared/ui";
+import {
+  formatDate,
+  Loading,
+  Notice,
+  PageHeading,
+  percent,
+} from "../shared/ui";
 import { useResource } from "../shared/useResource";
 import { HintStore } from "./HintStore";
 import { QuestionHint } from "./QuestionHint";
@@ -365,20 +371,21 @@ function ResultsPage({
   const result = resource.data;
   return (
     <>
-      <PageHeading
-        eyebrow="QUIZ RESULTS"
-        title={quiz.title}
-        description="Your submitted attempt is complete. Review what you learned."
-        action={
-          <button
-            className="button button-secondary"
-            disabled={resource.loading}
-            onClick={() => void resource.refresh()}
-          >
-            Refresh results
-          </button>
-        }
-      />
+      <header className="page-heading result-page-heading">
+        <div>
+          <p className="eyebrow">QUIZ RESULTS</p>
+          <h1>{quiz.title}</h1>
+          <div className="result-heading-meta">
+            <span className="badge badge-success">Submitted</span>
+            {result ? (
+              <span className="muted">
+                {result.total_questions}{" "}
+                {result.total_questions === 1 ? "question" : "questions"}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </header>
       {resource.error ? (
         <Notice>
           {resource.error}{" "}
@@ -392,15 +399,104 @@ function ResultsPage({
       ) : null}
       {resource.loading ? <Loading>Loading your results…</Loading> : null}
       {result ? (
-        <>
-          <div className="panel student-score">
-            <span className="badge badge-success">Submitted</span>
-            <h2>
-              {result.score} / {result.total_questions}
-            </h2>
-            <p>{percent(result.score_percent)}</p>
-            <p className="muted">Final score.</p>
+        <ResultReview
+          key={attemptId}
+          result={result}
+          refreshing={resource.loading}
+          onRefresh={() => void resource.refresh()}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function ResultReview({
+  result,
+  refreshing,
+  onRefresh,
+}: {
+  result: StudentResults;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
+  const submittedDate = formatDate(result.submitted_at);
+  const reviewId = `result-review-${result.id}`;
+
+  function focusReview() {
+    reviewHeading.current?.focus({ preventScroll: true });
+    reviewHeading.current?.scrollIntoView({
+      block: "start",
+      behavior: "instant",
+    });
+  }
+
+  return (
+    <div className="result-layout">
+      <aside
+        className="panel result-details"
+        aria-labelledby={`${reviewId}-details`}
+      >
+        <h2 id={`${reviewId}-details`}>Submission details</h2>
+        <dl>
+          <div className="result-detail-score">
+            <dt>Score</dt>
+            <dd>
+              <strong>
+                {result.score} / {result.total_questions}
+              </strong>
+              <span className="muted">{percent(result.score_percent)}</span>
+            </dd>
           </div>
+          <div>
+            <dt>Correct</dt>
+            <dd>{result.score}</dd>
+          </div>
+          <div>
+            <dt>Incorrect</dt>
+            <dd>{result.total_questions - result.score}</dd>
+          </div>
+          <div className="result-detail-date">
+            <dt>Submitted on</dt>
+            <dd>
+              <time dateTime={result.submitted_at}>{submittedDate}</time>
+            </dd>
+          </div>
+        </dl>
+        <p className="muted">
+          This submission is final. Answers cannot be changed.
+        </p>
+        <button className="button" onClick={focusReview}>
+          Review answers
+        </button>
+        <button
+          className="text-button result-refresh"
+          disabled={refreshing}
+          onClick={onRefresh}
+        >
+          Refresh results
+        </button>
+        <a className="text-button" href="#/student/quizzes">
+          Back to my quizzes
+        </a>
+      </aside>
+      <div className="result-main">
+        <div className="result-score">
+          <p>
+            Score for this quiz:{" "}
+            <strong>
+              {result.score} out of {result.total_questions}
+            </strong>
+          </p>
+          <p className="muted">
+            Submitted on{" "}
+            <time dateTime={result.submitted_at}>{submittedDate}</time>
+          </p>
+        </div>
+        <section aria-labelledby={reviewId}>
+          <h2 id={reviewId} ref={reviewHeading} tabIndex={-1}>
+            Question review
+          </h2>
           {[...result.questions]
             .sort((a, b) => a.position - b.position)
             .map((question) => (
@@ -434,8 +530,8 @@ function ResultsPage({
                 </div>
               </article>
             ))}
-        </>
-      ) : null}
-    </>
+        </section>
+      </div>
+    </div>
   );
 }
