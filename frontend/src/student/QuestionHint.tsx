@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
-import type { SafeError } from "../api/types";
+import type { HintState, SafeError } from "../api/types";
+import type { TargetSnapshot } from "../shared/TargetStore";
 import { Notice } from "../shared/ui";
 import { hintKey, HintStore } from "./HintStore";
 
@@ -64,6 +65,22 @@ function formatHintFailure(error: SafeError | null | undefined): string {
     : "Hints are temporarily unavailable. Please try again.";
 }
 
+function disclosureLabel(target: TargetSnapshot<HintState>): string {
+  const state = target.state;
+  const running = target.submitting || state?.status === "in_progress";
+  if (running) return "Preparing your hint…";
+  if (target.canRepeat) return "Hint request needs attention";
+  if (
+    state?.status === "failed" ||
+    Boolean(target.readError) ||
+    Boolean(target.actionError)
+  ) {
+    return "Hint unavailable — try again";
+  }
+  if (state?.status === "success" && state.result) return "Your hint";
+  return "Need a hint?";
+}
+
 export function QuestionHint({
   attemptId,
   questionId,
@@ -82,6 +99,7 @@ export function QuestionHint({
   );
   const snapshot = useCallback(() => store.snapshot(key), [store, key]);
   const target = useSyncExternalStore(subscribe, snapshot);
+  const [expanded, setExpanded] = useState(false);
   const [prompt, setPrompt] = useState("");
   useEffect(() => {
     void store.reconcile(key);
@@ -91,80 +109,102 @@ export function QuestionHint({
   const unresolved = target.unresolved;
   const blocked = disabled || running || unresolved;
   const action = state?.status === "not_requested" ? "ensure" : "new";
+  const panelId = `hint-panel-${attemptId}-${questionId}`;
+  const promptId = `hint-prompt-${attemptId}-${questionId}`;
   return (
     <section
       className="student-hint"
       aria-label={`Hint for question ${questionId}`}
     >
-      <h3>Need a little guidance?</h3>
-      <p className="muted">
-        AI hints offer a conceptual clue. Review them critically.
-      </p>
-      {state?.status === "success" && state.result ? (
-        <p className="student-hint-text">{state.result.hint}</p>
-      ) : null}
-      {unresolved && !running && !target.readError ? (
-        <p role="status">Checking hint state…</p>
-      ) : null}
-      {running ? (
-        <p role="status">
-          Preparing your hint… The active request keeps its original prompt.
-        </p>
-      ) : null}
-      {state?.status === "failed" ? (
-        <Notice>{formatHintFailure(state.error)}</Notice>
-      ) : null}
-      {target.readError ? (
-        <Notice>
-          {target.readError}{" "}
-          <button
-            className="text-button"
-            onClick={() => void store.reconcile(key)}
-          >
-            Refresh hint
-          </button>
-        </Notice>
-      ) : null}
-      {target.actionError ? <Notice>{target.actionError}</Notice> : null}
-      <label htmlFor={`hint-prompt-${key}`}>
-        Optional hint prompt{" "}
-        <span className="muted">(500 characters maximum)</span>
-      </label>
-      <textarea
-        id={`hint-prompt-${key}`}
-        maxLength={500}
-        rows={2}
-        value={prompt}
-        disabled={blocked || target.canRepeat}
-        onChange={(event) => setPrompt(event.target.value)}
-      />
-      {target.canRepeat ? (
-        <>
+      <button
+        type="button"
+        className="student-hint-toggle"
+        aria-expanded={expanded}
+        aria-controls={panelId}
+        onClick={() => setExpanded((open) => !open)}
+      >
+        <span>{disclosureLabel(target)}</span>
+        <span className="student-hint-indicator" aria-hidden="true">
+          {expanded ? "▾" : "▸"}
+        </span>
+      </button>
+      {expanded ? (
+        <div id={panelId} className="student-hint-body">
           <p className="muted">
-            Check the latest state or repeat your previous request with its
-            original prompt and key.
+            AI hints offer a conceptual clue. Review them critically.
           </p>
-          <button
-            className="button button-secondary"
-            disabled={blocked}
-            onClick={() => void store.generate(key, { action, prompt }, true)}
-          >
-            Repeat previous request
-          </button>
-        </>
-      ) : (
-        <button
-          className="button button-secondary"
-          disabled={blocked}
-          onClick={() => void store.generate(key, { action, prompt })}
-        >
-          {state?.status === "success"
-            ? "Another hint"
-            : state?.status === "failed"
-              ? "Try again"
-              : "Ask for a hint"}
-        </button>
-      )}
+          {state?.status === "success" && state.result ? (
+            <p className="student-hint-text">{state.result.hint}</p>
+          ) : null}
+          {unresolved && !running && !target.readError ? (
+            <p role="status">Checking hint state…</p>
+          ) : null}
+          {running ? (
+            <p role="status">
+              Preparing your hint… The active request keeps its original prompt.
+            </p>
+          ) : null}
+          {state?.status === "failed" ? (
+            <Notice>{formatHintFailure(state.error)}</Notice>
+          ) : null}
+          {target.readError ? (
+            <Notice>
+              {target.readError}{" "}
+              <button
+                type="button"
+                className="text-button"
+                onClick={() => void store.reconcile(key)}
+              >
+                Refresh hint
+              </button>
+            </Notice>
+          ) : null}
+          {target.actionError ? <Notice>{target.actionError}</Notice> : null}
+          <label htmlFor={promptId}>
+            Optional hint prompt{" "}
+            <span className="muted">(500 characters maximum)</span>
+          </label>
+          <textarea
+            id={promptId}
+            maxLength={500}
+            rows={2}
+            value={prompt}
+            disabled={blocked || target.canRepeat}
+            onChange={(event) => setPrompt(event.target.value)}
+          />
+          {target.canRepeat ? (
+            <>
+              <p className="muted">
+                Check the latest state or repeat your previous request with its
+                original prompt and key.
+              </p>
+              <button
+                type="button"
+                className="button button-secondary"
+                disabled={blocked}
+                onClick={() =>
+                  void store.generate(key, { action, prompt }, true)
+                }
+              >
+                Repeat previous request
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="button button-secondary"
+              disabled={blocked}
+              onClick={() => void store.generate(key, { action, prompt })}
+            >
+              {state?.status === "success"
+                ? "Another hint"
+                : state?.status === "failed"
+                  ? "Try again"
+                  : "Ask for a hint"}
+            </button>
+          )}
+        </div>
+      ) : null}
     </section>
   );
 }

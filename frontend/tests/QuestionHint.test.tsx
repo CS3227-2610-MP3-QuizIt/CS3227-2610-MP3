@@ -5,6 +5,7 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../src/api/client";
 import type { HintState, SafeError } from "../src/api/types";
@@ -43,9 +44,94 @@ describe("question hint controls", () => {
         disabled={false}
       />,
     );
+  const expand = async () => {
+    const view = open();
+    const toggle = await screen.findByRole("button", {
+      name: /Need a hint\?|Your hint|Preparing your hint|Checking hint state|Hint unavailable|Hint request needs attention/,
+    });
+    if (toggle.getAttribute("aria-expanded") === "false") {
+      fireEvent.click(toggle);
+    }
+    return view;
+  };
+  it("starts collapsed for unused hints, toggles with keyboard, and updates collapsed summary as state changes", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <QuestionHint
+          attemptId={10}
+          questionId={1}
+          store={store}
+          disabled={false}
+        />
+        <QuestionHint
+          attemptId={10}
+          questionId={2}
+          store={store}
+          disabled={false}
+        />
+      </>,
+    );
+    const toggles = await screen.findAllByRole("button", {
+      name: "Need a hint?",
+    });
+    expect(toggles).toHaveLength(2);
+    expect(toggles[0]).toHaveAttribute("aria-expanded", "false");
+    expect(toggles[1]).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByLabelText(/Optional hint prompt/),
+    ).not.toBeInTheDocument();
+
+    toggles[0].focus();
+    await user.keyboard("{Enter}");
+    expect(toggles[0]).toHaveAttribute("aria-expanded", "true");
+    expect(toggles[1]).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByLabelText(/Optional hint prompt/)).toBeInTheDocument();
+
+    await user.keyboard(" ");
+    expect(toggles[0]).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByLabelText(/Optional hint prompt/),
+    ).not.toBeInTheDocument();
+
+    read.mockImplementation(async (key) =>
+      key.endsWith(":1")
+        ? hintState(1, "in_progress", 10, 1)
+        : hintState(0, "not_requested", 10, 2),
+    );
+    await act(() => store.reconcile("10:1"));
+    expect(
+      screen.getByRole("button", { name: "Preparing your hint…" }),
+    ).toHaveAttribute("aria-expanded", "false");
+
+    read.mockImplementation(async (key) =>
+      key.endsWith(":1")
+        ? hintState(2, "success", 10, 1)
+        : hintState(0, "not_requested", 10, 2),
+    );
+    await act(() => store.reconcile("10:1"));
+    expect(screen.getByRole("button", { name: "Your hint" })).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+
+    read.mockImplementation(async (key) =>
+      key.endsWith(":1")
+        ? hintState(3, "failed", 10, 1)
+        : hintState(0, "not_requested", 10, 2),
+    );
+    await act(() => store.reconcile("10:1"));
+    expect(
+      screen.getByRole("button", { name: "Hint unavailable — try again" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.getByRole("button", { name: "Need a hint?" }),
+    ).toHaveAttribute("aria-expanded", "false");
+    expect(generate).not.toHaveBeenCalled();
+  });
   it("caps prompts and uses ensure initially then new with Try again after confirmed failure", async () => {
     generate.mockResolvedValue(hintState(2, "success"));
-    open();
+    await expand();
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "Ask for a hint" }),
@@ -98,7 +184,7 @@ describe("question hint controls", () => {
         hint: '<img src=x onerror="alert(1)">',
       },
     });
-    const view = open();
+    const view = await expand();
     await screen.findByText('<img src=x onerror="alert(1)">');
     expect(view.container.querySelector("img")).toBeNull();
     read.mockResolvedValue(hintState(3, "in_progress"));
@@ -106,7 +192,9 @@ describe("question hint controls", () => {
     expect(
       screen.queryByText('<img src=x onerror="alert(1)">'),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("button")).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Ask for a hint" }),
+    ).toBeDisabled();
     read.mockResolvedValue(
       failedHint(4, {
         code: "AI_INVALID_OUTPUT",
@@ -138,7 +226,7 @@ describe("question hint controls", () => {
         },
       }),
     );
-    open();
+    await expand();
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveClass("notice", "notice-error");
     expect(alert).toHaveTextContent(
@@ -267,7 +355,7 @@ describe("question hint controls", () => {
           message: "Successful hint allowance reached.",
         }),
       );
-    open();
+    await expand();
     await screen.findByText("Consider the concept.");
     fireEvent.click(screen.getByRole("button", { name: "Another hint" }));
     await screen.findByText(/9 seconds/);
@@ -287,12 +375,13 @@ describe("question hint controls", () => {
         new ApiError(0, { code: "NETWORK_ERROR", message: "Uncertain" }),
       )
       .mockResolvedValue(hintState());
-    open();
-    await waitFor(() => expect(screen.getByRole("button")).toBeEnabled());
+    await expand();
+    const ask = await screen.findByRole("button", { name: "Ask for a hint" });
+    await waitFor(() => expect(ask).toBeEnabled());
     fireEvent.change(screen.getByLabelText(/Optional hint prompt/), {
       target: { value: "Original prompt" },
     });
-    fireEvent.click(screen.getByRole("button"));
+    fireEvent.click(ask);
     await screen.findByRole("button", { name: "Repeat previous request" });
     await waitFor(() =>
       expect(
@@ -305,5 +394,33 @@ describe("question hint controls", () => {
     );
     expect(generate.mock.calls[1][1]).toEqual(generate.mock.calls[0][1]);
     expect(generate.mock.calls[1][2]).toBe(generate.mock.calls[0][2]);
+  });
+  it("preserves typed prompt, current hint, and error across collapse and reopen without generating", async () => {
+    read.mockResolvedValue(hintState(2, "success"));
+    await expand();
+    await screen.findByText("Consider the concept.");
+    const prompt = screen.getByLabelText(/Optional hint prompt/);
+    fireEvent.change(prompt, { target: { value: "Keep this draft prompt" } });
+
+    const toggle = screen.getByRole("button", { name: "Your hint" });
+    fireEvent.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText("Consider the concept.")).not.toBeInTheDocument();
+
+    read.mockResolvedValue(hintState(3, "failed"));
+    await act(() => store.reconcile("10:1"));
+    expect(
+      screen.getByRole("button", { name: "Hint unavailable — try again" }),
+    ).toHaveAttribute("aria-expanded", "false");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Hint unavailable — try again" }),
+    );
+    expect(screen.queryByText("Consider the concept.")).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/Optional hint prompt/)).toHaveValue(
+      "Keep this draft prompt",
+    );
+    expect(screen.getByRole("button", { name: "Try again" })).toBeEnabled();
+    expect(generate).not.toHaveBeenCalled();
   });
 });

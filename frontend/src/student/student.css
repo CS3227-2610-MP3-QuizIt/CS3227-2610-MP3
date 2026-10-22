@@ -95,9 +95,46 @@
   .student-hint {
     border-top: 1px solid #e5e9df;
     margin-top: 20px;
-    padding-top: 18px;
+    padding-top: 14px;
+    display: grid;
+    gap: 10px;
+  }
+  .student-hint-toggle {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 0;
+    background: none;
+    border: 0;
+    color: #285e48;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: left;
+  }
+  .student-hint-toggle:hover {
+    text-decoration: underline;
+  }
+  .student-hint-toggle:focus-visible {
+    outline: 3px solid #336d56;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+  .student-hint-indicator {
+    flex-shrink: 0;
+    color: #526e54;
+    font-size: 12px;
+  }
+  .student-hint-body {
     display: grid;
     gap: 12px;
+    min-width: 0;
+  }
+  .student-hint-body .notice {
+    margin: 0;
   }
   .student-hint h3,
   .student-explanation h3 {

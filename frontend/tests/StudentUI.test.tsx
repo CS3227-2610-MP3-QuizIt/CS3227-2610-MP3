@@ -244,9 +244,10 @@ describe("student workspace", () => {
     );
     const user = userEvent.setup();
     open();
-    await screen.findByText(
-      "Preparing your hint… The active request keeps its original prompt.",
-    );
+    await screen.findByRole("button", { name: "Preparing your hint…" });
+    expect(
+      screen.getByRole("button", { name: "Hint unavailable — try again" }),
+    ).toHaveAttribute("aria-expanded", "false");
     await user.click(screen.getByRole("radio", { name: "B Beta 2" }));
     await user.click(screen.getAllByRole("button", { name: "Submit quiz" })[0]);
     await user.click(
@@ -276,7 +277,11 @@ describe("student workspace", () => {
   it("allows saving and submission when initial hint reads are offline", async () => {
     read.mockRejectedValue(new Error("Hints offline"));
     open();
-    await screen.findAllByText("Hints offline");
+    const toggles = await screen.findAllByRole("button", {
+      name: "Hint unavailable — try again",
+    });
+    fireEvent.click(toggles[0]);
+    await screen.findByText("Hints offline");
     fireEvent.click(screen.getByRole("radio", { name: "B Beta 2" }));
     await waitFor(() => expect(screen.getAllByText("Saved")).toHaveLength(2));
     fireEvent.click(screen.getAllByRole("button", { name: "Submit quiz" })[0]);
@@ -288,7 +293,11 @@ describe("student workspace", () => {
     const user = userEvent.setup();
     const view = open();
     await screen.findByText("Question 1?");
-    await user.type(screen.getAllByRole("textbox")[0], "A conceptual clue");
+    const hintToggles = await screen.findAllByRole("button", {
+      name: "Need a hint?",
+    });
+    await user.click(hintToggles[0]);
+    await user.type(screen.getByRole("textbox"), "A conceptual clue");
     await user.click(
       screen.getAllByRole("button", { name: "Mark for review" })[0],
     );
@@ -300,7 +309,11 @@ describe("student workspace", () => {
     expect(
       screen.getByRole("heading", { name: "Question 1", exact: true }),
     ).toHaveFocus();
-    expect(screen.getAllByRole("textbox")[0]).toHaveValue("A conceptual clue");
+    expect(screen.getByRole("textbox")).toHaveValue("A conceptual clue");
+    await user.click(hintToggles[0]);
+    expect(hintToggles[0]).toHaveAttribute("aria-expanded", "false");
+    await user.click(hintToggles[0]);
+    expect(screen.getByRole("textbox")).toHaveValue("A conceptual clue");
     expect(
       screen.getByRole("button", {
         name: /Question 1, Saved, Marked for review/,
