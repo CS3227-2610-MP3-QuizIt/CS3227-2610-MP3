@@ -9,7 +9,7 @@
   }
   .student-quiz-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 400px));
     gap: 20px;
   }
   .student-quiz-card {
@@ -18,14 +18,16 @@
     flex-direction: column;
     min-width: 0;
   }
+  .student-quiz-card > .badge {
+    align-self: flex-start;
+  }
   .student-quiz-card h2 {
     font-size: 18px;
     margin: 18px 0 8px;
   }
   .student-quiz-card .button {
-    margin-top: auto;
+    margin: 0;
     min-height: 44px;
-    align-self: flex-start;
     width: auto;
     max-width: 100%;
     white-space: normal;
@@ -189,15 +191,11 @@
   }
   .student-quiz-footer {
     display: flex;
-    align-items: center;
+    align-items: flex-end;
     justify-content: space-between;
     gap: 12px;
     margin-top: auto;
     padding-top: 16px;
-    border-top: 1px solid #e5e9df;
-  }
-  .student-quiz-footer .button {
-    margin-top: 16px;
   }
   .student-card-score {
     display: grid;

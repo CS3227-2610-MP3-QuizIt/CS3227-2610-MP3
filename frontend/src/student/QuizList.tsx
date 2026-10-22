@@ -321,15 +321,15 @@ function QuizCard({ quiz }: { quiz: StudentQuizItem }) {
         {quiz.class_name} · {quiz.question_count}{" "}
         {quiz.question_count === 1 ? "question" : "questions"}
       </p>
-      {submitted ? (
-        <div className="student-quiz-footer">
-          <a
-            className="button button-secondary"
-            href={`#/student/results/${quiz.id}`}
-            aria-label={`${action}: ${quiz.title}`}
-          >
-            {action}
-          </a>
+      <div className="student-quiz-footer">
+        <a
+          className={`button ${submitted ? "button-secondary" : "button-primary"}`}
+          href={`#/student/${submitted ? "results" : "attempt"}/${quiz.id}`}
+          aria-label={`${action}: ${quiz.title}`}
+        >
+          {action}
+        </a>
+        {submitted ? (
           <div
             className="student-card-score"
             aria-label={`Score ${score == null ? "unavailable" : `${score} / ${quiz.question_count}`}`}
@@ -344,16 +344,8 @@ function QuizCard({ quiz }: { quiz: StudentQuizItem }) {
               </>
             )}
           </div>
-        </div>
-      ) : (
-        <a
-          className="button button-primary"
-          href={`#/student/attempt/${quiz.id}`}
-          aria-label={`${action}: ${quiz.title}`}
-        >
-          {action}
-        </a>
-      )}
+        ) : null}
+      </div>
     </article>
   );
 }
