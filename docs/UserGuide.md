@@ -71,9 +71,9 @@ same names throughout. Use a new one-student class: each seeded class has ten st
    Select **Generate questions**, review all questions, answers, and explanations,
    check the review confirmation, and **Publish quiz**. Check **Published to 1 student**.
 3. **Student:** sign out and sign in as `student01`. In **My quizzes**, find
-   `Admin Summary Smoke Test` and select **Start**. Select **Ask for a hint** for a
-   conceptual hint, using **Retry hint** if needed. Answer all three questions, wait
-   for **Saved**, and **Submit quiz**. Check the **Submitted** results page.
+   `Admin Summary Smoke Test` and select **Start**. Open **Need a hint?** and select **Ask for a hint** for a
+   conceptual hint, using **Try again** if needed. Answer all three questions, wait
+   for **Saved**, select **Submit quiz**, then **Confirm submission**. Check the **Submitted** results page.
 4. **Admin:** sign out and sign in as `admin`. Open **Quiz performance**, select
    `Admin Summary Smoke Test`, and use **Refresh quiz performance**. Check
    **1 / 1 submitted** and **Ready for insights**, then select **Generate summary**.
@@ -265,15 +265,25 @@ you leave the class.
 On **Resume**, previously saved options remain selected. Correct answers and
 explanations remain hidden until your own submission.
 
+The quiz stays on one scrolling page. Use the numbered navigator on the right
+(or the horizontal strip on narrow screens) to jump to a question. It shows the
+current question, save state and review flags. **Next unanswered** wraps to the next
+question without a selection; a selected choice still counts as answered while
+saving or after a failed save. **Mark for review** flags a question independently of
+its answer, and **Review marked** visits flagged questions. Marks last only until
+you leave or reload the attempt page and never block submission.
+
 ### AI hints
 
-Enter an optional prompt of at most 500 characters and select **Ask for a hint**.
-For example: “Give me a conceptual hint without revealing the correct option.”
+Open **Need a hint?** on a question, enter an optional prompt of at most 500 characters,
+and select **Ask for a hint**. For example: “Give me a conceptual hint without revealing the correct option.”
 The application checks the hint before showing it; rejected or unverifiable content
 is withheld. Hint controls are disabled while the application checks or generates a hint.
 
-**Expected:** a successful request displays hint text beneath the question. If the
-request fails, **Retry hint** is available; rejected content is not displayed.
+**Expected:** a successful request displays hint text beneath the question and updates the
+disclosure label to **Your hint**. If the request fails, a concise message explains why
+(such as when a hint could reveal the answer or was not relevant enough) and **Try again**
+is available with an editable prompt; rejected content and raw error codes are not displayed.
 **Ask for a hint** reopens the current hint when one exists; **Another hint** requests
 a new one. The previous hint is not displayed while a replacement is being generated
 or if that request fails. If you reach the hint limit, follow the message shown.
@@ -299,9 +309,16 @@ choice visible but does not mean it was saved; resolve failed saves before submi
 
 ### Submit and review results
 
-After every question is answered and saved, select **Submit quiz**. Submission waits
-for pending saves. If the response is uncertain, editing pauses while the application
-checks whether submission succeeded; use **Check submission** if that check fails.
+After every question is answered and saved, select **Submit quiz** from the bottom
+panel or desktop navigator. Both controls remain unavailable while a choice is
+missing, saving or failed. Check the readiness message and resolve any failed saves.
+The confirmation reminds you that submission is final and lists any review marks.
+Select **Keep reviewing** (or press Escape) to return without submitting, or
+**Confirm submission** to finish.
+
+If the response is uncertain, editing pauses while the application checks whether
+submission succeeded; use **Check submission** if that check fails. Editing and new
+hints remain locked until the application confirms the attempt's state.
 
 **Expected:** the results page shows **Submitted**, a score out of 3 for the testing
 example, a percentage, and each question's selected answer, correct answer, and

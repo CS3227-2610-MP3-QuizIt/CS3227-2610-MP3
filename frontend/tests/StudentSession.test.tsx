@@ -1,5 +1,11 @@
 import { StrictMode } from "react";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import App from "../src/App";
@@ -59,11 +65,13 @@ describe("student session and SSE", () => {
       screen.getByRole("link", { name: "QuizIt student home" }),
     ).toHaveAttribute("href", "#/student/quizzes");
     expect(screen.getByText("QuizIt")).toBeInTheDocument();
+    await waitFor(() => expect(calls).toContain("read"));
     expect(calls.indexOf("subscribe")).toBeLessThan(calls.indexOf("read"));
     expect(sources[0].options.withCredentials).toBe(true);
     expect(sources[0].url).toBe("/api/v1/ai/events");
   });
   it("reads only the scoped target on SSE and recovers on reconnect, focus and online", async () => {
+    const user = userEvent.setup();
     render(<App />);
     await screen.findByText("Question 1?");
     vi.mocked(api.hint).mockResolvedValue(hintState(2, "success"));
@@ -83,8 +91,12 @@ describe("student session and SSE", () => {
         }),
       ),
     );
-    await screen.findByText("Consider the concept.");
+    const toggle = await screen.findByRole("button", { name: "Your hint" });
     expect(api.hint).toHaveBeenCalledTimes(count + 1);
+    await user.click(toggle);
+    expect(
+      await screen.findByText("Consider the concept."),
+    ).toBeInTheDocument();
     expect(screen.queryByText("FORGED CONTENT")).not.toBeInTheDocument();
     for (const recover of [
       () => sources[0].onopen?.(),
@@ -120,6 +132,10 @@ describe("student session and SSE", () => {
     render(<App />);
     await screen.findByText("Question 1?");
     await waitFor(() => expect(api.hint).toHaveBeenCalled());
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "Mark for review" })[0],
+    );
+    expect(screen.getByRole("button", { name: "Review marked" })).toBeEnabled();
     const signal = vi.mocked(api.hint).mock.calls[0][2]!;
     act(() => window.dispatchEvent(new Event(SESSION_LOST)));
     await screen.findByRole("button", { name: "Sign in" });
@@ -155,8 +171,17 @@ describe("student session and SSE", () => {
     await screen.findByText("New Student");
     expect(document.title).toBe("Workspace title");
     await screen.findByText("Question 1?");
+    expect(
+      screen.getByRole("button", { name: "Review marked" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "⚑ Unmark review" }),
+    ).not.toBeInTheDocument();
     expect(sources).toHaveLength(2);
     await act(async () => late.resolve(hintState(2, "success")));
+    expect(
+      screen.queryByRole("button", { name: "Your hint" }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText("Consider the concept.")).not.toBeInTheDocument();
     expect(sources[1].close).not.toHaveBeenCalled();
   });

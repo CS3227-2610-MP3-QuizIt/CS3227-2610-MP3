@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, ApiError, errorMessage } from "../api/client";
 import type {
   Attempt,
@@ -10,6 +10,13 @@ import { Loading, Notice, PageHeading, percent } from "../shared/ui";
 import { useResource } from "../shared/useResource";
 import { HintStore } from "./HintStore";
 import { QuestionHint } from "./QuestionHint";
+import {
+  AttemptNavigator,
+  SubmissionReadiness,
+  SubmissionConfirmation,
+} from "./AttemptControls";
+import { answerReadiness, questionHeadingId } from "./attemptState";
+import type { Answer } from "./attemptState";
 
 const options: Option[] = ["A", "B", "C", "D"];
 interface Entry {
@@ -67,11 +74,6 @@ export function QuizPage({
   );
 }
 
-type Answer = {
-  option: Option;
-  status: "saving" | "saved" | "failed";
-  error?: string;
-};
 // Answer state stays in this attempt's memory. Resource recovery cannot overwrite
 // an unsaved local selection. Backend submission is monotonic and always wins.
 export function AttemptWorkspace({
@@ -97,6 +99,15 @@ export function AttemptWorkspace({
   const locked = useRef(false);
   const [uncertain, setUncertain] = useState(false);
   const [error, setError] = useState("");
+  const [marked, setMarked] = useState<Set<number>>(() => new Set());
+  const [confirmation, setConfirmation] = useState<HTMLButtonElement | null>(
+    null,
+  );
+  const questions = useMemo(
+    () => [...quiz.questions].sort((a, b) => a.position - b.position),
+    [quiz.questions],
+  );
+  const readiness = answerReadiness(questions, answers);
   const controller = useRef<AbortController | null>(null);
   useEffect(() => {
     const current = new AbortController();
@@ -158,25 +169,11 @@ export function AttemptWorkspace({
   }
   async function submit() {
     if (locked.current || submitted) return;
-    if (!quiz.questions.every((question) => answerRef.current[question.id])) {
-      setError("Select an answer for every question before submitting.");
-      return;
-    }
+    if (!answerReadiness(quiz.questions, answerRef.current).ready) return;
     locked.current = true;
+    setConfirmation(null);
     setBusy(true);
     setError("");
-    await Promise.all([...pending.current.values()]);
-    if (!active()) return;
-    if (
-      quiz.questions.some(
-        (question) => answerRef.current[question.id]?.status !== "saved",
-      )
-    ) {
-      setError("Retry failed answer saves before submitting.");
-      locked.current = false;
-      setBusy(false);
-      return;
-    }
     try {
       await api.submitAttempt(attempt.id, signal());
       if (!active()) return;
@@ -202,7 +199,6 @@ export function AttemptWorkspace({
         </a>
       </Notice>
     );
-  const complete = quiz.questions.every((question) => answers[question.id]);
   return (
     <>
       <PageHeading
@@ -223,86 +219,134 @@ export function AttemptWorkspace({
           </button>
         </Notice>
       ) : null}
-      {[...quiz.questions]
-        .sort((a, b) => a.position - b.position)
-        .map((question) => {
-          const answer = answers[question.id];
-          return (
-            <article className="panel student-question" key={question.id}>
-              <fieldset
-                disabled={busy || uncertain || answer?.status === "saving"}
+      <div className="attempt-layout">
+        <AttemptNavigator
+          attemptId={attempt.id}
+          questions={questions}
+          answers={answers}
+          marked={marked}
+          readiness={readiness}
+          blocked={busy || uncertain}
+          onSubmit={setConfirmation}
+        />
+        <div className="attempt-questions">
+          {questions.map((question) => {
+            const answer = answers[question.id];
+            return (
+              <article
+                className="panel student-question attempt-question"
+                key={question.id}
               >
-                <legend>
-                  <span className="question-number">{question.position}</span>{" "}
-                  {question.question}
-                </legend>
-                <div className="student-options">
-                  {options.map((option) => (
-                    <label
-                      className={`student-option ${answer?.option === option ? "selected" : ""}`}
-                      key={option}
-                    >
-                      <input
-                        type="radio"
-                        name={`answer-${attempt.id}-${question.id}`}
-                        value={option}
-                        checked={answer?.option === option}
-                        onChange={() => void save(question.id, option)}
-                      />
-                      <span className="student-option-letter">{option}</span>{" "}
-                      <span>{question.options[option]}</span>
-                    </label>
-                  ))}
-                </div>
-              </fieldset>
-              <div className="student-save-state" role="status">
-                {answer?.status === "saving"
-                  ? "Saving…"
-                  : answer?.status === "saved"
-                    ? "Saved"
-                    : answer?.status === "failed"
-                      ? "Save failed"
-                      : "Choose an answer"}
-              </div>
-              {answer?.status === "failed" ? (
-                <Notice>
-                  {answer.error}{" "}
+                <header className="attempt-question-header">
+                  <h2
+                    id={questionHeadingId(attempt.id, question.id)}
+                    tabIndex={-1}
+                  >
+                    Question {question.position}
+                  </h2>
                   <button
                     className="text-button"
-                    disabled={busy || uncertain}
-                    onClick={() => void save(question.id, answer.option)}
+                    aria-pressed={marked.has(question.id)}
+                    onClick={() =>
+                      setMarked((previous) => {
+                        const next = new Set(previous);
+                        if (next.has(question.id)) next.delete(question.id);
+                        else next.add(question.id);
+                        return next;
+                      })
+                    }
                   >
-                    Retry save
+                    {marked.has(question.id)
+                      ? "⚑ Unmark review"
+                      : "Mark for review"}
                   </button>
-                </Notice>
-              ) : null}
-              <QuestionHint
-                attemptId={attempt.id}
-                questionId={question.id}
-                store={store}
-                disabled={busy || uncertain}
-              />
-            </article>
-          );
-        })}
-      <div className="panel student-submit">
-        <div>
-          <strong>
-            {Object.keys(answers).length} of {quiz.questions.length} answered
-          </strong>
-          <p className="muted">
-            Submission is final. You can review the answers and explanations
-            afterward.
-          </p>
+                </header>
+                <div className="attempt-question-body">
+                  <fieldset
+                    disabled={busy || uncertain || answer?.status === "saving"}
+                  >
+                    <legend>{question.question}</legend>
+                    <div className="student-options">
+                      {options.map((option) => (
+                        <label
+                          className={`student-option ${answer?.option === option ? "selected" : ""}`}
+                          key={option}
+                        >
+                          <input
+                            type="radio"
+                            name={`answer-${attempt.id}-${question.id}`}
+                            value={option}
+                            checked={answer?.option === option}
+                            onChange={() => void save(question.id, option)}
+                          />
+                          <span className="student-option-letter">
+                            {option}
+                          </span>{" "}
+                          <span>{question.options[option]}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </fieldset>
+                  <div className="student-save-state" role="status">
+                    {answer?.status === "saving"
+                      ? "Saving…"
+                      : answer?.status === "saved"
+                        ? "Saved"
+                        : answer?.status === "failed"
+                          ? "Save failed"
+                          : "Choose an answer"}
+                  </div>
+                  {answer?.status === "failed" ? (
+                    <Notice>
+                      {answer.error}{" "}
+                      <button
+                        className="text-button"
+                        disabled={busy || uncertain}
+                        onClick={() => void save(question.id, answer.option)}
+                      >
+                        Retry save
+                      </button>
+                    </Notice>
+                  ) : null}
+                  <QuestionHint
+                    attemptId={attempt.id}
+                    questionId={question.id}
+                    store={store}
+                    disabled={busy || uncertain}
+                  />
+                </div>
+              </article>
+            );
+          })}
+          <div className="panel student-submit">
+            <div>
+              <strong>Ready to finish?</strong>
+              <p className="muted">
+                Submission is final. You can review the answers and explanations
+                afterward.
+              </p>
+            </div>
+            <SubmissionReadiness
+              readiness={readiness}
+              blocked={busy || uncertain}
+              busy={busy}
+              onSubmit={setConfirmation}
+            />
+          </div>
         </div>
-        <button
-          className="button button-primary"
-          disabled={!complete || busy || uncertain}
-          onClick={() => void submit()}
-        >
-          {busy ? "Confirming submission…" : "Submit quiz"}
-        </button>
       </div>
+      {confirmation ? (
+        <SubmissionConfirmation
+          readiness={readiness}
+          markedQuestions={questions
+            .filter((question) => marked.has(question.id))
+            .map((question) => question.position)}
+          invokingButton={confirmation}
+          blocked={busy || uncertain}
+          onCancel={() => setConfirmation(null)}
+          onConfirm={() => void submit()}
+        />
+      ) : null}
     </>
   );
 }
