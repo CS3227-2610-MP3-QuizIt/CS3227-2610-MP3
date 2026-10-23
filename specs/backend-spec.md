@@ -496,3 +496,16 @@ These criteria define the behavior implementation tests should verify. Schema va
 Use mocked gateway responses for automated failure and injection cases. Use small, explicitly configured live SoCLaaS smoke checks during integration to verify each feature's chosen text model and documented request and response fields without consuming a large quota.
 
 Treat these contracts and state rules as the implementation baseline. If a requirement changes, update the specification, schema where relevant, implementation, and corresponding acceptance cases together. The assignment's development workflow, deployment automation, and reflection deliverables are separate engineering work; they add no product features to this core scope.
+
+## Unexpected-error diagnostics
+
+Unexpected request exceptions return the generic `500 INTERNAL_ERROR` message
+with an opaque random `error.details.reference` and matching `X-Error-Reference`
+header; set Cache-Control: no-store. Record that reference in operator logs
+alongside the HTTP method, matched route template, exception class and at most
+12 traceback locations (file basename, line and function only). Never log
+exception messages, source lines, local variables, raw URLs/query strings,
+credentials, request bodies, prompts, uploaded text or provider contents through
+this handler. Expected AppError/validation contracts remain unchanged. The
+reference correlates the response with protected operator logs; it does not
+expose the underlying cause to the client.

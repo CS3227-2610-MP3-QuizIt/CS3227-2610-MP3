@@ -1014,3 +1014,17 @@ Process tooling includes the adapted
 guidance to [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills).
 Project-specific review/threat-model guidance and Codex specialist contributions are
 recorded in the skills, profiles, workflow artifacts, and verified logs above.
+
+### Unexpected request diagnostics
+
+A catch-all 500 keeps the generic user message and returns a random reference
+in `error.details.reference` and `X-Error-Reference`, with `Cache-Control: no-store`.
+Search protected backend logs for that reference. The `quiz_backend.main` logger
+records the method, matched route template, exception class and the last twelve
+traceback locations (file basename, line, function). It deliberately omits
+exception text, source lines, locals, raw paths/query strings and request/provider
+content. Use the locations to investigate in a controlled environment; do not
+add raw credential, prompt or provider payload logging to reproduce a failure.
+
+This handles unexpected request exceptions only. Normalized AI task errors
+retain their existing safe client mappings and are a separate diagnostic path.

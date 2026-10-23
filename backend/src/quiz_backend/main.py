@@ -1,6 +1,10 @@
+import logging
+import traceback
 from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
+from uuid import uuid4
 
 import httpx
 from fastapi import FastAPI, Request
@@ -20,6 +24,8 @@ from .seed import seed_demo
 from .tasks import TaskManager
 from .tasks_api import router as task_router
 from .time import utc_now
+
+logger = logging.getLogger(__name__)
 
 
 class BrowserSecurity:
@@ -163,9 +169,31 @@ def create_app(
 
     @app.exception_handler(Exception)
     async def unexpected_error(request: Request, error: Exception) -> JSONResponse:
+        reference = uuid4().hex
+        route = getattr(request.scope.get("route"), "path", "<unmatched>")
+        # Log locations only: exception messages, source lines, locals, raw
+        # paths/query strings and request/provider contents may contain secrets.
+        locations = [
+            f"{Path(frame.filename).name}:{frame.lineno}:{frame.name}"
+            for frame in traceback.extract_tb(error.__traceback__)[-12:]
+        ]
+        logger.error(
+            "Unexpected request failure reference=%s method=%s route=%s exception=%s frames=%s",
+            reference,
+            request.method,
+            route,
+            type(error).__name__,
+            " -> ".join(locations),
+        )
         return JSONResponse(
-            AppError(500, "INTERNAL_ERROR", "Request could not be completed.").envelope(),
+            AppError(
+                500,
+                "INTERNAL_ERROR",
+                "Request could not be completed.",
+                {"reference": reference},
+            ).envelope(),
             status_code=500,
+            headers={"Cache-Control": "no-store", "X-Error-Reference": reference},
         )
 
     app.include_router(core_router)
