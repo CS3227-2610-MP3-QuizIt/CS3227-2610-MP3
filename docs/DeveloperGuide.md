@@ -104,7 +104,7 @@ Keep the backend running in its terminal. Open a second terminal and, from
 `frontend/`, run `npm ci`. Create/update `frontend/.env` with:
 
 ```dotenv
-BACKEND_SERVER_URL=http://localhost:7000
+BACKEND_SERVER_URL=http://127.0.0.1:7000
 ```
 
 Then run `npm run dev` and open `http://localhost:5173`.
