@@ -558,3 +558,214 @@ verification. It also meant reading the evidence they left behind rather than
 their confident summaries. The problems that reached the repository, like the
 hint-length drift, the stale spec path and the undiagnosable invalid output, all
 came from places where I had skipped one of those steps.
+
+
+
+# Individual Reflection — Ng Jun Hao
+
+## Introduction
+
+My MP3 contribution focused on making QuizIt’s AI-assisted development workflow more structured and reviewable. I worked on the student-facing UI workflow, project-local agent skills, implementation handoffs, parallel code review, evaluation, logging and evidence. Through this work, I explored how an agent can work independently while following intended requirements safely and producing evidence that a human can inspect. My main conclusion is that an agentic workflow needs to be bounded, reviewable and economical. The workflow becomes safer when authority, context, verification and limitations are visible.
+
+## 1. AI security
+
+### Product security and product-AI security
+
+I found it useful to distinguish three different security problems. Traditional product security protects accounts, roles, resources, uploads and workflow state. Product-AI security protects the boundary between QuizIt’s users, application data and AI-generated content. Development-agent security protects the coding workflow itself.
+
+The project combined substantial product safeguards: authentication and authorization, Origin checks, publication approval, bounded AI outputs, hint verification, upload parsing restrictions and safe error responses. It also used Semgrep through [`workflow/security/semgrep.sh`](../../CS3227-2610-MP3/workflow/security/semgrep.sh), recording zero findings in its configured scan scope. The scan report recorded a partial-parsing warning, so I interpret it as evidence about the applied static rules and source scope.
+
+At team level, our product-AI tests addressed application-level containment. For example, hostile quiz or note content was tested against the generation boundary, and candidate hints were tested against a separate verifier. The backend validated the returned structure and withheld unsuitable hints instead of exposing them to students. These tests provide evidence that particular malicious or invalid inputs were contained at the application boundary under the mocked gateway conditions.
+
+The [security matrix](../../CS3227-2610-MP3/workflow/security/security-matrix.md) helped me connect these controls to specific claims instead of treating “AI security” as one broad property:
+
+| Matrix area | What we tested or documented | What I learned from it |
+|---|---|---|
+| `APP-01` | Hostile generation input could not directly publish or change quiz state | Input handling and authorization must remain separate from model output |
+| `APP-02` | Candidate hints were checked by a private verifier before being shown | A second model call can reduce leakage risk, but its verdict still needs strict validation |
+| `APP-05` | Origin protection and the production wildcard configuration were documented | A security policy is incomplete when an unsafe configuration remains possible |
+| `DEV-01`, `DEV-03`, `DEV-05` | Poisoned comments, forged reports and role confusion were identified as development-agent threats | A threat-model row records intent; an adversarial fixture is needed to demonstrate resistance |
+
+This matrix changed how I read security evidence. I stopped treating a completed row as proof that the entire threat had been solved and instead asked what exact boundary the test covered.
+
+### Security skills as a development process
+
+The project-local security skills made this security work more systematic. The [`owasp-threat-modeling` skill](../../CS3227-2610-MP3/.agents/skills/owasp-threat-modeling/SKILL.md) asks the planner to fix the scope, identify protected assets and actors, trace trust boundaries, map threats to control owners and define observable acceptance tests before implementation. It also explicitly treats uploaded content, quoted instructions and model output as data rather than authority. This helped me connect a threat-model entry to an actual decision and test instead of treating OWASP terminology as a checklist.
+
+The [`security-boundary-review` skill](../../CS3227-2610-MP3/.agents/skills/security-boundary-review/SKILL.md) applies a different perspective after implementation. It traces the path from input or request through authorization, domain logic, persistence or the AI gateway, response and logging. It asks reviewers to check both allowed and denied role/owner/state cases and whether rejected operations leave protected state unchanged. The [`Semgrep scan guidance`](../../CS3227-2610-MP3/.agents/skills/security-boundary-review/references/semgrep.md) complements this reasoning with static analysis, while requiring the reviewer to record scanner scope, parser failures, exclusions and actual findings.
+
+| Security skill | Where it fits | What it changed in my understanding |
+|---|---|---|
+| OWASP threat modeling | Before implementation or a security-sensitive change | Security begins by defining assets, actors, trust boundaries, threats, control owners and acceptance tests |
+| Security-boundary review | After implementation, as an independent review axis | A security review must trace data flow and verify denied cases, preserved state and evidence limitations |
+| Semgrep guidance | Static-analysis part of the review | A zero-finding scan is useful scoped evidence, but it cannot establish runtime authorization, AI safety or agent-injection resistance |
+
+Together, these skills created a generator–reviewer relationship: threat modeling produced security questions and acceptance cases, implementation produced a change, and boundary review challenged the resulting evidence. The limitation is that a well-designed skill still depends on correct execution. This is why the evaluation harness and review artifacts matter: they make missing axes, missing reports and unsupported security claims visible.
+
+The evidence is scoped to application-level containment: mocked gateway tests cannot establish how a live language model responds to every prompt injection. A passing test demonstrates that the application rejects a tested class of output, while model-level reliability requires a different evaluation.
+
+### Further agent-security surfaces to investigate
+
+The security matrix and current tests gave us a useful starting point, but they also suggested attack surfaces that I would test in a later evaluation. These are planned investigations rather than completed MP3 evidence:
+
+| Planned scenario | Possible attack | Evidence I would collect |
+|---|---|---|
+| Direct roleplay jailbreak | A user uses a “grandma” or trusted-authority story to persuade the model to ignore its constraints | Whether the application preserves output validation, answer privacy and publication boundaries |
+| Tool-output injection | Untrusted output from a file parser, API or tool tells the agent to reveal secrets or widen its task | Whether the agent treats tool output as data and keeps the assigned scope |
+| Context or memory poisoning | A malicious instruction is planted in a specification, task file, handoff or durable report and retrieved by a later agent | Whether the agent checks authority, revision identity and approval before using the instruction |
+| Inter-agent message forgery | A specialist report falsely claims that tests passed or that a human approved a change | Whether the aggregator preserves the limitation and refuses an unsupported clean verdict |
+| Excessive agency | An agent edits tests, commits changes, retries indefinitely or accesses files outside its assignment | Tool traces, changed paths, approval events, retry counts and final artifacts |
+| Multi-turn injection | A harmless-looking input establishes context that becomes unsafe after several handoffs or model calls | Whether safety holds across the complete generation, verification and review chain |
+
+The “grandma” example is a direct prompt-manipulation case, while the more important development-workflow risks are indirect: malicious text hidden in a document, tool result, specification or review artifact. Current agent-security guidance treats tools, retrieved content, memory and inter-agent messages as attack surfaces alongside the initial prompt. I would use these scenarios to extend the existing harness with paired benign and adversarial fixtures, measuring both safe refusal of the unauthorized action and successful completion of the legitimate task.
+
+In the student UI work, one user-facing example was a rejected hint. The application correctly withheld a candidate that could reveal the answer, while the resulting message needed a clearer recovery path. I therefore treated safe failure as part of the product experience. The interface should explain that no usable hint was returned without revealing the rejected answer or implying that the verifier is infallible. This helped me see that security includes both blocking an unsafe result and communicating the block without creating a new information leak or confusing recovery path.
+
+### Development-agent security
+
+Development agents face a different injection surface. They read task files, source comments, skills, reviews and handoffs, and any of these may contain instructions. A sentence inside a repository file is not automatically equivalent to an instruction from the user. This is especially important when one agent tells another that work is approved or complete. This connects to Lecture 6’s safety and security concepts: guardrails, human oversight, approval gates and traceability have to work together.
+
+I used explicit boundaries between planning, implementation, review, logging and Git actions. The approved task brief was intended to be the authority for the implementer, while prototypes and exploratory discussion were treated as design evidence that had to be translated into the brief. Reviewers received bounded assignments and were expected to report evidence rather than silently modify the target.
+
+The repository’s [security matrix](../../CS3227-2610-MP3/workflow/security/security-matrix.md) identifies poisoned comments, forged approvals, misleading review artifacts and role confusion as development-agent threats. The evaluation harness tested whether the code-review workflow preserved a dedicated security-boundary review axis. It also exposed a single-agent trial that discussed several review areas while omitting an explicit security assessment. This showed that reading a security skill is different from applying it.
+
+The harness therefore provides workflow evidence rather than a complete adversarial security evaluation. Its current evidence covers review routing and role behaviour; adversarial fixtures for poisoned comments, forged pass reports, test-tampering instructions and unsafe shell commands would extend that evaluation. I describe the development-agent controls as specified and partially evaluated, with injection resistance remaining an evidence goal.
+
+This difference between policy and evidence was one of my most important lessons. A document can require an aggregator to preserve limitations, but an experiment is still needed to test whether it rejects a forged clean report. A reviewer can be assigned a security role, but a trial is still needed to see whether it detects an actual malicious instruction.
+
+## 2. Spec-driven development
+
+### SDD as coordination infrastructure
+
+I initially thought of SDD mainly as a way to document requirements. During MP3, I found that its more important purpose was coordinating agents. Lecture 7 describes context drift and fragmentation as problems that increase when agents generate code quickly, and presents a formal specification as a shared source of truth. A human conversation is temporary and difficult for a later agent to audit. A specification gives the planner, implementer, tester and reviewer a persistent contract.
+
+The project-local skills made this process repeatable. `plan-task` gathered the relevant specifications and current code, resolved decisions and produced a self-contained task brief. `implement` then worked from a READY brief. Reviewers checked the implementation against the same requirements instead of relying only on the implementer’s explanation. In this sense, the specs, task briefs and review reports became an externalized context-memory layer: agents could recover the project’s decisions from durable artifacts instead of depending on one model’s conversation history.
+
+This is also how I connect SDD to Lecture 9’s context engineering. Context is not only the current prompt; it includes the selected instructions, retrieved files, task-specific material and project state supplied to the agent. Our specifications acted as curated memory: they preserved decisions, reduced repeated explanation and gave fresh agents a reliable starting point. The trade-off was that stale or contradictory specifications could preserve the wrong context, so the memory layer needed ownership, revision identity and updates alongside implementation.
+
+```mermaid
+flowchart TD
+    H[Human request and decisions] --> P[Plan task]
+    P --> B[READY brief: scope, non-goals, acceptance criteria]
+    B --> I[Implementer: code, tests, specs]
+    I --> E[Evidence: tests, browser checks, CI, limitations]
+    E --> R[Independent review]
+    R --> D{Accepted?}
+    D -- Corrections needed --> I
+    D -- Blocked or ambiguous --> H
+    D -- PASS or accepted WARN --> L[Log and focused commit]
+```
+
+The specifications therefore served different roles. Existing backend and frontend specifications preserved project architecture. Task briefs narrowed the scope for a particular change. Acceptance criteria gave tests and reviewers an oracle. Logs recorded what was actually checked. Their value came from keeping these artifacts consistent; documentation volume alone would not guarantee correctness.
+
+### From prototype to written contract
+
+The student UI work showed me why prototypes need to be translated into implementation specifications. I used prototypes to decide on the hierarchy of the My quizzes page, status tabs, search and class controls, score placement and empty states. A fresh implementer worked from explicit behavior and acceptance criteria rather than relying on my prototype or earlier conversation.
+
+My first brief communicated the main functionality but left some visual and interaction details underspecified. Later comparison exposed omissions involving filter details, hierarchy and keyboard behavior. This showed that some of my selected design intent had not yet been transferred into the authoritative brief. SDD therefore made a weakness visible in my own planning and gave me a concrete way to improve the handoff.
+
+If I repeated the process, I would review every brief from the perspective of an agent that had never seen the prototype. I would state relationships, empty and failure states, accessibility behavior and important visual priorities explicitly, while avoiding irrelevant prototype implementation details.
+
+### Verification must match the claim
+
+MP3 improved the evidence process, but the same lesson remained. A focused test pass does not certify the whole suite. A successful check on one branch does not prove that another branch contains the same fix. A browser fixture check can provide evidence about layout without proving live backend behavior. Logs therefore need to identify the exact revision, command, environment and limitation.
+
+The useful SDD question is: “what did the specification prevent the agent from guessing, and what did it still fail to express?”
+
+## 3. Basic multi-agent software engineering
+
+### Fresh and inherited context
+
+The implementation and review workflow separated an implementer from specialist reviewers for code quality, specification/contracts, security boundaries and verification. This reflects Lecture 8’s multi-agent coordination model, where specialist agents receive different expertise and context. I preferred fresh context for reviewers because it encouraged them to challenge the implementer’s assumptions instead of simply continuing its reasoning. The trade-off was repeated repository reading and additional handoff tokens.
+
+Inherited context is useful when a child is continuing an unresolved implementation and needs subtle decisions that would be expensive to reconstruct. It is risky when the child is meant to be independent, because it may inherit the parent’s mistaken interpretation or irrelevant exploratory context. Fresh context improves independence, but only if the handoff contains the target revision, authoritative requirements, changed paths, checks performed, unresolved decisions and evidence limitations.
+
+### Skill-based versus code-based delegation
+
+I also learned that multi-agent work can be coordinated through written instructions or through code. In our review workflow, the parent agent follows a written protocol such as `SUBAGENTS.md`: it decides which specialists to spawn, gives them roles and asks them to write reports. In the evaluation harness, code coordinates independent semantic grading jobs and combines their results.
+
+| Approach | How it works | Example in our project | Advantages | Trade-offs |
+|---|---|---|---|---|
+| Skill-based delegation | Markdown skills describe roles, context, handoffs and aggregation | The normal review workflow follows `SUBAGENTS.md`: the parent agent spawns code-quality, specification, security and verification reviewers, then follows `AGGREGATOR.md` | Easy to read, adapt and review; supports flexible agent reasoning | Relies on the model following the instructions; roles, artifacts or boundaries can be skipped |
+| Code-based parallel grading | The harness batches independent, read-only grading jobs and combines their results | Multiple semantic judges grade the same completed trial independently; with `--parallel`, eligible trials are batched after worker runs finish, with up to eight grading jobs active concurrently | Reduces elapsed grading time; the number of judges and result-combination rules are explicit | Uses more resources at once; failures and disagreements need clear handling |
+
+The review workflow uses skill-based delegation: the parent follows the project-local protocol to assign specialist reviewers and aggregate their reports. The evaluation harness parallelizes a different task. Each semantic judge receives the same completed trial evidence and independently returns a grade. These jobs are read-only, so they can run concurrently without competing to modify shared files. In `--parallel` mode, the harness first completes the worker trials, then batches eligible trials for semantic grading, running up to eight grading jobs at once. It combines the judges' results using a median score and quorum rule. Batching reduces elapsed time compared with grading each trial and judge sequentially, while keeping the individual judgments available for inspection.
+
+This is another task that suits multi-agent work: several agents can inspect the same fixed evidence independently and provide separate judgments. The harness makes that parallelism faster in wall-clock time and defines how to handle invalid grades, abstentions and quorum. The results still need interpretation: agreement between judges is useful evidence, but it does not prove that their shared assumptions are correct. I learned to look for tasks with stable inputs, independent outputs and no shared writes as good candidates for parallel agents.
+
+The evaluation made the value of parallelism concrete for me: batching independent, read-only grading work avoids serial waits. I now see multi-agent coordination as especially useful when tasks can proceed from the same evidence without editing one another's work, provided the aggregation method and uncertainty remain visible.
+
+### Agent profiles and role identity
+
+Agent profiles added another layer to this design. A skill describes how to perform a kind of work; a profile describes who the child agent is allowed to be within the workflow. The two have different responsibilities:
+
+| Responsibility | Agent profile | Specific agent skill |
+|---|---|---|
+| Main question | “What role am I playing?” | “How should I perform this role?” |
+| Scope | Assigned review axis, target artifact and prohibited actions | Relevant files, trust boundaries, checks and evidence to inspect |
+| Coordination | Whether the agent may orchestrate, delegate or edit outside its assignment | The ordered procedure for completing the review |
+| Output | Required artifact location, finding-ID prefix and compact return | Report content, reasoning standard, limitations and follow-up guidance |
+| Example | `security_boundary_reviewer.toml` identifies a security specialist and prevents it becoming the aggregator | `security-boundary-review/SKILL.md` explains how to trace authorization, AI, upload, secret and logging boundaries |
+
+For example, the project has separate profiles for `code_quality_reviewer`, `spec_contract_reviewer`, `security_boundary_reviewer`, `verification_reviewer` and `review_aggregator`. Each profile names the role, points the agent to its assigned skill, limits it to one review axis and tells it not to become the orchestrator or silently delegate further.
+
+| Layer | Example | Purpose |
+|---|---|---|
+| Skill | `security-boundary-review/SKILL.md` | Defines the security review procedure and evidence standard |
+| Agent profile | `security_boundary_reviewer.toml` | Gives one child a stable identity, role boundary and output responsibility |
+| Harness | `agent-profiles.json` and the evaluation runner | Installs, snapshots and checks the declared profiles for a repeatable trial |
+
+This responsibility split matters because neither layer completes the work alone. A profile without a skill gives an agent a title and an output location but no reliable review method. A skill without a profile gives a good procedure but leaves the agent’s authority, ownership and relationship to the other agents ambiguous. Together, the profile establishes the contract of the worker and the skill provides the procedure that fulfils it.
+
+This separation also helped me understand why a role name in a prompt is insufficient. The profile gives the child a more stable operational identity, while the skill provides the detailed method. The evaluation harness snapshots and hashes the declared profiles, so a later comparison can detect profile changes instead of incorrectly attributing every score difference to a skill change. At the same time, a profile is still an instruction boundary rather than a complete sandbox: it can guide the model’s behaviour, but runtime permissions and artifact checks are needed to enforce the boundary.
+
+The profile design changed how I think about specialization. Specialization is not just asking four agents for four opinions. It requires each agent to have a distinct responsibility, a controlled context, an expected artifact and a clear handoff to the aggregator. This is where role identity, skills and code-based evaluation work together.
+
+### Parallel review as map-reduce
+
+My code-review structure enabled parallelism because the review axes were intentionally independent. The parent fixed the target revision and scope, then dispatched four specialists. Each wrote a bounded report to a file. An aggregator read those reports and produced one canonical result for the parent.
+
+```mermaid
+flowchart TD
+    T[Fixed target revision and task scope] --> P[Parent agent]
+    P --> CQ[Code-quality review]
+    P --> SC[Specification and contract review]
+    P --> SB[Security-boundary review]
+    P --> VR[Verification and evidence review]
+    CQ --> F[Report files]
+    SC --> F
+    SB --> F
+    VR --> F
+    F --> A[Aggregator]
+    A --> O[PASS / WARN / FAIL with limitations]
+    O --> C[Parent routes correction or human decision]
+```
+
+Writing reports to files protected the main context window and created an inspectable source of truth. The aggregator also reduced several conversations into one decision surface. This structure introduced costs: reviewers duplicated some repository reading, reports could become stale if they targeted different revisions, and aggregation could flatten disagreement into an overconfident summary. Parallelism therefore works best when the tasks are genuinely independent; overlapping implementation work requires synchronization.
+
+The evaluation harness made these trade-offs measurable. In the latest three-trial comparison, the delegated route used more context and took longer than the single-agent route:
+
+| Review route | Mean worker time | Uncached input | Cached input | Output + reasoning | API-equivalent cost |
+|---|---:|---:|---:|---:|---:|
+| Delegated specialists + aggregator | 3m 9.5s | 73,576 | 782,763 | 10,955 | $0.0805 |
+| Single-agent route | 1m 56.0s | 41,450 | 137,557 | 3,932 | $0.0158 |
+
+These figures come from [experiment 006](../../CS3227-2610-MP3/workflow/evals/code-review/runs/experiment-006/report.md). They made the coordination cost concrete: delegation took approximately 1.6 times longer and cost approximately five times more in the measured fixtures. Its value was specialist separation and parallel challenge, rather than token efficiency. The costs are API-equivalent estimates, not actual subscription spending.
+
+The reports also captured a coordination failure. In [experiment 004](../../CS3227-2610-MP3/workflow/evals/code-review/runs/experiment-004/report.md), one delegated trial failed because the specification reviewer did not produce its required artifact. The aggregator preserved the missing axis as blocked instead of silently presenting a complete review. This supported my decision to use report files as a source of truth, while showing that aggregation requires its own completeness checks.
+
+The delegated and single-agent trials were not a perfectly controlled comparison, and the experiments included routing and profile changes. The evidence therefore supports claims about workflow behaviour and token/coordination costs under particular fixtures, while broader claims about multi-agent quality would require a controlled comparison. Experiment 006 also showed that a passing aggregate score can coexist with incomplete security reasoning: one single-agent trial lacked an explicit security-boundary assessment.
+
+### What I would improve
+
+I would use fresh context for independent review and security challenge, inherited context for continuity-sensitive implementation, and targeted handoffs rather than full conversation history. I would also add matched benign/adversarial fixtures for development-agent security: a legitimate task paired with a poisoned comment, forged approval or report-tampering instruction. The workflow should demonstrate both safe refusal of the unauthorized action and successful completion of the legitimate task.
+
+I would also add a requirement-to-test-evidence matrix. This would connect each important requirement to its implementation, automated test, review report and production observation. It would make SDD more than a collection of documents and make missing evidence easier to see.
+
+## Conclusion
+
+The three MP3 themes are connected. SDD defines intended behavior. Multi-agent SE distributes implementation and challenge. AI security limits what models, users and development agents may influence. Human approval and evidence determine whether the result can be trusted.
+
+My strongest lesson is that reliability comes from boundaries, not from agent count. A fresh reviewer is useful only when its assignment and authority are clear. A security policy is useful only when its enforcement is tested. A specification is useful only when it communicates user intent and is connected to evidence.
+
+For future work, I would keep the same general workflow but make three changes earlier: test the task brief with a fresh-context implementer before implementation, run adversarial development-agent fixtures rather than only documenting them, and record requirement-to-test evidence links for every high-risk feature. This would make the process not only more sophisticated, but easier for a human to challenge and trust.
