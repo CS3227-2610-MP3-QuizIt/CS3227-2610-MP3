@@ -8,10 +8,12 @@ uv run --locked quiz-backend serve
 ```
 
 The server uses one worker on `127.0.0.1:7000`. Interactive API
-documentation is at `/api/v1/docs`. Set `ALLOWED_ORIGINS=["*"]` to allow any origin
-(the example configuration uses this mode). CORS echoes the origin to support cookies.
-This disables Origin-based CSRF protection. An explicit origin list instead requires
-an approved `Origin` on every mutation, including curl and the API documentation page.
+documentation is at `/api/v1/docs`. The example configuration allows only the local Vite
+origin and the local API origin for its interactive documentation. Keep exact origins in
+development; wildcard mode is an explicit development-only opt-in. Production rejects
+wildcard origins and requires HTTPS origins. An explicit origin list requires an approved
+`Origin` on every mutation, including curl and the API documentation page. For curl, send
+the approved `Origin` header.
 
 Create `.env` from `.env.example` only if no private configuration exists. Configure
 a permitted text model and verified context limit for each AI feature. Any two or all

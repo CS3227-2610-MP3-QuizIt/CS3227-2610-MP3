@@ -7,7 +7,7 @@ services:
         required: false
     environment:
       ENVIRONMENT: ${APP_ENVIRONMENT:-development}
-      ALLOWED_ORIGINS: '${APP_ALLOWED_ORIGINS:-["*"]}'
+      ALLOWED_ORIGINS: '${APP_ALLOWED_ORIGINS:-["http://localhost:8080"]}'
       DATABASE_PATH: /app/private/quiz.sqlite3
       STORAGE_PATH: /app/private/notes
     volumes:

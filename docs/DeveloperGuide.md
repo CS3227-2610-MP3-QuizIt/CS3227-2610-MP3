@@ -1,5 +1,20 @@
 # QuizIt developer guide
 
+## Contents
+
+1. [Project overview and repository map](#1-project-overview-and-repository-map)
+2. [System architecture and deployment boundaries](#2-system-architecture-and-deployment-boundaries)
+3. [Local development and configuration](#3-local-development-and-configuration)
+4. [Domain model and persistence](#4-domain-model-and-persistence)
+5. [Frontend architecture](#5-frontend-architecture)
+6. [Backend architecture and role workflows](#6-backend-architecture-and-role-workflows)
+7. [AI features and shared task lifecycle](#7-ai-features-and-shared-task-lifecycle)
+8. [Security design and limitations](#8-security-design-and-limitations)
+9. [Verification and evidence](#9-verification-and-evidence)
+10. [Production operation and dev/prod separation](#10-production-operation-and-devprod-separation)
+11. [SDD, multi-agent workflow, and maintenance](#11-sdd-multi-agent-workflow-and-maintenance)
+12. [Acknowledgements and reused material](#12-acknowledgements-and-reused-material)
+
 ## 1. Project overview and repository map
 
 QuizIt is a secured class quiz application. Teachers generate quizzes
@@ -25,6 +40,24 @@ Product contracts and acceptance criteria remain in the
 
 Frontend/backend have separate dependencies and lockfiles. Run component commands
 from their own folders; run Compose and evaluation commands from the repository root.
+
+### MP3 requirement map
+
+| Requirement | Where to verify it |
+| --- | --- |
+| AI feature for each role, using SoC LLM | Sections 6–7; backend specification; User Guide |
+| AI security controls and tests | Section 8; [security matrix](../workflow/security/security-matrix.md); section 9 |
+| Custom SDD and multi-agent development evidence | Section 11; linked workflow artifacts and verified summaries in `logs/` |
+| Separate online deployment and development setup | Sections 3 and 10; dated production evidence in `logs/production-smoke-test.md` |
+| Peer testing instructions and current behavior | [User Guide](UserGuide.md) |
+| Concrete reflections | [Reflections](Reflections.md) |
+| Reused material and attributions | Section 12 |
+
+The assignment also requires a 2–3 student team, an organization-hosted public repository
+named `CS3227-2610-MP3`, a current public `master`, and one Canvas organization submission.
+Those administrative facts are verified on the hosting/course platforms; this guide cannot
+establish their current status. See section 10 for the limits of the dated deployment
+observation, and section 12 for the stated reuse accounting.
 
 ## 2. System architecture and deployment boundaries
 
@@ -76,6 +109,15 @@ Sources: [lifespan](../backend/src/quiz_backend/main.py),
 [Vite](../frontend/vite.config.ts), and [Nginx](../frontend/nginx.conf).
 The [Pages workflow](../.github/workflows/pages.yml) publishes only `pages/` from
 `master`, not the application or private data.
+
+### Design rationale and trade-offs
+
+| Decision | Why it fits QuizIt | Trade-off and extension point |
+| --- | --- | --- |
+| Keep the browser, API, SoCLaaS, and private-data responsibilities separate. | The browser handles interaction; FastAPI owns authorization, quiz rules, grading, and all provider calls. This keeps credentials and authoritative state out of the browser. | The frontend depends on the documented API contracts. Change a contract together with its specification, implementation, and acceptance checks. |
+| Use SQLite with one FastAPI process and one Uvicorn worker. | Short transactions can atomically check ownership, publish frozen rosters, save grades, and admit AI work using one local database. | SQLite-local admission and in-memory task supervision do not support horizontal scaling. Revisit persistence and coordination before adding instances or workers. |
+| Run accepted AI work as lifespan-owned tasks with persisted state, without a queue or completion worker. | Browser disconnects do not cancel accepted requests, while the application stays within the required simple SoCLaaS integration model. | A process restart marks leftover work interrupted rather than resuming it. Any recovery change must preserve idempotency, latest-target behavior, permissions, and deadlines. |
+| Share task admission and reconciliation while keeping three feature contracts separate. | Common rate admission, idempotency, and version handling stay consistent; quiz generation, hints, and summaries retain their own context, validation, and privacy rules. | A new AI feature needs its own input/output contract, model and context settings, security cases, and tests; it should use the shared lifecycle rather than add a parallel task system. |
 
 Production needs HTTPS, persistent backend
 disk, one instance/worker, and deliberate proxy trust. Application CI checks do not deploy.
@@ -142,7 +184,7 @@ defaults apply. Relative database/storage paths resolve from the process working
 | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
 | `ENVIRONMENT`                                                                                  | Default development; production enables Secure cookies and requires HTTPS explicit origins |
 | `DATABASE_PATH`, `STORAGE_PATH`                                                                | Defaults `private/development.sqlite3`, `private/notes`                                    |
-| `ALLOWED_ORIGINS`                                                                              | Code default `["http://localhost:5173"]`; backend example `["*"]`                          |
+| `ALLOWED_ORIGINS`                                                                              | Code default local Vite origin; backend example allows local Vite and API-docs origins; production requires exact HTTPS origins |
 | `SOCLAAS_BASE_URL`, `SOCLAAS_API_KEY`                                                          | HTTPS gateway origin and private credential; backend appends `/v1/responses`               |
 | `SOCLAAS_HINT_MODEL`, `SOCLAAS_QUIZ_MODEL`, `SOCLAAS_SUMMARY_MODEL`                            | Fixed model per feature; any/all may share an ID                                           |
 | `SOCLAAS_HINT_CONTEXT_TOKENS`, `SOCLAAS_QUIZ_CONTEXT_TOKENS`, `SOCLAAS_SUMMARY_CONTEXT_TOKENS` | Positive verified context budgets, configured separately                                   |
@@ -175,8 +217,10 @@ Compose optionally reads `backend/.env`, but overrides backend
 `DATABASE_PATH` and `STORAGE_PATH` with `/app/private/quiz.sqlite3` and `/app/private/notes`.
 `APP_ENVIRONMENT` and `APP_ALLOWED_ORIGINS` are Compose interpolation inputs: their
 values become backend `ENVIRONMENT` (default `development`) and `ALLOWED_ORIGINS`
-(default `["*"]`), overriding those settings from the backend environment file.
-`BACKEND_ENV_FILE` selects a different backend environment file.
+(default `["http://localhost:8080"]` for the Compose frontend), overriding those settings
+from the backend environment file. Set `APP_ALLOWED_ORIGINS` to the exact browser origin
+when using a different frontend port. Production rejects wildcard origins and requires
+explicit HTTPS origins. `BACKEND_ENV_FILE` selects a different backend environment file.
 
 Nginx defaults to `BACKEND_SERVER_URL=http://backend:7000`. To load a frontend environment
 file, use `docker compose --env-file frontend/.env up --build -d --wait`. The origin
@@ -763,11 +807,14 @@ results. Task UUIDs confer no access. Validation errors omit raw inputs; task re
 ### Origin policy
 
 Exact allowlists require one approved Origin on mutations, including login/API-docs requests.
-Production explicit origins require HTTPS. Wildcard `["*"]` accepts arbitrary/absent Origins
-and reflects Origins for credentialed CORS with `Vary: Origin`; duplicate Origin headers
-are rejected. Wildcard works in either environment and is the Compose default, so
-**Origin-based CSRF protection is conditional**. SameSite/third-party-cookie restrictions
-still apply; permissive CORS alone cannot enable arbitrary cross-site sessions.
+Production requires exact HTTPS origins; startup rejects wildcard origins there. The local
+backend example and Compose default use exact loopback origins so native Vite, Compose, and
+the local API documentation can run with Origin checks enabled. Wildcard `["*"]` remains a
+development-only opt-in that accepts arbitrary/absent Origins and reflects Origins for
+credentialed CORS with `Vary: Origin`; duplicate Origin headers are rejected. Junhao reports
+changing the deployed Render setting to the exact frontend HTTPS origin after the security
+review described in the production evidence section. That setting has not been independently
+rechecked here. SameSite/third-party-cookie restrictions still apply.
 
 ### Upload and AI boundaries
 
@@ -839,6 +886,18 @@ The [advisory security workflow](../.github/workflows/security.yml) runs
 fail advisory scanning; execution failures do. Pinning the scanner does not freeze registry
 packs. This is not a dependency/whole-repository audit.
 
+### Requirement-to-test trail
+
+This is a short route from high-risk requirements to representative checks. The linked
+specifications remain authoritative; the table does not replace their full acceptance criteria.
+
+| Requirement area | Specification | Representative checks |
+| --- | --- | --- |
+| Role and resource authorization, answer privacy, immutable submission, reviewed publication, and frozen roster | [Backend authentication and authorization](../specs/backend-spec.md#authentication-and-authorization), [frontend role flows](../specs/frontend-spec.md#feature-flows) | [`test_workflows.py`](../backend/tests/test_workflows.py): role denials, answer-key access, attempt ownership, publication review, frozen roster, submit races; [`test_ai.py`](../backend/tests/test_ai.py): ownership revocation during generation and summary authorization. |
+| DOCX validation and untrusted AI input/output | [AI security and content validation](../specs/backend-spec.md#ai-security-and-content-validation), [teacher generation flow](../specs/frontend-spec.md#generate-review-and-publish-a-quiz) | [`test_uploads.py`](../backend/tests/test_uploads.py): size/archive/XML/path and upload-ownership cases; [`test_ai.py`](../backend/tests/test_ai.py) and [`test_hint_verification.py`](../backend/tests/test_hint_verification.py): injection, answer leakage, private verification, and withheld candidates. |
+| AI admission, idempotency, deadlines, restart, and latest-result behavior | [State/concurrency rules](../specs/backend-spec.md#state-and-concurrency-rules), [SoCLaaS limits](../specs/backend-spec.md#soclaas-integration-and-resource-limits) | [`test_task_lifecycle.py`](../backend/tests/test_task_lifecycle.py): shared rolling boundary, timeouts, idempotency, interrupted work, and late completion; [`test_events.py`](../backend/tests/test_events.py): authorized notification-only events and expiry. |
+| Frontend session recovery and stale AI state | [Frontend scope and notification reconciliation](../specs/frontend-spec.md#scope-and-product-rules), [student results checks](../specs/frontend-spec.md#student-results-acceptance-checks) | [`AdminSession.test.tsx`](../frontend/tests/AdminSession.test.tsx), [`StudentSession.test.tsx`](../frontend/tests/StudentSession.test.tsx), and [`GenerationStore.test.ts`](../frontend/tests/GenerationStore.test.ts), [`HintStore.test.ts`](../frontend/tests/HintStore.test.ts), [`SummaryStore.test.ts`](../frontend/tests/SummaryStore.test.ts). |
+
 ### Recorded evidence and limits
 
 | Evidence label                           | Record                                                                                                                         | Scope and limitations                                                                                                                                                                                                              |
@@ -887,6 +946,13 @@ without a separate frontend commit identity. Dated frontend/backend URLs were re
 `https://cs3227-2610-mp3-0uzv.onrender.com`. These are historical observations, not current
 availability guarantees. Older README examples differ; use actual configured service origins.
 
+Interpret the record narrowly: it documents the frontend login page loading, communication
+with the backend, and the role/quiz/AI actions observed in that session. It identifies the
+backend commit but not a separate frontend revision. It does not verify current service health,
+Render environment values, persistent-disk settings, exact allowed Origins, proxy trust, or
+backup/restore behavior. The two service URLs identify Render services; they do not by
+themselves establish the browser's API origin or prove development/production data isolation.
+
 Serve frontend/API under one HTTPS browser
 origin with persistent private backend disk. Use production cookies and exact frontend
 Origins when Origin protection is required. Separate development/production credentials,
@@ -933,6 +999,27 @@ schema, implementation, acceptance tests, and guides.
 | [Backend review](../workflow/reviews/backend-01.md)                                                                                                                      | Historical findings/fixes and scoped evidence                         |
 | [Evaluation harness](../workflow/evals/README.md)                                                                                                                        | Skill fixtures/graders/runs/comparisons, separate from product tests  |
 | [Logs](../logs), [reflections](Reflections.md)                                                                                                                           | Verified interaction summaries and lessons                            |
+
+### Workflow inventory
+
+The workflow files are grouped by what they support. Dated task and run artifacts record
+individual work; they are retained as evidence under the corresponding category.
+
+| Location | Contents and purpose |
+| --- | --- |
+| `workflow/backend-implementation.md`, `backend-validation.md`, `frontend-implementation.md`, `teacher-ui.md`, `student-ui.md`, `hint-verification.md`, `containerization.md`, `ui-planning-index.md` | Product and component implementation decisions, acceptance mappings, integration boundaries, and packaging guidance. |
+| `workflow/backend_persistence_smoke.py` | Repeatable persistence smoke-check script. |
+| `workflow/tasks/` | Scoped task plans, affected files, requirements, and acceptance conditions. |
+| `workflow/implementations/` | Implementation handoffs and run evidence; `*-evidence/` folders and browser fixtures hold supporting artifacts. |
+| `workflow/reviews/` | Aggregated review reports; run-specific subfolders retain specialist findings for security, specification, verification, and code quality. |
+| `workflow/security/` | Threat and control matrix, Semgrep usage/limits and runner, plus feature-specific security reviews. |
+| `workflow/live-api-testing/` | Explicitly configured live SoCLaaS probes, sample DOCX generation, model comparisons, and recorded observations. |
+| `workflow/evals/eval.py`, `_lib/`, `README.md`, `requirements-test.txt`, `.gitignore` | Skill evaluation CLI, harness modules, setup, pinned test requirements, and generated-output exclusions. |
+| `workflow/evals/docs/`, `tests/` | Evaluation authoring/running/output guidance and tests for the evaluation tooling. |
+| `workflow/evals/code-review/`, `implement/`, `implement-task/`, `plan-task/` | Skill-specific fixtures, graders, experiment runs, and comparisons; generated trial workspaces and reports stay with each suite. |
+| `workflow/evals/_usage/`, `usage-report-*.md` | Generated Codex usage reports and supporting summaries; these are process records, not product tests. |
+
+Python cache directories are generated local artifacts, not workflow records.
 
 ### Ownership and review
 
@@ -988,33 +1075,6 @@ semantics, frozen rosters, and answer privacy when their boundaries change. Keep
 summaries free of secrets/private input. Distinguish planned checks, supplied results,
 independently executed checks, and unverified operations.
 
-## 12. Acknowledgements and reused material
-
-Requirements and reference DDL originate in the assignment and repository specifications;
-the gateway contract is [backend/soclaas-docs.md](../backend/soclaas-docs.md).
-Implementation reused the existing React/Vite setup and shared application modules;
-no MP2 application source was reused.
-
-The application uses React, Tailwind CSS, Vite, FastAPI, Pydantic, aiosqlite, HTTPX,
-Argon2-cffi, defusedxml, python-multipart, Uvicorn, and uv, with Vitest for frontend tests.
-Official library documentation, Python asyncio and EventSource guidance, and Node CA
-documentation informed integration and troubleshooting.
-
-Containers use unprivileged Nginx and its built-in
-[template entrypoint](https://github.com/nginx/docker-nginx/blob/master/entrypoint/20-envsubst-on-templates.sh)
-and [resolver entrypoint](https://github.com/nginx/docker-nginx/blob/master/entrypoint/15-local-resolvers.envsh).
-Compose and Nginx documentation informed startup ordering and proxy configuration.
-The Pages setup follows [GitHub's custom workflow guidance](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages).
-Website descriptions reuse the User Guide/frontend specification; recorded styling,
-sample content, favicon, and application SVG/CSS artwork were created locally.
-
-Process tooling includes the adapted
-[junhao4/codex-skill-evals](https://github.com/junhao4/codex-skill-evals) harness.
-[skills-lock.json](../skills-lock.json) attributes adopted React performance/web-design
-guidance to [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills).
-Project-specific review/threat-model guidance and Codex specialist contributions are
-recorded in the skills, profiles, workflow artifacts, and verified logs above.
-
 ### Unexpected request diagnostics
 
 A catch-all 500 keeps the generic user message and returns a random reference
@@ -1028,3 +1088,25 @@ add raw credential, prompt or provider payload logging to reproduce a failure.
 
 This handles unexpected request exceptions only. Normalized AI task errors
 retain their existing safe client mappings and are a separate diagnostic path.
+
+## 12. Acknowledgements and reused material
+
+Requirements and reference DDL originate in the assignment and repository specifications;
+the gateway contract is [backend/soclaas-docs.md](../backend/soclaas-docs.md).
+
+The application uses React, Tailwind CSS, Vite, FastAPI, Pydantic, aiosqlite, HTTPX,
+Argon2-cffi, defusedxml, python-multipart, Uvicorn, and uv, with Vitest for frontend tests.
+Official library documentation, Python asyncio and EventSource guidance, and Node CA
+documentation informed integration and troubleshooting.
+
+| Source or material | Use in QuizIt |
+| --- | --- |
+| [Codex Skill Evals](https://github.com/junhao4/codex-skill-evals) | Evaluation harness adapted; the [workflow README](../workflow/evals/README.md) records the upstream revision and changes. |
+| [Vercel Agent Skills](https://github.com/vercel-labs/agent-skills) | React performance and web design guidance adopted as the two skills listed in [skills-lock.json](../skills-lock.json). |
+| [Nginx Docker entrypoints](https://github.com/nginx/docker-nginx/tree/master/entrypoint) | The unprivileged Nginx image supplies template rendering and resolver behavior at runtime; QuizIt does not copy these entrypoint scripts. |
+| [GitHub Pages workflow documentation](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages) | Reference for configuring the static product website deployment. |
+| User Guide and frontend specification | Website descriptions reuse these project documents. Website styling, sample content, favicon, and application SVG/CSS artwork were created locally. |
+
+Compose and Nginx documentation also informed startup ordering and proxy configuration.
+Project-specific review/threat-model guidance and Codex specialist contributions are
+recorded in the skills, profiles, workflow artifacts, and verified logs above.

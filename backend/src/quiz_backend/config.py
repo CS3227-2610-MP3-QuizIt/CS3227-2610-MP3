@@ -56,10 +56,11 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def production_origins(self) -> Settings:
-        if self.environment == "production" and any(
-            value != "*" and not value.startswith("https://") for value in self.allowed_origins
-        ):
-            raise ValueError("Production requires HTTPS origins")
+        if self.environment == "production":
+            if self.allowed_origins == ["*"]:
+                raise ValueError("Production does not allow wildcard origins")
+            if any(not value.startswith("https://") for value in self.allowed_origins):
+                raise ValueError("Production requires HTTPS origins")
         for field in (
             "login_max_failures",
             "login_window_seconds",

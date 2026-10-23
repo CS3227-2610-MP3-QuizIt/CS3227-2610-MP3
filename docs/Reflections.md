@@ -24,7 +24,7 @@ This design followed feedback that literal option matching rejected useful conce
 
 Other protections address risks outside prompt injection. The backend enforces roles and ownership, stores Argon2id password hashes and hashed opaque session tokens, and withholds student keys until submission. DOCX validation bounds uploads, archive expansion, XML parsing, and extracted text; external document content is never fetched. Summaries receive anonymous aggregates rather than identities or individual answer records, and backend calculations remain authoritative. Authorization, upload, workflow, and gateway tests exercise these boundaries separately.
 
-One configuration limitation is important: exact Origin checks protect mutations when an explicit origin list is configured, but supported wildcard mode disables that protection. The developer guide documents this behavior. We cannot describe CSRF protection as unconditional simply because the code supports it; a secure deployment needs an explicit trusted origin configuration.
+Exact Origin checks protect mutations when an explicit origin list is configured, while development wildcard mode disables that protection. After the security review found that the deployed service accepted a synthetic untrusted Origin with credentials, I changed the deployed Render setting to the exact frontend HTTPS origin. I also changed the repository defaults to exact loopback origins and made production startup reject wildcard configuration. The deployment setting has not yet been independently rechecked with a new live preflight because the service returned `404 no-server`; I therefore describe it as a configuration change I made, not as verified runtime behavior.
 
 ### Limits, approval gates, and human oversight
 
@@ -386,11 +386,15 @@ alongside such changes, not just the new number.
 
 A similar trade-off happened with CORS. During containerization I asked for
 Compose to default to wildcard origins to make deployment easier. The agent
-correctly pointed out that this disables the backend's Origin-based CSRF check.
-It documented the exact-origin override, and I accepted the trade-off for the
-class deployment. This taught me that an agent that executes the request
-faithfully but also surfaces its security cost is more useful than one that
-silently complies or refuses.
+pointed out that this disables the backend's Origin-based CSRF check. Later, a
+security review confirmed the deployed service accepted a synthetic untrusted
+Origin with credentials. I changed the deployed Render setting to the exact
+frontend HTTPS origin, then changed the repository's local defaults to exact
+loopback origins and made production startup reject wildcard configuration.
+The live preflight could not verify the deployment change while Render returned
+`404 no-server`. I learned that surfacing a security cost is useful only when I
+follow through on the configuration decision, make unsafe production settings
+fail at startup, and record what has and has not been verified.
 
 **Approval gates and human oversight.** In the product, the main human gate is
 quiz publication. The teacher must confirm the exact displayed revision, and the
@@ -583,7 +587,7 @@ The [security matrix](../workflow/security/security-matrix.md) helped me connect
 |---|---|---|
 | `APP-01` | Hostile generation input could not directly publish or change quiz state | Input handling and authorization must remain separate from model output |
 | `APP-02` | Candidate hints were checked by a private verifier before being shown | A second model call can reduce leakage risk, but its verdict still needs strict validation |
-| `APP-05` | Origin protection and the production wildcard configuration were documented | A security policy is incomplete when an unsafe configuration remains possible |
+| `APP-05` | A production review found credentialed CORS for an untrusted Origin; I changed the deployed setting, local defaults, and production validation | Configuration changes need a live check, and production should reject unsafe values at startup |
 | `DEV-01`, `DEV-03`, `DEV-05` | Poisoned comments, forged reports and role confusion were identified as development-agent threats | A threat-model row records intent; an adversarial fixture is needed to demonstrate resistance |
 
 This matrix changed how I read security evidence. I stopped treating a completed row as proof that the entire threat had been solved and instead asked what exact boundary the test covered.
