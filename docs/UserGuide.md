@@ -271,9 +271,9 @@ notes: paragraphs and table text are supported; images, equations, and external
 content are not extracted. Uploads must be no larger than 5 MiB, expand to no more
 than 20 MiB, and contain at most 12,000 extracted text characters.
 
-You can download [Photosynthesis_O_Level.docx](../test-docs/Photosynthesis_O_Level.docx)
-from the repository (use the file's download/raw control on GitHub), or save your own
-notes as DOCX. The production smoke test used a separate `smoke-test-notes.docx`;
+You can use the included [Photosynthesis_O_Level.docx](../test-docs/Photosynthesis_O_Level.docx)
+sample or save your own notes as DOCX. The production smoke test used a separate
+`smoke-test-notes.docx`;
 that file is not required. PDF and image-only notes are unsupported. If an upload
 is rejected, correct the document to meet these limits and upload it again.
 
