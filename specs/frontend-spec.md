@@ -111,7 +111,7 @@ The draft review screen also offers Delete draft with explicit confirmation: del
 | Screen | Minimum content and actions |
 | --- | --- |
 | Login | Username and password, sign in, generic authentication error. |
-| Student quiz list | Assigned quiz title, class, state, and Start, Resume, or View results. |
+| Student quiz list | Assigned quiz title, class, state, and Start, Resume, or View results. The list has To do, Submitted, and All tabs with Left/Right/Home/End keyboard navigation that keeps focus and selection in sync; title-or-class search; and a class selector derived from the full assigned collection. Search, class, and status selections combine, with counts based on search and class before the status tab. In-progress quizzes appear first while preserving order within each status. Submitted cards show their collection score or an unavailable label; unfinished cards do not show scores. Selections remain in memory while navigating within the signed-in student workspace and reset to To do, All classes, and empty search on a new workspace. |
 | Student attempt | Scrolling framed questions with four radio options and save states, review marks, responsive question navigator, per question hint control, shared saved-answer readiness and confirmed Submit. |
 | Student results | Compact score/date, responsive submission-details rail, All/Mistakes review controls, read-only saved answer rows and independent saved-explanation disclosures. |
 | Teacher classes and quizzes | Assigned classes, own drafts and published quizzes, and Create quiz. |
