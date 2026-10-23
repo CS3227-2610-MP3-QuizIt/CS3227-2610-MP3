@@ -1,0 +1,34 @@
+Command: npm test -- --reporter=dot tests/StudentResults.test.tsx
+Directory: /private/tmp/mp3-quiz-results/frontend
+Exit: 1 (expected behavior red before implementation)
+⎯⎯⎯⎯⎯⎯ Failed Tests 27 ⎯⎯⎯⎯⎯⎯⎯
+ FAIL  tests/StudentResults.test.tsx > submitted result review > shows backend score, percentage, counts and actual submitted date
+ FAIL  tests/StudentResults.test.tsx > submitted result review > filters backend-incorrect questions in original order and focuses review from the action
+ FAIL  tests/StudentResults.test.tsx > submitted result review > handles 1-question zero/perfect boundary ([])
+ FAIL  tests/StudentResults.test.tsx > submitted result review > handles 10-question zero/perfect boundary ([])
+ FAIL  tests/StudentResults.test.tsx > submitted result review > handles 1-question zero/perfect boundary ([1])
+ FAIL  tests/StudentResults.test.tsx > submitted result review > handles 10-question zero/perfect boundary ([1,2,3,4,5,6,7,8,9,10])
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice A and correct answer A without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice A and correct answer B without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice A and correct answer C without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice A and correct answer D without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice B and correct answer A without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice B and correct answer B without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice B and correct answer C without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice B and correct answer D without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice C and correct answer A without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice C and correct answer B without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice C and correct answer C without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice C and correct answer D without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice D and correct answer A without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice D and correct answer B without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice D and correct answer C without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > labels saved choice D and correct answer D without editing
+ FAIL  tests/StudentResults.test.tsx > submitted result review > keeps independent explanation state across filters, supports keyboard and renders saved text safely
+ FAIL  tests/StudentResults.test.tsx > submitted result review > resets disclosures and filters on another attempt and a new visit
+ FAIL  tests/StudentResults.test.tsx > submitted result review > retries initial failure and keeps loaded results during failed refresh and online/focus recovery
+ FAIL  tests/StudentResults.test.tsx > submitted result review > ignores an aborted refresh completing after a newer read
+ FAIL  tests/StudentResults.test.tsx > submitted result review > ignores a late result after changing routes
+ Test Files  1 failed (1)
+      Tests  27 failed | 5 passed (32)
+   Duration  27.89s (tests 98%, environment 1%)

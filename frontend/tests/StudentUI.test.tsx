@@ -445,8 +445,12 @@ describe("student workspace", () => {
     await screen.findByText("50.00%");
     expect(api.submitAttempt).toHaveBeenCalledOnce();
     expect(api.results).toHaveBeenCalledWith(10, expect.any(AbortSignal));
+    expect(screen.queryByText("Explanation 1")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Explanation for question 1" }),
+    );
     expect(screen.getByText("Explanation 1")).toBeInTheDocument();
-    expect(screen.getByText("Incorrect")).toBeInTheDocument();
+    expect(screen.getAllByText("Incorrect")).toHaveLength(2);
     expect(screen.queryByRole("radio")).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Submit quiz" }),

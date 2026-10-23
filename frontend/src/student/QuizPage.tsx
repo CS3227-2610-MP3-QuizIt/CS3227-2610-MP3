@@ -6,7 +6,13 @@ import type {
   StudentQuiz,
   StudentResults,
 } from "../api/types";
-import { Loading, Notice, PageHeading, percent } from "../shared/ui";
+import {
+  formatDate,
+  Loading,
+  Notice,
+  PageHeading,
+  percent,
+} from "../shared/ui";
 import { useResource } from "../shared/useResource";
 import { HintStore } from "./HintStore";
 import { QuestionHint } from "./QuestionHint";
@@ -365,20 +371,21 @@ function ResultsPage({
   const result = resource.data;
   return (
     <>
-      <PageHeading
-        eyebrow="QUIZ RESULTS"
-        title={quiz.title}
-        description="Your submitted attempt is complete. Review what you learned."
-        action={
-          <button
-            className="button button-secondary"
-            disabled={resource.loading}
-            onClick={() => void resource.refresh()}
-          >
-            Refresh results
-          </button>
-        }
-      />
+      <header className="page-heading result-page-heading">
+        <div>
+          <p className="eyebrow">QUIZ RESULTS</p>
+          <h1>{quiz.title}</h1>
+          <div className="result-heading-meta">
+            <span className="badge badge-success">Submitted</span>
+            {result ? (
+              <span className="muted">
+                {result.total_questions}{" "}
+                {result.total_questions === 1 ? "question" : "questions"}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      </header>
       {resource.error ? (
         <Notice>
           {resource.error}{" "}
@@ -392,50 +399,229 @@ function ResultsPage({
       ) : null}
       {resource.loading ? <Loading>Loading your results…</Loading> : null}
       {result ? (
-        <>
-          <div className="panel student-score">
-            <span className="badge badge-success">Submitted</span>
-            <h2>
-              {result.score} / {result.total_questions}
-            </h2>
-            <p>{percent(result.score_percent)}</p>
-            <p className="muted">Final score.</p>
-          </div>
-          {[...result.questions]
-            .sort((a, b) => a.position - b.position)
-            .map((question) => (
-              <article className="panel student-question" key={question.id}>
-                <h2>
-                  {question.position}. {question.question}
-                </h2>
-                <span
-                  className={`badge ${question.is_correct ? "badge-success" : "badge-pending"}`}
-                >
-                  {question.is_correct ? "Correct" : "Incorrect"}
-                </span>
-                <ul className="student-result-options">
-                  {options.map((option) => (
-                    <li key={option}>
-                      <strong>{option}.</strong> {question.options[option]}{" "}
-                      {option === question.selected_option ? (
-                        <span className="badge">Your answer</span>
-                      ) : null}{" "}
-                      {option === question.correct_option ? (
-                        <span className="badge badge-success">
-                          Correct answer
-                        </span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-                <div className="student-explanation">
-                  <h3>Explanation</h3>
-                  <p>{question.explanation}</p>
-                </div>
-              </article>
-            ))}
-        </>
+        <ResultReview
+          key={attemptId}
+          result={result}
+          refreshing={resource.loading}
+          onRefresh={() => void resource.refresh()}
+        />
       ) : null}
     </>
+  );
+}
+
+function ResultReview({
+  result,
+  refreshing,
+  onRefresh,
+}: {
+  result: StudentResults;
+  refreshing: boolean;
+  onRefresh: () => void;
+}) {
+  const [view, setView] = useState<"all" | "mistakes">("all");
+  const [expanded, setExpanded] = useState<Set<number>>(() => new Set());
+  const reviewHeading = useRef<HTMLHeadingElement>(null);
+  const questions = [...result.questions].sort(
+    (a, b) => a.position - b.position,
+  );
+  const mistakes = questions.filter((question) => !question.is_correct);
+  const visibleQuestions = view === "mistakes" ? mistakes : questions;
+  const submittedDate = formatDate(result.submitted_at);
+  const reviewId = `result-review-${result.id}`;
+
+  function focusReview(nextView: "all" | "mistakes") {
+    setView(nextView);
+    reviewHeading.current?.focus({ preventScroll: true });
+    reviewHeading.current?.scrollIntoView({
+      block: "start",
+      behavior: "instant",
+    });
+  }
+
+  return (
+    <div className="result-layout">
+      <aside
+        className="panel result-details"
+        aria-labelledby={`${reviewId}-details`}
+      >
+        <h2 id={`${reviewId}-details`}>Submission details</h2>
+        <dl>
+          <div className="result-detail-score">
+            <dt>Score</dt>
+            <dd>
+              <strong>
+                {result.score} / {result.total_questions}
+              </strong>
+              <span className="muted">{percent(result.score_percent)}</span>
+            </dd>
+          </div>
+          <div>
+            <dt>Correct</dt>
+            <dd>{result.score}</dd>
+          </div>
+          <div>
+            <dt>Incorrect</dt>
+            <dd>{result.total_questions - result.score}</dd>
+          </div>
+          <div className="result-detail-date">
+            <dt>Submitted on</dt>
+            <dd>
+              <time dateTime={result.submitted_at}>{submittedDate}</time>
+            </dd>
+          </div>
+        </dl>
+        <p className="muted">
+          This submission is final. Answers cannot be changed.
+        </p>
+        <button
+          className="button"
+          onClick={() => focusReview(mistakes.length ? "mistakes" : "all")}
+        >
+          {mistakes.length ? "Review mistakes" : "Review explanations"}
+        </button>
+        <button
+          className="text-button result-refresh"
+          disabled={refreshing}
+          onClick={onRefresh}
+        >
+          Refresh results
+        </button>
+        <a className="text-button" href="#/student/quizzes">
+          Back to my quizzes
+        </a>
+      </aside>
+      <div className="result-main">
+        <div className="result-score">
+          <p>
+            Score for this quiz:{" "}
+            <strong>
+              {result.score} out of {result.total_questions}
+            </strong>
+          </p>
+          <p className="muted">
+            Submitted on{" "}
+            <time dateTime={result.submitted_at}>{submittedDate}</time>
+          </p>
+        </div>
+        <section aria-labelledby={reviewId}>
+          <header className="result-review-header">
+            <h2 id={reviewId} ref={reviewHeading} tabIndex={-1}>
+              Question review
+            </h2>
+            <div
+              className="result-filters"
+              role="group"
+              aria-label="Review questions"
+            >
+              <button
+                type="button"
+                aria-pressed={view === "all"}
+                onClick={() => setView("all")}
+              >
+                All questions ({questions.length})
+              </button>
+              <button
+                type="button"
+                aria-pressed={view === "mistakes"}
+                onClick={() => setView("mistakes")}
+              >
+                Mistakes ({mistakes.length})
+              </button>
+            </div>
+          </header>
+          {visibleQuestions.length === 0 ? (
+            <div className="result-empty">
+              <p>No mistakes to review.</p>
+              <button
+                className="text-button"
+                onClick={() => focusReview("all")}
+              >
+                Show all questions
+              </button>
+            </div>
+          ) : (
+            visibleQuestions.map((question) => {
+              const explanationId = `${reviewId}-explanation-${question.id}`;
+              const isExpanded = expanded.has(question.id);
+              return (
+                <article className="result-question" key={question.id}>
+                  <header className="result-question-header">
+                    <h3>Question {question.position}</h3>
+                    <div
+                      className={`result-outcome ${question.is_correct ? "correct" : "incorrect"}`}
+                    >
+                      <span>
+                        <span aria-hidden="true">
+                          {question.is_correct ? "✓" : "✕"}
+                        </span>{" "}
+                        <span>
+                          {question.is_correct ? "Correct" : "Incorrect"}
+                        </span>
+                      </span>
+                      <span className="result-points">
+                        {question.is_correct ? "1/1 point" : "0/1 point"}
+                      </span>
+                    </div>
+                  </header>
+                  <div className="result-question-body">
+                    <p className="result-stem">{question.question}</p>
+                    <ul className="student-result-options">
+                      {options.map((option) => {
+                        const selected = option === question.selected_option;
+                        const correct = option === question.correct_option;
+                        return (
+                          <li
+                            className={`${selected ? "picked" : ""} ${correct ? "correct" : ""}`}
+                            key={option}
+                          >
+                            <span className="student-option-letter">
+                              {option}
+                            </span>
+                            <span className="result-option-text">
+                              {question.options[option]}
+                            </span>
+                            <span className="result-answer-labels">
+                              {selected ? <span>Your answer</span> : null}
+                              {correct ? (
+                                <span className="result-correct-label">
+                                  Correct answer
+                                </span>
+                              ) : null}
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                  <div className="result-explanation">
+                    <button
+                      type="button"
+                      aria-label={`Explanation for question ${question.position}`}
+                      aria-expanded={isExpanded}
+                      aria-controls={explanationId}
+                      onClick={() =>
+                        setExpanded((previous) => {
+                          const next = new Set(previous);
+                          if (next.has(question.id)) next.delete(question.id);
+                          else next.add(question.id);
+                          return next;
+                        })
+                      }
+                    >
+                      <span>Explanation</span>
+                      <span aria-hidden="true">{isExpanded ? "−" : "+"}</span>
+                    </button>
+                    <div id={explanationId} hidden={!isExpanded}>
+                      {isExpanded ? <p>{question.explanation}</p> : null}
+                    </div>
+                  </div>
+                </article>
+              );
+            })
+          )}
+        </section>
+      </div>
+    </div>
   );
 }

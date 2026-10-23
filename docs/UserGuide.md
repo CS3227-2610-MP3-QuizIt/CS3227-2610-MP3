@@ -320,11 +320,25 @@ If the response is uncertain, editing pauses while the application checks whethe
 submission succeeded; use **Check submission** if that check fails. Editing and new
 hints remain locked until the application confirms the attempt's state.
 
-**Expected:** the results page shows **Submitted**, a score out of 3 for the testing
-example, a percentage, and each question's selected answer, correct answer, and
-explanation. Answers can no longer be changed; the score depends on your choices.
-Each correct answer earns one point; grading does not use AI. Submitted attempts
-cannot be edited or retaken. Return through **View results** to read them again.
+**Expected:** the results page shows **Submitted**, the question count and a compact
+**Score for this quiz** line (out of 3 for the testing example) with the submitted
+date. **Submission details** lists the fraction, percentage, correct/incorrect counts,
+date and finality reminder on the right, or above the review on a narrow screen.
+
+**All questions** starts selected. Choose **Mistakes** to review only incorrect
+answers, keeping their original question numbers. **Review mistakes** jumps to that
+view; a perfect score offers **Review explanations** and still lets you open the
+empty **Mistakes (0)** view and return with **Show all questions**. Each read-only
+question shows its point value, correctness, **Your answer** and **Correct answer**
+labels. A picked correct answer has both labels. Select a question's **Explanation**
+row (or focus it and press Enter/Space) to open its saved explanation. Explanations
+start closed and remember their state across filters during this visit. Opening
+them does not generate AI content. **Refresh results** or **Try again** recovers
+failed reads without discarding already loaded results.
+
+Answers can no longer be changed; the score depends on your choices. Each correct
+answer earns one point; grading does not use AI. Submitted attempts cannot be edited
+or retaken. Return through **View results** to read them again.
 
 ## 9. AI security and product rules
 
