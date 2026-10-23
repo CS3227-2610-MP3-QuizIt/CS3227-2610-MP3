@@ -7,10 +7,44 @@ students. Teachers turn DOCX notes into AI-generated draft questions, review the
 and publish quizzes. Students answer questions and request conceptual hints. Admins
 manage accounts and classes, track completion, and generate AI class-performance summaries.
 
-This guide starts with a complete testing example, followed by detailed role
-workflows for reference. Production observations are recorded in the
+Use the [complete testing walkthrough](#5-complete-testing-walkthrough) to
+exercise the main admin, teacher, student, and admin-summary journey in one
+sequence. Use the [role guides](#6-admin-guide) when you need details on one
+screen, or [troubleshooting](#10-troubleshooting) when something goes wrong.
+Production observations are recorded in the
 [smoke-test summary](../logs/production-smoke-test.md); new AI output
 and scores may differ from those recorded results.
+
+## Contents
+
+1. [About QuizIt](#1-about-quizit-and-this-guide)
+2. [Open QuizIt](#2-access-the-deployed-application)
+3. [Demo accounts](#3-demo-accounts-and-first-sign-in)
+4. [Quick navigation](#4-quick-navigation-and-shared-controls)
+   - [Find a feature](#find-a-feature)
+   - [Quiz and attempt states](#quiz-and-attempt-states-at-a-glance)
+5. [Complete testing walkthrough](#5-complete-testing-walkthrough)
+6. [Admin guide](#6-admin-guide)
+7. [Teacher guide](#7-teacher-guide)
+8. [Student guide](#8-student-guide)
+9. [AI and product rules](#9-ai-security-and-product-rules)
+10. [Troubleshooting](#10-troubleshooting)
+
+**First time testing?** Read sections 2–3, then follow section 5 from start to
+finish. **Looking up one task?** Go directly to the Admin, Teacher, or Student
+guide in sections 6–8. Use section 10 when an action fails or its result is unclear.
+
+### Find a feature
+
+| If you want to… | Go to… |
+| --- | --- |
+| See workspace counts and open a class quickly | [Admin: overview](#overview) |
+| Create an account or class, or assign class members | [Admin: accounts and classes](#accounts) |
+| Check submissions or generate a class summary | [Admin: quiz performance](#quiz-performance-and-ai-summary) |
+| Upload notes, create a quiz, generate questions, or publish | [Teacher: create and publish a quiz](#upload-docx-and-create-a-draft) |
+| Start or resume a quiz, save answers, or request a hint | [Student: take a quiz](#start-or-resume-a-quiz) |
+| Submit a quiz and review answers or explanations | [Student: submit and review results](#submit-and-review-results) |
+| Resolve a sign-in, upload, AI, or availability problem | [Troubleshooting](#10-troubleshooting) |
 
 ## 2. Access the deployed application
 
@@ -53,40 +87,7 @@ select **Check session** and follow the message before entering credentials agai
 confirmed signed-out result restores the sign-in form; a failed check leaves **Check
 session** available. Follow any displayed retry time before trying again.
 
-## 4. Complete testing example
-
-If you are testing QuizIt for the first time, follow this complete example from start to finish. The later role sections provide more detailed reference instructions.
-
-Use the demo accounts listed above, selecting **Sign out** before each role change. Add your
-initials or a timestamp to the example class and quiz names if needed, then use those
-same names throughout. Use a new one-student class: each seeded class has ten students.
-
-1. **Admin:** sign in as `admin`. In **Classes**, use **Create class** to create
-   `Smoke Test Class`. Under **Assign an account**, assign only Teacher 1 (`teacher1`)
-   and Student 01 (`student01`) using **Assign**. Check **1 teacher** and **1 student**.
-2. **Teacher:** sign out and sign in as `teacher1`. Open **Create quiz**, select
-   `Smoke Test Class`, and **Upload notes** using
-   [Photosynthesis_O_Level.docx](../test-docs/Photosynthesis_O_Level.docx).
-   Enter `Admin Summary Smoke Test`, select **3** questions, and **Create draft**.
-   Select **Generate questions**, review all questions, answers, and explanations,
-   check the review confirmation, and **Publish quiz**. Check **Published to 1 student**.
-3. **Student:** sign out and sign in as `student01`. In **My quizzes**, find
-   `Admin Summary Smoke Test` and select **Start**. Open **Need a hint?** and select **Ask for a hint** for a
-   conceptual hint, using **Try again** if needed. Answer all three questions, wait
-   for **Saved**, select **Submit quiz**, then **Confirm submission**. Check the **Submitted** results page.
-4. **Admin:** sign out and sign in as `admin`. Open **Quiz performance**, select
-   `Admin Summary Smoke Test`, and use **Refresh quiz performance**. Check
-   **1 / 1 submitted** and **Ready for insights**, then select **Generate summary**.
-
-**Expected:** the summary displays Average score, Average percentage, Score range,
-and Submitted roster (**1 / 1**), alongside AI Overview, Strengths, and Areas to
-review. Expand **Question breakdown** to inspect the three questions. Scores,
-generated questions, and AI observations may vary.
-
-Every student in the frozen publication roster must submit before Admin summary
-generation is available. Later membership changes do not change that requirement.
-
-## 5. Navigation and shared controls
+## 4. Quick navigation and shared controls
 
 Use the workspace navigation to move between your role's screens:
 
@@ -118,12 +119,73 @@ retry time. Signing out keeps your saved answers. If a page cannot connect, reop
 the public application URL and try refresh or reconnect. If the problem continues,
 report the page, action, and displayed error to the team without sharing passwords.
 
-## 6. Admin workflows
+### Quiz and attempt states at a glance
+
+| State or term | Meaning | What happens next |
+| --- | --- | --- |
+| **Draft** | A teacher is preparing a quiz. Students cannot see it. | The owning teacher generates and reviews questions, then publishes. |
+| **Published** | Quiz content and the student roster are frozen for this quiz. | Students in that roster can start their attempts. Later class changes do not alter this quiz. |
+| **Not started** | A student is on the published roster but has not begun an attempt. | Select **Start**. |
+| **In progress** | The student's attempt has started; saved answers can be resumed. | Select **Resume**, finish answering, and submit. |
+| **Submitted** | The attempt is final and graded. | Select **View results** to review the score, correct answers, and explanations. |
+| **Frozen roster** | The students captured when the teacher publishes the quiz. | Every student on this roster must submit before the admin can generate a class summary. |
+| **Class summary** | Exact performance metrics plus advisory AI observations for one published quiz. | Review the AI text critically; the backend metrics are authoritative. |
+
+## 5. Complete testing walkthrough
+
+If you are testing QuizIt for the first time, follow this example from start to finish. Each role's steps are in order, so you can complete the main journey without jumping between sections. The role guides below provide extra details and optional workflows.
+
+Use the demo accounts listed above, selecting **Sign out** before each role change. Add your
+initials or a timestamp to the example class and quiz names if needed, then use those
+same names throughout. Use a new one-student class: each seeded class has ten students.
+
+1. **Admin:** sign in as `admin`. In **Classes**, use **Create class** to create
+   `Smoke Test Class`. Under **Assign an account**, assign only Teacher 1 (`teacher1`)
+   and Student 01 (`student01`) using **Assign**. Check **1 teacher** and **1 student**.
+2. **Teacher:** sign out and sign in as `teacher1`. Open **Create quiz**, select
+   `Smoke Test Class`, and **Upload notes** using
+   [Photosynthesis_O_Level.docx](../test-docs/Photosynthesis_O_Level.docx).
+   Enter `Admin Summary Smoke Test`, select **3** questions, and **Create draft**.
+   Select **Generate questions**, review all questions, answers, and explanations,
+   check the review confirmation, and **Publish quiz**. Check **Published to 1 student**.
+3. **Student:** sign out and sign in as `student01`. In **My quizzes**, find
+   `Admin Summary Smoke Test` and select **Start**. Open **Need a hint?** and select **Ask for a hint** for a
+   conceptual hint, using **Try again** if needed. Answer all three questions, wait
+   for **Saved**, select **Submit quiz**, then **Confirm submission**. Check the **Submitted** results page.
+4. **Admin:** sign out and sign in as `admin`. Open **Quiz performance**, select
+   `Admin Summary Smoke Test`, and use **Refresh quiz performance**. Check
+   **1 / 1 submitted** and **Ready for insights**, then select **Generate summary**.
+
+**Expected:** the summary displays Average score, Average percentage, Score range,
+and Submitted roster (**1 / 1**), alongside AI Overview, Strengths, and Areas to
+review. Expand **Question breakdown** to inspect the three questions. Scores,
+generated questions, and AI observations may vary.
+
+Every student in the frozen publication roster must submit before Admin summary
+generation is available. Later membership changes do not change that requirement.
+
+## 6. Admin guide
+
+### Overview
+
+The **Overview** page gives a quick count of students, teachers, classes, and
+published quizzes. Select a count card to open the related Accounts, Classes, or
+Quiz performance page. The page also links to the first four classes and gives
+shortcuts for creating accounts, assigning class members, and reviewing quiz
+performance. Use **Refresh workspace** in the footer to reload these totals and
+the admin workspace data.
+
+![Admin overview](images/admin-overview.png)
+
+_Figure 2. Admin overview and workspace totals._
 
 ### Accounts
 
 Open **Accounts** to find existing users or create a student or teacher account.
 Creating accounts is optional for peer testing because demo accounts are already available.
+Use the role tabs to show all accounts, students, or teachers, or search by a
+person's display name or username. The table shows each person's name, username,
+role, and account ID.
 
 1. Select **Create account** and enter a display name (at most 100 characters).
 2. Enter a username of 3–50 letters, numbers, periods, underscores, or hyphens.
@@ -133,6 +195,10 @@ Creating accounts is optional for peer testing because demo accounts are already
 **Expected:** the message **Account created for [display name].** appears, using
 the name you entered. Find the entered username in Accounts and check its role.
 Additional Admin accounts cannot be created through this form.
+
+![Admin account list](images/admin-accounts.png)
+
+_Figure 3. Admin account list with role tabs and search._
 
 ### Classes and membership
 
@@ -153,7 +219,7 @@ further access to their quizzes until assignment is restored.
 
 ![Admin class membership](images/admin-class-membership.png)
 
-_Figure 2. Admin class membership._
+_Figure 4. Admin class membership for the one-student example class._
 
 ### Quiz performance and AI summary
 
@@ -177,11 +243,26 @@ Review AI observations critically. The product defines no pass mark or pass rate
 Use **Retry summary** after failure or **Regenerate summary** after success. While
 a replacement summary is generating, or if it fails, the previous summary is not displayed.
 
+Before every student submits, the panel shows **Awaiting submissions** and the
+number still required. The example below has a ten-student roster.
+
+![Admin quiz performance while awaiting submissions](images/admin-performance-awaiting-submissions.png)
+
+_Figure 5. Quiz performance before the full publication roster has submitted._
+
 ![Admin performance and AI summary](images/admin-performance-summary.png)
 
-_Figure 3. Admin performance and AI summary._
+_Figure 6. Completed quiz performance with exact metrics and AI observations._
 
-## 7. Teacher workflows
+## 7. Teacher guide
+
+Open **My classes** to see assigned classes and their draft and published quiz
+counts. Select **View quizzes** to return to those quizzes, or **Create quiz** to
+start a new draft.
+
+![Teacher classes](images/teacher-my-classes.png)
+
+_Figure 7. Teacher class list with quiz counts and creation shortcut._
 
 ### Upload DOCX and create a draft
 
@@ -207,7 +288,19 @@ extracted-character count. After **Create draft**, the review page displays
 **Admin Summary Smoke Test** and a question count of 3, with no generated questions
 yet. Creating the draft does not call AI.
 
+![Teacher create-quiz form with an uploaded DOCX](images/teacher-create-quiz.png)
+
+_Figure 8. Teacher create-quiz form after the notes upload._
+
 ### Generate, review, and regenerate
+
+The new draft initially has no questions. Enter optional generation instructions
+in the right panel and select **Generate questions**; review every returned
+question before publishing.
+
+![Teacher draft ready for question generation](images/teacher-empty-draft.png)
+
+_Figure 9. Empty draft with the generation instructions and action._
 
 1. Enter optional generation instructions of at most 1,000 characters and select
    **Generate questions**.
@@ -238,6 +331,20 @@ and states that the questions and student roster are frozen. Published quizzes a
 read-only; AI cannot publish by itself. If a different roster was published, create
 a new quiz in the intended class; the existing publication cannot be changed.
 
+Open **My quizzes** to find a draft or published quiz. The list shows its class,
+question count, publication date, and a link to the quiz.
+
+![Teacher My quizzes list](images/teacher-my-quizzes.png)
+
+_Figure 10. Teacher quiz list with a published quiz._
+
+Open a published quiz to review its frozen question content, answer key, and
+explanation.
+
+![Teacher published quiz question and answer key](images/teacher-published-quiz-review.png)
+
+_Figure 11. Published quiz review with a correct answer and explanation._
+
 ### Delete a draft
 
 On an unused draft, select **Delete draft**, then **Confirm deletion**. Do not delete
@@ -249,7 +356,7 @@ The draft and questions are permanently removed; uploaded notes are also removed
 when no other quiz uses them. Use a separate unused draft to test deletion, so the
 main testing example remains available.
 
-## 8. Student workflows
+## 8. Student guide
 
 ### Start or resume a quiz
 
@@ -293,9 +400,9 @@ an explicit retry succeeded with conceptual guidance that did not explicitly nam
 the correct protocol or option. The exact rejection cause was not established.
 Review hints critically; hint failures do not prevent answering or submitting.
 
-![Student quiz and AI hint](images/student-quiz-hint.png)
+![Student quiz question with the optional hint prompt and Ask for a hint control](images/student-quiz-hint.png)
 
-_Figure 4. Student quiz and AI hint._
+_Figure 12. Student quiz question and hint request controls before a hint is generated._
 
 ### Save answers
 
@@ -362,3 +469,19 @@ or retaken. Return through **View results** to read them again.
   publication of an already reviewed draft remain available during AI outages.
 
 For local setup and technical information, see the [Developer Guide](DeveloperGuide.md).
+
+## 10. Troubleshooting
+
+| Problem | What to do |
+| --- | --- |
+| The application does not load or shows a connection error | Reopen the public application URL and refresh the page. The hosted frontend and API can be temporarily unavailable; if the problem continues, report the page and displayed message to the team. |
+| Username or password is rejected | Check the spelling and sign-in details in section 3. Demo accounts are seeded only when the database is empty, so a previous deployment may have changed passwords or data. Ask the team/admin to confirm the current demo data. There is no self-service reset. |
+| Sign-in times out or the result is unclear | Select **Check session** before entering credentials again. If the check confirms you are signed out, the sign-in form returns. If it cannot confirm the session, try the check again and follow any retry time shown. |
+| A page or list looks out of date | Use that page's refresh control. Admin **Refresh workspace** reloads accounts, classes, and quizzes; class members and quiz performance have separate refresh controls. |
+| A DOCX upload is rejected | Use a nonempty `.docx` file no larger than 5 MiB, expanding to no more than 20 MiB, with at most 12,000 extracted text characters. Images and equations are not extracted. PDF files and image-only notes are unsupported. |
+| AI generation or a hint fails | Read the message beside the action and use its explicit retry control if offered. Retries are not automatic. If asked to wait, follow the displayed time. A failed or unverifiable hint is withheld; answering and submitting do not require AI. |
+| A teacher cannot publish a draft | Confirm you are the owning teacher, still assigned to the class, have reviewed the current generated questions, checked the review confirmation, and that at least one student is assigned. Refresh the quiz and review again if its content changed. |
+| Summary generation is unavailable | Every student in the roster frozen at publication must submit first. Refresh **Quiz performance** and confirm the submitted count equals the roster count. Membership changes after publication do not change this count. |
+| A student cannot find a published quiz | Check the signed-in student and confirm they were in the class when the quiz was published. Select **Refresh quizzes**. Students added after publication are not added to that quiz's roster. |
+
+When reporting an issue, include the role, page, action, and displayed message. Do not include passwords, session details, or private uploaded notes.
