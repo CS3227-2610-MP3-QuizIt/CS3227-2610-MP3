@@ -384,6 +384,7 @@ class SoCLaaS:
             "instructions": instructions,
             "input": context,
             "stream": False,
+            "store": False,
             "max_output_tokens": reserve,
         }
 

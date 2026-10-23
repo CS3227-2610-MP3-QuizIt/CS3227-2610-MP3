@@ -109,7 +109,14 @@ async def test_fixed_models_and_minimal_stateless_payload(feature: str) -> None:
     assert result.usage == {"input_tokens": None, "output_tokens": None, "total_tokens": None}
     assert len(calls) == (2 if feature == "hint" else 1)
     payload = calls[0]
-    assert set(payload) == {"model", "instructions", "input", "stream", "max_output_tokens"}
+    assert set(payload) == {
+        "model",
+        "instructions",
+        "input",
+        "stream",
+        "store",
+        "max_output_tokens",
+    }
     assert (
         payload["model"]
         == {"quiz_generation": "quiz-model", "hint": "hint-model", "summary": "summary-model"}[
@@ -117,6 +124,7 @@ async def test_fixed_models_and_minimal_stateless_payload(feature: str) -> None:
         ]
     )
     assert payload["stream"] is False
+    assert payload["store"] is False
     assert (
         payload["max_output_tokens"]
         == {"quiz_generation": 32768, "hint": 8192, "summary": 8192}[feature]
