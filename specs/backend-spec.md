@@ -374,7 +374,7 @@ An operator may verify all three configured IDs with a single `GET /v1/models` d
 | `generate_quiz` | `SOCLAAS_QUIZ_MODEL` |
 | `generate_quiz_result_summary` | `SOCLAAS_SUMMARY_MODEL` |
 
-Use **nonstreaming, stateless `POST /v1/responses`** for all three AI features. This endpoint documents `instructions`, `input`, and `max_output_tokens`, which are sufficient for these bounded tasks. The supplied reference says it translates internally to chat completions. Send the full required context on every request. Do not use `previous_response_id`, background mode, tools, web access, embeddings, or gateway conversation memory. Response state is temporary, and none of these extra capabilities is necessary for the app.
+Use **nonstreaming, stateless `POST /v1/responses`** for all three AI features. This endpoint documents `instructions`, `input`, and `max_output_tokens`, which are sufficient for these bounded tasks. Also send `store: false` so the gateway does not retain each response as a continuation conversation; keys have a retained-conversation cap (observed `400 continuation_limit_exceeded` at 50), which otherwise surfaces as `AI_UPSTREAM_ERROR`. The supplied reference says it translates internally to chat completions. Send the full required context on every request. Do not use `previous_response_id`, background mode, tools, web access, embeddings, or gateway conversation memory. Response state is temporary, and none of these extra capabilities is necessary for the app.
 
 ```json
 {

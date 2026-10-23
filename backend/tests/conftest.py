@@ -119,7 +119,14 @@ class Gateway:
         assert request.headers["authorization"] == "Bearer test-key"
         payload = json.loads(request.content)
         assert payload["stream"] is False
-        assert set(payload) <= {"model", "instructions", "input", "stream", "max_output_tokens"}
+        assert set(payload) <= {
+            "model",
+            "instructions",
+            "input",
+            "stream",
+            "store",
+            "max_output_tokens",
+        }
         self.calls.append(payload)
         self.entered.set()
         if self.blocked:
